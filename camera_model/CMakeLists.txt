@@ -5,27 +5,12 @@ set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++11")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fPIC")
 
-find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    std_msgs
-    )
-
 find_package(Boost REQUIRED COMPONENTS filesystem program_options system)
 include_directories(${Boost_INCLUDE_DIRS})
 
 find_package(OpenCV REQUIRED)
 
-# set(EIGEN_INCLUDE_DIR "/usr/local/include/eigen3")
-find_package(Ceres REQUIRED)
 include_directories(${CERES_INCLUDE_DIRS})
-
-
-catkin_package(
-    INCLUDE_DIRS include
-    LIBRARIES camera_model
-    CATKIN_DEPENDS roscpp std_msgs
-#    DEPENDS system_lib
-    )
 
 include_directories(
     ${catkin_INCLUDE_DIRS}
@@ -34,7 +19,7 @@ include_directories(
 include_directories("include")
 
 
-add_executable(Calibration 
+add_library(Calibration
     src/intrinsic_calib.cc
     src/chessboard/Chessboard.cc
     src/calib/CameraCalibration.cc
