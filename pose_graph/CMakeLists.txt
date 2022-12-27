@@ -31,3 +31,6 @@ add_library(pose_graph
     )
 
 target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
+
+add_executable(pose_graph_node src/pose_graph_node.cpp)
+target_link_libraries(pose_graph_node pose_graph)

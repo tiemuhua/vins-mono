@@ -38,18 +38,10 @@ class PoseGraph
 public:
 	PoseGraph();
 	~PoseGraph();
-	void registerPub(ros::NodeHandle &n);
 	void addKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop);
-	void loadKeyFrame(KeyFrame* cur_kf, bool flag_detect_loop);
-	void loadVocabulary(std::string voc_path);
+	void loadVocabulary(const std::string& voc_path);
 	void updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1 > &_loop_info);
 	KeyFrame* getKeyFrame(int index);
-	nav_msgs::Path path[10];
-	nav_msgs::Path base_path;
-	CameraPoseVisualization* posegraph_visualization;
-	void savePoseGraph();
-	void loadPoseGraph();
-	void publish();
 	Vector3d t_drift;
 	double yaw_drift;
 	Matrix3d r_drift;
@@ -60,10 +52,9 @@ public:
 
 private:
 	int detectLoop(KeyFrame* keyframe, int frame_index);
-	void addKeyFrameIntoVoc(KeyFrame* keyframe);
+	void _addKeyFrameIntoVoc(KeyFrame* keyframe);
 	void optimize4DoF();
-	void updatePath();
-	list<KeyFrame*> keyframelist;
+	list<KeyFrame*> keyframelist_;
 	std::mutex m_keyframelist;
 	std::mutex m_optimize_buf;
 	std::mutex m_path;
@@ -79,12 +70,8 @@ private:
 	int base_sequence;
 
 	BriefDatabase db;
-	BriefVocabulary* voc;
+	BriefVocabulary* voc{};
 
-	ros::Publisher pub_pg_path;
-	ros::Publisher pub_base_path;
-	ros::Publisher pub_pose_graph;
-	ros::Publisher pub_path[10];
 };
 
 template <typename T>
