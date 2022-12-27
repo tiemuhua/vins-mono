@@ -7,6 +7,7 @@
 #include <string>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
+#include <ceres/>
 #include <queue>
 #include <assert.h>
 #include <nav_msgs/Path.h>
@@ -96,7 +97,7 @@ T NormalizeAngle(const T& angle_degrees) {
   	return angle_degrees;
 };
 
-class AngleLocalParameterization {
+class AngleManifold {
  public:
 
   template <typename T>
@@ -108,9 +109,8 @@ class AngleLocalParameterization {
     return true;
   }
 
-  static ceres::LocalParameterization* Create() {
-    return (new ceres::AutoDiffLocalParameterization<AngleLocalParameterization,
-                                                     1, 1>);
+  static ceres::Manifold* Create() {
+    return (new ceres::AutoDiffManifold<AngleManifold, 1, 1>);
   }
 };
 

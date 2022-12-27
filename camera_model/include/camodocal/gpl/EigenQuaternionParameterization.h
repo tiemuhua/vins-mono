@@ -6,7 +6,7 @@
 namespace camodocal
 {
 
-class EigenQuaternionParameterization : public ceres::LocalParameterization
+class EigenQuaternionParameterization : public ceres::Manifold
 {
 public:
     virtual ~EigenQuaternionParameterization() {}
