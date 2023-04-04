@@ -6,10 +6,10 @@
 #define VINS_LOG_H
 #include <cstdio>
 
-#define LOG_D(...) printf(TAG, __VA_ARGS__)
-#define LOG_I(...) printf(TAG, __VA_ARGS__)
-#define LOG_W(...) printf(TAG, __VA_ARGS__)
-#define LOG_E(...) printf(TAG, __VA_ARGS__)
+#define LOG_D(...) printf(__VA_ARGS__)
+#define LOG_I(...) printf(__VA_ARGS__)
+#define LOG_W(...) printf(__VA_ARGS__)
+#define LOG_E(...) printf(__VA_ARGS__)
 
 
 #endif //VINS_LOG_H
