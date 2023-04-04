@@ -1,4 +1,5 @@
 #include "initial_alignment.h"
+#include "log.h"
 
 void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d *Bgs) {
     Matrix3d A;
@@ -22,7 +23,6 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d *Bgs)
 
     }
     delta_bg = A.ldlt().solve(b);
-    LOG_W_STREAM("gyroscope bias initial calibration " << delta_bg.transpose());
 
     for (int i = 0; i <= WINDOW_SIZE; i++)
         Bgs[i] += delta_bg;
@@ -176,7 +176,6 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     double s = x(n_state - 1) / 100.0;
     LOG_D("estimated scale: %f", s);
     g = x.segment<3>(n_state - 4);
-    LOG_D_STREAM(" result g     " << g.norm() << " " << g.transpose());
     if (fabs(g.norm() - G.norm()) > 1.0 || s < 0) {
         return false;
     }
@@ -184,7 +183,6 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
     (x.tail<1>())(0) = s;
-    LOG_D_STREAM(" refine     " << g.norm() << " " << g.transpose());
     if (s < 0.0)
         return false;
     else

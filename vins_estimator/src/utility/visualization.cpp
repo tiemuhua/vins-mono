@@ -66,12 +66,7 @@ void printStatistics(const Estimator &estimator, double t) {
         return;
     printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(),
            estimator.Ps[WINDOW_SIZE].z());
-    LOG_D_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
-    LOG_D_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
     for (int i = 0; i < NUM_OF_CAM; i++) {
-        //LOG_D("calibration result for camera %d", i);
-        LOG_D_STREAM("extirnsic tic: " << estimator.tic[i].transpose());
-        LOG_D_STREAM("extrinsic ric: " << Utility::R2ypr(estimator.ric[i]).transpose());
         if (ESTIMATE_EXTRINSIC) {
             cv::FileStorage fs(EX_CALIB_RESULT_PATH, cv::FileStorage::WRITE);
             Eigen::Matrix3d eigen_R;

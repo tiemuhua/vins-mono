@@ -23,8 +23,6 @@ include_directories(/usr/local/include/)
 include_directories(~/vins/)
 include_directories(~/vins/VINS-Mono/camera_model/include/)
 include_directories(~/vins/opencv-3.4/include)
-include_directories(~/vins/)
-include_directories(~/vins/)
 
 add_subdirectory(camera_model camera_model)
 add_subdirectory(feature_tracker feature_tracker)

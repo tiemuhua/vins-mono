@@ -132,7 +132,6 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             Matrix3d calib_ric;
             if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrations[frame_count]->delta_q, calib_ric)) {
                 LOG_W("initial extrinsic rotation calib success");
-                LOG_W_STREAM("initial extrinsic rotation: " << endl << calib_ric);
                 ric[0] = calib_ric;
                 RIC[0] = calib_ric;
                 ESTIMATE_EXTRINSIC = 1;
@@ -385,8 +384,6 @@ bool Estimator::visualInitialAlign() {
         Rs[i] = rot_diff * Rs[i];
         Vs[i] = rot_diff * Vs[i];
     }
-    LOG_D_STREAM("g0     " << g.transpose());
-    LOG_D_STREAM("my R0  " << Utility::R2ypr(Rs[0]).transpose());
 
     return true;
 }

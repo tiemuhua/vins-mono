@@ -27,9 +27,7 @@ template<typename T>
 T readParam(ros::NodeHandle &n, std::string name) {
     T ans;
     if (n.getParam(name, ans)) {
-        LOG_I_STREAM("Loaded " << name << ": " << ans);
     } else {
-        LOG_E_STREAM("Failed to load " << name);
         n.shutdown();
     }
     return ans;
@@ -96,9 +94,6 @@ void readParameters(ros::NodeHandle &n) {
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
-        LOG_I_STREAM("Extrinsic_R : " << std::endl << RIC[0]);
-        LOG_I_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());
-
     }
 
     INIT_DEPTH = 5.0;
@@ -107,15 +102,10 @@ void readParameters(ros::NodeHandle &n) {
 
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];
-    if (ESTIMATE_TD)
-        LOG_I_STREAM("Unsynchronized sensors, online estimate time offset, initial td: " << TD);
-    else
-        LOG_I_STREAM("Synchronized sensors, fix time offset: " << TD);
 
     ROLLING_SHUTTER = fsSettings["rolling_shutter"];
     if (ROLLING_SHUTTER) {
         TR = fsSettings["rolling_shutter_tr"];
-        LOG_I_STREAM("rolling shutter camera, read out time per line: " << TR);
     } else {
         TR = 0;
     }
