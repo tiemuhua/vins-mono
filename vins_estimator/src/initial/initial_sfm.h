@@ -23,8 +23,8 @@ struct SFMFeature {
     double depth;
 };
 
-struct ReprojectionError3D {
-    ReprojectionError3D(double observed_u, double observed_v)
+struct ReProjectionError3D {
+    ReProjectionError3D(double observed_u, double observed_v)
             : observed_u(observed_u), observed_v(observed_v) {}
 
     template<typename T>
@@ -44,8 +44,8 @@ struct ReprojectionError3D {
     static ceres::CostFunction *Create(const double observed_x,
                                        const double observed_y) {
         return (new ceres::AutoDiffCostFunction<
-                ReprojectionError3D, 2, 4, 3, 3>(
-                new ReprojectionError3D(observed_x, observed_y)));
+                ReProjectionError3D, 2, 4, 3, 3>(
+                new ReProjectionError3D(observed_x, observed_y)));
     }
 
     double observed_u;
@@ -57,7 +57,7 @@ public:
     GlobalSFM();
 
     bool construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
-                   const Matrix3d relative_R, const Vector3d relative_T,
+                   const Matrix3d &relative_R, const Vector3d &relative_T,
                    vector<SFMFeature> &sfm_f, map<int, Vector3d> &sfm_tracked_points);
 
 private:

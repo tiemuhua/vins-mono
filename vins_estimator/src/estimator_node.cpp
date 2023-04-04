@@ -101,13 +101,13 @@ getMeasurements() {
             return measurements;
 
         if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td)) {
-            //ROS_WARN("wait for imu, only should happen at the beginning");
+            //LOG_W("wait for imu, only should happen at the beginning");
             sum_of_wait++;
             return measurements;
         }
 
         if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front()->header.stamp.toSec() + estimator.td)) {
-            ROS_WARN("throw img, only should happen at the beginning");
+            LOG_W("throw img, only should happen at the beginning");
             feature_buf.pop();
             continue;
         }
@@ -121,7 +121,7 @@ getMeasurements() {
         }
         IMUs.emplace_back(imu_buf.front());
         if (IMUs.empty())
-            ROS_WARN("no imu between two image");
+            LOG_W("no imu between two image");
         measurements.emplace_back(IMUs, img_msg);
     }
     return measurements;
@@ -129,7 +129,7 @@ getMeasurements() {
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg) {
     if (imu_msg->header.stamp.toSec() <= last_imu_t) {
-        ROS_WARN("imu message in disorder!");
+        LOG_W("imu message in disorder!");
         return;
     }
     last_imu_t = imu_msg->header.stamp.toSec();
@@ -166,7 +166,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg) {
 
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg) {
     if (restart_msg->data == true) {
-        ROS_WARN("restart the estimator!");
+        LOG_W("restart the estimator!");
         m_buf.lock();
         while (!feature_buf.empty())
             feature_buf.pop();
@@ -266,7 +266,7 @@ void process() {
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
             }
 
-            ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
+            LOG_D("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
             TicToc t_s;
             map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
@@ -301,7 +301,7 @@ void process() {
             pubKeyframe(estimator);
             if (relo_msg != NULL)
                 pubRelocalization(estimator);
-            //ROS_ERROR("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
+            //LOG_E("end: %f, at %f", img_msg->header.stamp.toSec(), ros::Time::now().toSec());
         }
         m_estimator.unlock();
         m_buf.lock();
@@ -320,9 +320,9 @@ int main(int argc, char **argv) {
     readParameters(n);
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE
-    ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
+    LOG_D("EIGEN_DONT_PARALLELIZE");
 #endif
-    ROS_WARN("waiting for image and imu...");
+    LOG_W("waiting for image and imu...");
 
     registerPub(n);
 

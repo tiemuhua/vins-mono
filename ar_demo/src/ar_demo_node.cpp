@@ -221,13 +221,13 @@ void project_object(Vector3d camera_p, Quaterniond camera_q)
                 output_corner_dis[i].push_back(local_point.norm());
                 if (USE_UNDISTORED_IMG)
                 {
-                    //ROS_INFO("directly project!");
+                    //LOG_I("directly project!");
                     local_uv.x() = local_point(0) / local_point(2) * FOCAL_LENGTH + COL / 2;
                     local_uv.y() = local_point(1) / local_point(2) * FOCAL_LENGTH + ROW / 2;
                 }
                 else
                 {
-                    //ROS_INFO("camera model project!");
+                    //LOG_I("camera model project!");
                     m_camera->spaceToPlane(local_point, local_uv);
                     local_uv.x() = std::min(std::max(-5000.0, local_uv.x()),5000.0);
                     local_uv.y() = std::min(std::max(-5000.0, local_uv.y()),5000.0);
@@ -359,7 +359,7 @@ void callback(const ImageConstPtr& img_msg, const nav_msgs::Odometry::ConstPtr p
         img_cnt ++;
         return;
     }
-   //ROS_INFO("sync callback!");
+   //LOG_I("sync callback!");
    Vector3d camera_p(pose_msg->pose.pose.position.x,
                      pose_msg->pose.pose.position.y,
                      pose_msg->pose.pose.position.z);
@@ -374,7 +374,7 @@ void callback(const ImageConstPtr& img_msg, const nav_msgs::Odometry::ConstPtr p
    //cout << "angle " << acos(w_cam_z.dot(Vector3d(0, 0, 1))) * 180.0 / M_PI << endl;
    if (acos(w_cam_z.dot(Vector3d(0, 0, 1))) * 180.0 / M_PI < 90)
    {
-        //ROS_WARN(" look down");
+        //LOG_W(" look down");
         look_ground = 1;
    }
    else
@@ -446,10 +446,10 @@ void point_callback(const sensor_msgs::PointCloudConstPtr &point_msg)
         return;
     int tmp_num = height_range[max_index - 1] + height_range[max_index] + height_range[max_index + 1];
     double new_height = (height_sum[max_index - 1] + height_sum[max_index] + height_sum[max_index + 1]) / tmp_num;
-    //ROS_WARN("detect ground plain, height %f", new_height);
+    //LOG_W("detect ground plain, height %f", new_height);
     if (tmp_num < (int)point_msg->points.size() / 2)
     {
-        //ROS_INFO("points not enough");
+        //LOG_I("points not enough");
         return;
     }
     //update height
@@ -479,7 +479,7 @@ void pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg)
 
     if (img_buf.empty())
     {
-        //ROS_WARN("image coming late");
+        //LOG_W("image coming late");
         return;
     }
 
@@ -494,7 +494,7 @@ void pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg)
         img_buf.pop();
     }
     //else
-    //    ROS_WARN("image coming late");
+    //    LOG_W("image coming late");
 }
 int main( int argc, char** argv )
 {
@@ -545,7 +545,7 @@ int main( int argc, char** argv )
 
     string calib_file;
     n.getParam("calib_file", calib_file);
-    ROS_INFO("reading paramerter of camera %s", calib_file.c_str());
+    LOG_I("reading paramerter of camera %s", calib_file.c_str());
     m_camera = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 
     ros::Rate r(100);

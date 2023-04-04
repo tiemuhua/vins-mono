@@ -85,7 +85,7 @@ void new_sequence() {
     sequence++;
     printf("sequence cnt %d \n", sequence);
     if (sequence > 5) {
-        ROS_WARN("only support 5 sequences since it's boring to copy code for more sequences.");
+        LOG_W("only support 5 sequences since it's boring to copy code for more sequences.");
         ROS_BREAK();
     }
     posegraph.posegraph_visualization->reset();
@@ -103,7 +103,7 @@ void new_sequence() {
 }
 
 void image_callback(const sensor_msgs::ImageConstPtr &image_msg) {
-    //ROS_INFO("image_callback!");
+    //LOG_I("image_callback!");
     if (!LOOP_CLOSURE)
         return;
     m_buf.lock();
@@ -116,7 +116,7 @@ void image_callback(const sensor_msgs::ImageConstPtr &image_msg) {
         last_image_time = image_msg->header.stamp.toSec();
     else if (image_msg->header.stamp.toSec() - last_image_time > 1.0 ||
              image_msg->header.stamp.toSec() < last_image_time) {
-        ROS_WARN("image discontinue! detect a new sequence!");
+        LOG_W("image discontinue! detect a new sequence!");
         new_sequence();
     }
     last_image_time = image_msg->header.stamp.toSec();
@@ -186,7 +186,7 @@ void relo_relative_pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg) {
 }
 
 void vio_callback(const nav_msgs::Odometry::ConstPtr &pose_msg) {
-    //ROS_INFO("vio_callback!");
+    //LOG_I("vio_callback!");
     Vector3d vio_t(pose_msg->pose.pose.position.x, pose_msg->pose.pose.position.y, pose_msg->pose.pose.position.z);
     Quaterniond vio_q;
     vio_q.w() = pose_msg->pose.pose.orientation.w;

@@ -37,7 +37,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     // detect unstable camera stream
     if (img_msg->header.stamp.toSec() - last_image_time > 1.0 || img_msg->header.stamp.toSec() < last_image_time)
     {
-        ROS_WARN("image discontinue! reset the feature tracker!");
+        LOG_W("image discontinue! reset the feature tracker!");
         first_image_flag = true; 
         last_image_time = 0;
         pub_count = 1;
@@ -81,7 +81,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     TicToc t_r;
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
-        ROS_DEBUG("processing camera %d", i);
+        LOG_D("processing camera %d", i);
         if (i != 1 || !STEREO_TRACK)
             trackerData[i].readImage(ptr->image.rowRange(ROW * i, ROW * (i + 1)), img_msg->header.stamp.toSec());
         else
@@ -155,7 +155,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         feature_points->channels.push_back(v_of_point);
         feature_points->channels.push_back(velocity_x_of_point);
         feature_points->channels.push_back(velocity_y_of_point);
-        ROS_DEBUG("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
+        LOG_D("publish %f, at %f", feature_points->header.stamp.toSec(), ros::Time::now().toSec());
         // skip the first image; since no optical speed on frist image
         if (!init_pub)
         {
@@ -200,7 +200,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             pub_match.publish(ptr->toImageMsg());
         }
     }
-    ROS_INFO("whole feature tracker processing costs: %f", t_r.toc());
+    LOG_I("whole feature tracker processing costs: %f", t_r.toc());
 }
 
 int main(int argc, char **argv)
@@ -220,11 +220,11 @@ int main(int argc, char **argv)
             trackerData[i].fisheye_mask = cv::imread(FISHEYE_MASK, 0);
             if(!trackerData[i].fisheye_mask.data)
             {
-                ROS_INFO("load mask fail");
+                LOG_I("load mask fail");
                 ROS_BREAK();
             }
             else
-                ROS_INFO("load mask success");
+                LOG_I("load mask success");
         }
     }
 

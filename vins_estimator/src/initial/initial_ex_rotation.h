@@ -11,8 +11,6 @@ using namespace std;
 
 using namespace Eigen;
 
-#include <ros/console.h>
-
 /* This class help you to calibrate extrinsic rotation between imu and camera when your totally don't konw the extrinsic parameter */
 class InitialEXRotation {
 public:

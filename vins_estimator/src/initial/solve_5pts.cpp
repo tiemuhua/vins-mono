@@ -172,12 +172,6 @@ namespace cv {
             return good4;
         }
     }
-
-    int recoverPose(InputArray E, InputArray _points1, InputArray _points2, OutputArray _R,
-                    OutputArray _t, double focal, Point2d pp, InputOutputArray _mask) {
-        Mat cameraMatrix = (Mat_<double>(3, 3) << focal, 0, pp.x, 0, focal, pp.y, 0, 0, 1);
-        return cv::recoverPose(E, _points1, _points2, cameraMatrix, _R, _t, _mask);
-    }
 }
 
 
@@ -185,9 +179,9 @@ bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &co
                                       Vector3d &Translation) {
     if (corres.size() >= 15) {
         vector<cv::Point2f> ll, rr;
-        for (int i = 0; i < int(corres.size()); i++) {
-            ll.push_back(cv::Point2f(corres[i].first(0), corres[i].first(1)));
-            rr.push_back(cv::Point2f(corres[i].second(0), corres[i].second(1)));
+        for (const auto & corre : corres) {
+            ll.emplace_back(cv::Point2f(corre.first(0), corre.first(1)));
+            rr.emplace_back(cv::Point2f(corre.second(0), corre.second(1)));
         }
         cv::Mat mask;
         cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);

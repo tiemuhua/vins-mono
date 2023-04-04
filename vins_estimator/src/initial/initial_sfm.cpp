@@ -238,7 +238,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
             continue;
         for (int j = 0; j < int(sfm_f[i].observation.size()); j++) {
             int l = sfm_f[i].observation[j].first;
-            ceres::CostFunction *cost_function = ReprojectionError3D::Create(
+            ceres::CostFunction *cost_function = ReProjectionError3D::Create(
                     sfm_f[i].observation[j].second.x(),
                     sfm_f[i].observation[j].second.y());
 

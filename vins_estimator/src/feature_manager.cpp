@@ -37,8 +37,8 @@ int FeatureManager::getFeatureCount() {
 bool FeatureManager::addFeatureCheckParallax(int frame_count,
                                              const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
                                              double td) {
-    ROS_DEBUG("input feature: %d", (int) image.size());
-    ROS_DEBUG("num of feature: %d", getFeatureCount());
+    LOG_D("input feature: %d", (int) image.size());
+    LOG_D("num of feature: %d", getFeatureCount());
     double parallax_sum = 0;
     int parallax_num = 0;
     last_track_num = 0;
@@ -73,23 +73,23 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count,
     if (parallax_num == 0) {
         return true;
     } else {
-        ROS_DEBUG("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
-        ROS_DEBUG("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
+        LOG_D("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
+        LOG_D("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
         return parallax_sum / parallax_num >= MIN_PARALLAX;
     }
 }
 
 void FeatureManager::debugShow() {
-    ROS_DEBUG("debug show");
+    LOG_D("debug show");
     for (auto &it: feature) {
         ROS_ASSERT(it.feature_per_frame.size() != 0);
         ROS_ASSERT(it.start_frame >= 0);
         ROS_ASSERT(it.used_num >= 0);
 
-        ROS_DEBUG("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
+        LOG_D("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
         int sum = 0;
         for (auto &j: it.feature_per_frame) {
-            ROS_DEBUG("%d,", int(j.is_used));
+            LOG_D("%d,", int(j.is_used));
             sum += j.is_used;
             printf("(%lf,%lf) ", j.point(0), j.point(1));
         }
@@ -123,7 +123,7 @@ void FeatureManager::setDepth(const VectorXd &x) {
             continue;
 
         it_per_id.estimated_depth = 1.0 / x(++feature_index);
-        //ROS_INFO("feature id %d , start_frame %d, depth %f ", it_per_id->feature_id, it_per_id-> start_frame, it_per_id->estimated_depth);
+        //LOG_I("feature id %d , start_frame %d, depth %f ", it_per_id->feature_id, it_per_id-> start_frame, it_per_id->estimated_depth);
         if (it_per_id.estimated_depth < 0) {
             it_per_id.solve_flag = 2;
         } else

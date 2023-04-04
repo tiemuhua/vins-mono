@@ -20,11 +20,11 @@ T readParam(ros::NodeHandle &n, std::string name)
     T ans;
     if (n.getParam(name, ans))
     {
-        ROS_INFO_STREAM("Loaded " << name << ": " << ans);
+        LOG_I_STREAM("Loaded " << name << ": " << ans);
     }
     else
     {
-        ROS_ERROR_STREAM("Failed to load " << name);
+        LOG_E_STREAM("Failed to load " << name);
         n.shutdown();
     }
     return ans;
@@ -65,7 +65,7 @@ tf::Transform trans;
 
 void odom_callback(const nav_msgs::OdometryConstPtr &odom_msg)
 {
-    //ROS_INFO("odom callback!");
+    //LOG_I("odom callback!");
     if (odom_msg->header.stamp.toSec() > benchmark.back().t)
       return;
   
@@ -135,20 +135,20 @@ int main(int argc, char **argv)
     FILE *f = fopen(csv_file.c_str(), "r");
     if (f==NULL)
     {
-      ROS_WARN("can't load ground truth; wrong path");
+      LOG_W("can't load ground truth; wrong path");
       //std::cerr << "can't load ground truth; wrong path " << csv_file << std::endl;
       return 0;
     }
     char tmp[10000];
     if (fgets(tmp, 10000, f) == NULL)
     {
-        ROS_WARN("can't load ground truth; no data available");
+        LOG_W("can't load ground truth; no data available");
     }
     while (!feof(f))
         benchmark.emplace_back(f);
     fclose(f);
     benchmark.pop_back();
-    ROS_INFO("Data loaded: %d", (int)benchmark.size());
+    LOG_I("Data loaded: %d", (int)benchmark.size());
 
     pub_odom = n.advertise<nav_msgs::Odometry>("odometry", 1000);
     pub_path = n.advertise<nav_msgs::Path>("path", 1000);
