@@ -23,47 +23,59 @@
 #include <opencv2/core/eigen.hpp>
 
 
-class Estimator
-{
-  public:
+class Estimator {
+public:
     Estimator();
 
     void setParameter();
 
     // interface
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
-    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
-    void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
+
+    void
+    processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
+
+    void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t,
+                      Matrix3d _relo_r);
 
     // internal
     void clearState();
+
     bool initialStructure();
+
     bool visualInitialAlign();
+
     bool relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l);
+
     void slideWindow();
+
     void solveOdometry();
+
     void slideWindowNew();
+
     void slideWindowOld();
+
     void optimization();
+
     void vector2double();
+
     void double2vector();
+
     bool failureDetection();
 
 
-    enum SolverFlag
-    {
+    enum SolverFlag {
         INITIAL,
         NON_LINEAR
     };
 
-    enum MarginalizationFlag
-    {
+    enum MarginalizationFlag {
         MARGIN_OLD = 0,
         MARGIN_SECOND_NEW = 1
     };
 
     SolverFlag solver_flag;
-    MarginalizationFlag  marginalization_flag;
+    MarginalizationFlag marginalization_flag;
     Vector3d g;
     MatrixXd Ap[2], backup_A;
     VectorXd bp[2], backup_b;

@@ -1,7 +1,5 @@
 #include "keyframe.h"
-#include "camodocal/camera_models/CameraFactory.h"
-#include "camodocal/camera_models/CataCamera.h"
-#include "camodocal/camera_models/PinholeCamera.h"
+#include <opencv2/imgproc/types_c.h>
 
 template<typename Derived>
 static void reduceVector(vector<Derived> &v, vector<uchar> status) {
@@ -87,17 +85,7 @@ void KeyFrame::computeWindowBRIEFPoint() {
 void KeyFrame::computeBRIEFPoint() {
     BriefExtractor extractor(BRIEF_PATTERN_FILE.c_str());
     const int fast_th = 20; // corner detector response threshold
-    if (1)
-        cv::FAST(image, keypoints, fast_th, true);
-    else {
-        vector<cv::Point2f> tmp_pts;
-        cv::goodFeaturesToTrack(image, tmp_pts, 500, 0.01, 10);
-        for (int i = 0; i < (int) tmp_pts.size(); i++) {
-            cv::KeyPoint key;
-            key.pt = tmp_pts[i];
-            keypoints.push_back(key);
-        }
-    }
+    cv::FAST(image, keypoints, fast_th, true);
     extractor(image, keypoints, brief_descriptors);
     for (int i = 0; i < (int) keypoints.size(); i++) {
         Eigen::Vector3d tmp_p;
@@ -159,37 +147,10 @@ void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
 
 }
 
-
-void KeyFrame::FundmantalMatrixRANSAC(const std::vector<cv::Point2f> &matched_2d_cur_norm,
-                                      const std::vector<cv::Point2f> &matched_2d_old_norm,
-                                      vector<uchar> &status) {
-    int n = (int) matched_2d_cur_norm.size();
-    for (int i = 0; i < n; i++)
-        status.push_back(0);
-    if (n >= 8) {
-        vector<cv::Point2f> tmp_cur(n), tmp_old(n);
-        for (int i = 0; i < (int) matched_2d_cur_norm.size(); i++) {
-            double FOCAL_LENGTH = 460.0;
-            double tmp_x, tmp_y;
-            tmp_x = FOCAL_LENGTH * matched_2d_cur_norm[i].x + COL / 2.0;
-            tmp_y = FOCAL_LENGTH * matched_2d_cur_norm[i].y + ROW / 2.0;
-            tmp_cur[i] = cv::Point2f(tmp_x, tmp_y);
-
-            tmp_x = FOCAL_LENGTH * matched_2d_old_norm[i].x + COL / 2.0;
-            tmp_y = FOCAL_LENGTH * matched_2d_old_norm[i].y + ROW / 2.0;
-            tmp_old[i] = cv::Point2f(tmp_x, tmp_y);
-        }
-        cv::findFundamentalMat(tmp_cur, tmp_old, cv::FM_RANSAC, 3.0, 0.9, status);
-    }
-}
-
 void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
                          const std::vector<cv::Point3f> &matched_3d,
                          std::vector<uchar> &status,
                          Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old) {
-    //for (int i = 0; i < matched_3d.size(); i++)
-    //	printf("3d x: %f, y: %f, z: %f\n",matched_3d[i].x, matched_3d[i].y, matched_3d[i].z );
-    //printf("match size %d \n", matched_3d.size());
     cv::Mat r, rvec, t, D, tmp_r;
     cv::Mat K = (cv::Mat_<double>(3, 3) << 1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
     Matrix3d R_inital;
@@ -255,32 +216,6 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
     matched_id = point_id;
 
     TicToc t_match;
-#if 0
-    if (DEBUG_IMAGE)
-    {
-        cv::Mat gray_img, loop_match_img;
-        cv::Mat old_img = old_kf->image;
-        cv::hconcat(image, old_img, gray_img);
-        cvtColor(gray_img, loop_match_img, CV_GRAY2RGB);
-        for(int i = 0; i< (int)point_2d_uv.size(); i++)
-        {
-            cv::Point2f cur_pt = point_2d_uv[i];
-            cv::circle(loop_match_img, cur_pt, 5, cv::Scalar(0, 255, 0));
-        }
-        for(int i = 0; i< (int)old_kf->keypoints.size(); i++)
-        {
-            cv::Point2f old_pt = old_kf->keypoints[i].pt;
-            old_pt.x += COL;
-            cv::circle(loop_match_img, old_pt, 5, cv::Scalar(0, 255, 0));
-        }
-        ostringstream path;
-        path << "/home/tony-ws1/raw_data/loop_image/"
-                << index << "-"
-                << old_kf->index << "-" << "0raw_point.jpg";
-        cv::imwrite( path.str().c_str(), loop_match_img);
-    }
-#endif
-    //printf("search by des\n");
     searchByBRIEFDes(matched_2d_old, matched_2d_old_norm, status, old_kf->brief_descriptors, old_kf->keypoints,
                      old_kf->keypoints_norm);
     reduceVector(matched_2d_cur, status);
@@ -289,7 +224,6 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
     reduceVector(matched_2d_old_norm, status);
     reduceVector(matched_3d, status);
     reduceVector(matched_id, status);
-    //printf("search by des finish\n");
 
     status.clear();
     Eigen::Vector3d PnP_T_old;
@@ -314,12 +248,10 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
             cv::hconcat(image, gap_image, gap_image);
             cv::hconcat(gap_image, old_img, gray_img);
             cvtColor(gray_img, loop_match_img, CV_GRAY2RGB);
-            for (int i = 0; i < (int) matched_2d_cur.size(); i++) {
-                cv::Point2f cur_pt = matched_2d_cur[i];
+            for (auto cur_pt : matched_2d_cur) {
                 cv::circle(loop_match_img, cur_pt, 5, cv::Scalar(0, 255, 0));
             }
-            for (int i = 0; i < (int) matched_2d_old.size(); i++) {
-                cv::Point2f old_pt = matched_2d_old[i];
+            for (auto old_pt : matched_2d_old) {
                 old_pt.x += (COL + gap);
                 cv::circle(loop_match_img, old_pt, 5, cv::Scalar(0, 255, 0));
             }
@@ -330,31 +262,12 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
             }
             cv::Mat notation(50, COL + gap + COL, CV_8UC3, cv::Scalar(255, 255, 255));
             putText(notation, "current frame: " + to_string(index) + "  sequence: " + to_string(sequence),
-                    cv::Point2f(20, 30), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
+                    cv::Point2f(20, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
 
             putText(notation,
                     "previous frame: " + to_string(old_kf->index) + "  sequence: " + to_string(old_kf->sequence),
-                    cv::Point2f(20 + COL + gap, 30), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
+                    cv::Point2f(20 + COL + gap, 30), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
             cv::vconcat(notation, loop_match_img, loop_match_img);
-
-            /*
-            ostringstream path;
-            path <<  "/home/tony-ws1/raw_data/loop_image/"
-                    << index << "-"
-                    << old_kf->index << "-" << "3pnp_match.jpg";
-            cv::imwrite( path.str().c_str(), loop_match_img);
-            */
-            if ((int) matched_2d_cur.size() > MIN_LOOP_NUM) {
-                /*
-                cv::imshow("loop connection",loop_match_img);
-                cv::waitKey(10);
-                */
-                cv::Mat thumbimage;
-                cv::resize(loop_match_img, thumbimage, cv::Size(loop_match_img.cols / 2, loop_match_img.rows / 2));
-                sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", thumbimage).toImageMsg();
-                msg->header.stamp = ros::Time(time_stamp);
-                pub_match_img.publish(msg);
-            }
         }
     }
 
@@ -362,11 +275,7 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
         relative_t = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
         relative_q = PnP_R_old.transpose() * origin_vio_R;
         relative_yaw = Utility::normalizeAngle(Utility::R2ypr(origin_vio_R).x() - Utility::R2ypr(PnP_R_old).x());
-        //printf("PNP relative\n");
-        //cout << "pnp relative_t " << relative_t.transpose() << endl;
-        //cout << "pnp relative_yaw " << relative_yaw << endl;
         if (abs(relative_yaw) < 30.0 && relative_t.norm() < 20.0) {
-
             has_loop = true;
             loop_index = old_kf->index;
             loop_info << relative_t.x(), relative_t.y(), relative_t.z(),

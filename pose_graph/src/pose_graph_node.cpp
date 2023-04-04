@@ -1,15 +1,5 @@
 #include <vector>
-#include <ros/ros.h>
-#include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
-#include <sensor_msgs/PointCloud.h>
-#include <sensor_msgs/Image.h>
-#include <sensor_msgs/image_encodings.h>
-#include <visualization_msgs/Marker.h>
-#include <std_msgs/Bool.h>
-#include <cv_bridge/cv_bridge.h>
 #include <iostream>
-#include <ros/package.h>
 #include <mutex>
 #include <queue>
 #include <thread>
@@ -25,7 +15,7 @@
 #define SKIP_FIRST_CNT 10
 using namespace std;
 
-queue<sensor_msgs::ImageConstPtr> image_buf;
+queue<cv::Mat> image_buf;
 queue<sensor_msgs::PointCloudConstPtr> point_buf;
 queue<nav_msgs::Odometry::ConstPtr> pose_buf;
 queue<Eigen::Vector3d> odometry_buf;
@@ -133,40 +123,19 @@ void image_callback(const sensor_msgs::ImageConstPtr &image_msg) {
 }
 
 void point_callback(const sensor_msgs::PointCloudConstPtr &point_msg) {
-    //ROS_INFO("point_callback!");
     if (!LOOP_CLOSURE)
         return;
     m_buf.lock();
     point_buf.push(point_msg);
     m_buf.unlock();
-    /*
-    for (unsigned int i = 0; i < point_msg->points.size(); i++)
-    {
-        printf("%d, 3D point: %f, %f, %f 2D point %f, %f \n",i , point_msg->points[i].x, 
-                                                     point_msg->points[i].y,
-                                                     point_msg->points[i].z,
-                                                     point_msg->channels[i].values[0],
-                                                     point_msg->channels[i].values[1]);
-    }
-    */
 }
 
 void pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg) {
-    //ROS_INFO("pose_callback!");
     if (!LOOP_CLOSURE)
         return;
     m_buf.lock();
     pose_buf.push(pose_msg);
     m_buf.unlock();
-    /*
-    printf("pose t: %f, %f, %f   q: %f, %f, %f %f \n", pose_msg->pose.pose.position.x,
-                                                       pose_msg->pose.pose.position.y,
-                                                       pose_msg->pose.pose.position.z,
-                                                       pose_msg->pose.pose.orientation.w,
-                                                       pose_msg->pose.pose.orientation.x,
-                                                       pose_msg->pose.pose.orientation.y,
-                                                       pose_msg->pose.pose.orientation.z);
-    */
 }
 
 void imu_forward_callback(const nav_msgs::Odometry::ConstPtr &forward_msg) {
@@ -340,10 +309,6 @@ void process() {
         m_buf.unlock();
 
         if (pose_msg != NULL) {
-            //printf(" pose time %f \n", pose_msg->header.stamp.toSec());
-            //printf(" point time %f \n", point_msg->header.stamp.toSec());
-            //printf(" image time %f \n", image_msg->header.stamp.toSec());
-            // skip fisrt few
             if (skip_first_cnt < SKIP_FIRST_CNT) {
                 skip_first_cnt++;
                 continue;

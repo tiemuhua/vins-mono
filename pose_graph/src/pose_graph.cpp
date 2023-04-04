@@ -10,15 +10,14 @@ PoseGraph::PoseGraph() {
     w_r_vio = Eigen::Matrix3d::Identity();
     global_index = 0;
     sequence_cnt = 0;
-    sequence_loop.push_back(0);
-    base_sequence = 1;
+    sequence_loop.push_back(false);
 }
 
 PoseGraph::~PoseGraph() {
     t_optimization.join();
 }
 
-void PoseGraph::loadVocabulary(const std::string& voc_path) {
+void PoseGraph::loadVocabulary(const std::string &voc_path) {
     voc = new BriefVocabulary(voc_path);
     db.setVocabulary(*voc, false, 0);
 }
@@ -29,7 +28,7 @@ void PoseGraph::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
     Matrix3d vio_R_cur;
     if (sequence_cnt != cur_kf->sequence) {
         sequence_cnt++;
-        sequence_loop.push_back(0);
+        sequence_loop.push_back(false);
         w_t_vio = Eigen::Vector3d(0, 0, 0);
         w_r_vio = Eigen::Matrix3d::Identity();
         m_drift.lock();
@@ -90,7 +89,7 @@ void PoseGraph::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
                         (*it)->updateVioPose(vio_P_cur, vio_R_cur);
                     }
                 }
-                sequence_loop[cur_kf->sequence] = 1;
+                sequence_loop[cur_kf->sequence] = true;
             }
             m_optimize_buf.lock();
             optimize_buf.push(cur_kf->index);
@@ -110,7 +109,7 @@ void PoseGraph::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
 }
 
 KeyFrame *PoseGraph::getKeyFrame(int index) {
-    list<KeyFrame *>::iterator it = keyframelist_.begin();
+    auto it = keyframelist_.begin();
     for (; it != keyframelist_.end(); it++) {
         if ((*it)->index == index)
             break;
@@ -118,7 +117,7 @@ KeyFrame *PoseGraph::getKeyFrame(int index) {
     if (it != keyframelist_.end())
         return *it;
     else
-        return NULL;
+        return nullptr;
 }
 
 int PoseGraph::detectLoop(KeyFrame *keyframe, int frame_index) {
@@ -127,7 +126,8 @@ int PoseGraph::detectLoop(KeyFrame *keyframe, int frame_index) {
     if (DEBUG_IMAGE) {
         int feature_num = keyframe->keypoints.size();
         cv::resize(keyframe->image, compressed_image, cv::Size(376, 240));
-        putText(compressed_image, "feature_num:" + to_string(feature_num), cv::Point2f(10, 10), cv::FONT_HERSHEY_SIMPLEX,
+        putText(compressed_image, "feature_num:" + to_string(feature_num), cv::Point2f(10, 10),
+                cv::FONT_HERSHEY_SIMPLEX,
                 0.4, cv::Scalar(255));
         image_pool[frame_index] = compressed_image;
     }
@@ -170,7 +170,8 @@ void PoseGraph::_addKeyFrameIntoVoc(KeyFrame *keyframe) {
     if (DEBUG_IMAGE) {
         int feature_num = keyframe->keypoints.size();
         cv::resize(keyframe->image, compressed_image, cv::Size(376, 240));
-        putText(compressed_image, "feature_num:" + to_string(feature_num), cv::Point2f(10, 10), cv::FONT_HERSHEY_SIMPLEX,
+        putText(compressed_image, "feature_num:" + to_string(feature_num), cv::Point2f(10, 10),
+                cv::FONT_HERSHEY_SIMPLEX,
                 0.4, cv::Scalar(255));
         image_pool[keyframe->index] = compressed_image;
     }
@@ -180,6 +181,9 @@ void PoseGraph::_addKeyFrameIntoVoc(KeyFrame *keyframe) {
 
 void PoseGraph::optimize4DoF() {
     while (true) {
+        std::chrono::milliseconds dura(2000);
+        std::this_thread::sleep_for(dura);
+
         int cur_index = -1;
         int first_looped_index = -1;
         m_optimize_buf.lock();
@@ -189,140 +193,135 @@ void PoseGraph::optimize4DoF() {
             optimize_buf.pop();
         }
         m_optimize_buf.unlock();
-        if (cur_index != -1) {
-            m_keyframelist.lock();
-            KeyFrame *cur_kf = getKeyFrame(cur_index);
+        if (cur_index == -1) { continue; }
+        m_keyframelist.lock();
+        KeyFrame *cur_kf = getKeyFrame(cur_index);
 
-            int max_length = cur_index + 1;
+        int max_length = cur_index + 1;
 
-            // w^t_i   w^q_i
-            double t_array[max_length][3];
-            Quaterniond q_array[max_length];
-            double euler_array[max_length][3];
-            double sequence_array[max_length];
+        // w^t_i   w^q_i
+        double t_array[max_length][3];
+        Quaterniond q_array[max_length];
+        double euler_array[max_length][3];
+        double sequence_array[max_length];
 
-            ceres::Problem problem;
-            ceres::Solver::Options options;
-            options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-            options.max_num_iterations = 5;
-            ceres::Solver::Summary summary;
-            ceres::LossFunction *loss_function;
-            loss_function = new ceres::HuberLoss(0.1);
-            ceres::Manifold *angle_local_parameterization = AngleManifold::Create();
+        ceres::Problem problem;
+        ceres::Solver::Options options;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        options.max_num_iterations = 5;
+        ceres::Solver::Summary summary;
+        ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
+        ceres::Manifold *angle_local_parameterization = AngleManifold::Create();
 
-            list<KeyFrame *>::iterator it;
+        list<KeyFrame *>::iterator it;
 
-            int i = 0;
-            for (it = keyframelist_.begin(); it != keyframelist_.end(); it++) {
-                if ((*it)->index < first_looped_index) { continue; }
-                (*it)->local_index = i;
-                Quaterniond tmp_q;
-                Matrix3d tmp_r;
-                Vector3d tmp_t;
-                (*it)->getVioPose(tmp_t, tmp_r);
-                tmp_q = tmp_r;
-                t_array[i][0] = tmp_t(0);
-                t_array[i][1] = tmp_t(1);
-                t_array[i][2] = tmp_t(2);
-                q_array[i] = tmp_q;
+        int i = 0;
+        for (it = keyframelist_.begin(); it != keyframelist_.end(); it++) {
+            if ((*it)->index < first_looped_index) { continue; }
+            (*it)->local_index = i;
+            Quaterniond tmp_q;
+            Matrix3d tmp_r;
+            Vector3d tmp_t;
+            (*it)->getVioPose(tmp_t, tmp_r);
+            tmp_q = tmp_r;
+            t_array[i][0] = tmp_t(0);
+            t_array[i][1] = tmp_t(1);
+            t_array[i][2] = tmp_t(2);
+            q_array[i] = tmp_q;
 
-                Vector3d euler_angle = Utility::R2ypr(tmp_q.toRotationMatrix());
-                euler_array[i][0] = euler_angle.x();
-                euler_array[i][1] = euler_angle.y();
-                euler_array[i][2] = euler_angle.z();
+            Vector3d euler_angle = Utility::R2ypr(tmp_q.toRotationMatrix());
+            euler_array[i][0] = euler_angle.x();
+            euler_array[i][1] = euler_angle.y();
+            euler_array[i][2] = euler_angle.z();
 
-                sequence_array[i] = (*it)->sequence;
+            sequence_array[i] = (*it)->sequence;
 
-                problem.AddParameterBlock(euler_array[i], 1, angle_local_parameterization);
-                problem.AddParameterBlock(t_array[i], 3);
+            problem.AddParameterBlock(euler_array[i], 1, angle_local_parameterization);
+            problem.AddParameterBlock(t_array[i], 3);
 
-                if ((*it)->index == first_looped_index || (*it)->sequence == 0) {
-                    problem.SetParameterBlockConstant(euler_array[i]);
-                    problem.SetParameterBlockConstant(t_array[i]);
-                }
+            if ((*it)->index == first_looped_index || (*it)->sequence == 0) {
+                problem.SetParameterBlockConstant(euler_array[i]);
+                problem.SetParameterBlockConstant(t_array[i]);
+            }
 
-                //add edge
-                for (int j = 1; j < 5; j++) {
-                    if (i - j >= 0 && sequence_array[i] == sequence_array[i - j]) {
-                        Vector3d euler_connected = Utility::R2ypr(q_array[i - j].toRotationMatrix());
-                        Vector3d relative_t(t_array[i][0] - t_array[i - j][0],
-                                            t_array[i][1] - t_array[i - j][1],
-                                            t_array[i][2] - t_array[i - j][2]);
-                        relative_t = q_array[i - j].inverse() * relative_t;
-                        double relative_yaw = euler_array[i][0] - euler_array[i - j][0];
-                        ceres::CostFunction *cost_function =
-                                FourDOFError::Create(relative_t.x(), relative_t.y(),relative_t.z(),
-                                                     relative_yaw, euler_connected.y(),euler_connected.z());
-                        problem.AddResidualBlock(cost_function, NULL,
-                                                 euler_array[i - j], t_array[i - j],
-                                                 euler_array[i], t_array[i]);
-                    }
-                }
-
-                //add loop edge
-
-                if ((*it)->has_loop) {
-                    assert((*it)->loop_index >= first_looped_index);
-                    int connected_index = getKeyFrame((*it)->loop_index)->local_index;
-                    Vector3d euler_connected = Utility::R2ypr(q_array[connected_index].toRotationMatrix());
-                    Vector3d relative_t = (*it)->getLoopRelativeT();
-                    double relative_yaw = (*it)->getLoopRelativeYaw();
+            //add edge
+            for (int j = 1; j < 5; j++) {
+                if (i - j >= 0 && sequence_array[i] == sequence_array[i - j]) {
+                    Vector3d euler_connected = Utility::R2ypr(q_array[i - j].toRotationMatrix());
+                    Vector3d relative_t(t_array[i][0] - t_array[i - j][0],
+                                        t_array[i][1] - t_array[i - j][1],
+                                        t_array[i][2] - t_array[i - j][2]);
+                    relative_t = q_array[i - j].inverse() * relative_t;
+                    double relative_yaw = euler_array[i][0] - euler_array[i - j][0];
                     ceres::CostFunction *cost_function =
-                            FourDOFWeightError::Create(relative_t.x(), relative_t.y(),relative_t.z(),
-                                                       relative_yaw, euler_connected.y(),euler_connected.z());
-                    problem.AddResidualBlock(cost_function, loss_function,
-                                             euler_array[connected_index], t_array[connected_index],
+                            FourDOFError::Create(relative_t.x(), relative_t.y(), relative_t.z(),
+                                                 relative_yaw, euler_connected.y(), euler_connected.z());
+                    problem.AddResidualBlock(cost_function, nullptr,
+                                             euler_array[i - j], t_array[i - j],
                                              euler_array[i], t_array[i]);
-
                 }
-
-                if ((*it)->index == cur_index)
-                    break;
-                i++;
-            }
-            m_keyframelist.unlock();
-
-            ceres::Solve(options, &problem, &summary);
-
-            m_keyframelist.lock();
-            i = 0;
-            for (it = keyframelist_.begin(); it != keyframelist_.end(); it++) {
-                if ((*it)->index < first_looped_index)
-                    continue;
-                Quaterniond tmp_q;
-                tmp_q = Utility::ypr2R(Vector3d(euler_array[i][0], euler_array[i][1], euler_array[i][2]));
-                Vector3d tmp_t = Vector3d(t_array[i][0], t_array[i][1], t_array[i][2]);
-                Matrix3d tmp_r = tmp_q.toRotationMatrix();
-                (*it)->updatePose(tmp_t, tmp_r);
-
-                if ((*it)->index == cur_index)
-                    break;
-                i++;
             }
 
-            Vector3d cur_t, vio_t;
-            Matrix3d cur_r, vio_r;
-            cur_kf->getPose(cur_t, cur_r);
-            cur_kf->getVioPose(vio_t, vio_r);
-            m_drift.lock();
-            yaw_drift = Utility::R2ypr(cur_r).x() - Utility::R2ypr(vio_r).x();
-            r_drift = Utility::ypr2R(Vector3d(yaw_drift, 0, 0));
-            t_drift = cur_t - r_drift * vio_t;
-            m_drift.unlock();
+            //add loop edge
+            if ((*it)->has_loop) {
+                assert((*it)->loop_index >= first_looped_index);
+                int connected_index = getKeyFrame((*it)->loop_index)->local_index;
+                Vector3d euler_connected = Utility::R2ypr(q_array[connected_index].toRotationMatrix());
+                Vector3d relative_t = (*it)->getLoopRelativeT();
+                double relative_yaw = (*it)->getLoopRelativeYaw();
+                ceres::CostFunction *cost_function =
+                        FourDOFWeightError::Create(relative_t.x(), relative_t.y(), relative_t.z(),
+                                                   relative_yaw, euler_connected.y(), euler_connected.z());
+                problem.AddResidualBlock(cost_function, loss_function,
+                                         euler_array[connected_index], t_array[connected_index],
+                                         euler_array[i], t_array[i]);
 
-            it++;
-            for (; it != keyframelist_.end(); it++) {
-                Vector3d P;
-                Matrix3d R;
-                (*it)->getVioPose(P, R);
-                P = r_drift * P + t_drift;
-                R = r_drift * R;
-                (*it)->updatePose(P, R);
             }
+
+            if ((*it)->index == cur_index)
+                break;
+            i++;
+        }
+        m_keyframelist.unlock();
+
+        ceres::Solve(options, &problem, &summary);
+
+        m_keyframelist.lock();
+        i = 0;
+        for (it = keyframelist_.begin(); it != keyframelist_.end(); it++) {
+            if ((*it)->index < first_looped_index)
+                continue;
+            Quaterniond tmp_q;
+            tmp_q = Utility::ypr2R(Vector3d(euler_array[i][0], euler_array[i][1], euler_array[i][2]));
+            Vector3d tmp_t = Vector3d(t_array[i][0], t_array[i][1], t_array[i][2]);
+            Matrix3d tmp_r = tmp_q.toRotationMatrix();
+            (*it)->updatePose(tmp_t, tmp_r);
+
+            if ((*it)->index == cur_index)
+                break;
+            i++;
         }
 
-        std::chrono::milliseconds dura(2000);
-        std::this_thread::sleep_for(dura);
+        Vector3d cur_t, vio_t;
+        Matrix3d cur_r, vio_r;
+        cur_kf->getPose(cur_t, cur_r);
+        cur_kf->getVioPose(vio_t, vio_r);
+        m_drift.lock();
+        yaw_drift = Utility::R2ypr(cur_r).x() - Utility::R2ypr(vio_r).x();
+        r_drift = Utility::ypr2R(Vector3d(yaw_drift, 0, 0));
+        t_drift = cur_t - r_drift * vio_t;
+        m_drift.unlock();
+
+        it++;
+        for (; it != keyframelist_.end(); it++) {
+            Vector3d P;
+            Matrix3d R;
+            (*it)->getVioPose(P, R);
+            P = r_drift * P + t_drift;
+            R = r_drift * R;
+            (*it)->updatePose(P, R);
+        }
+        m_keyframelist.unlock();
     }
 }
 

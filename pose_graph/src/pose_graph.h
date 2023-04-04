@@ -7,14 +7,9 @@
 #include <string>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
-#include <ceres/>
 #include <queue>
-#include <assert.h>
-#include <nav_msgs/Path.h>
-#include <geometry_msgs/PointStamped.h>
-#include <nav_msgs/Odometry.h>
-#include <stdio.h>
-#include <ros/ros.h>
+#include <cassert>
+#include <cstdio>
 #include "keyframe.h"
 #include "utility/tic_toc.h"
 #include "utility/utility.h"
@@ -67,7 +62,6 @@ private:
 	vector<bool> sequence_loop;
 	map<int, cv::Mat> image_pool;
 	int earliest_loop_index;
-	int base_sequence;
 
 	BriefDatabase db;
 	BriefVocabulary* voc{};
@@ -102,15 +96,12 @@ class AngleManifold {
 };
 
 template <typename T> 
-void YawPitchRollToRotationMatrix(const T yaw, const T pitch, const T roll, T R[9])
-{
-
+void YawPitchRollToRotationMatrix(const T yaw, const T pitch, const T roll, T R[9]) {
 	T y = yaw / T(180.0) * T(M_PI);
 	T p = pitch / T(180.0) * T(M_PI);
 	T r = roll / T(180.0) * T(M_PI);
 
-
-	R[0] = cos(y) * cos(p);
+    R[0] = cos(y) * cos(p);
 	R[1] = -sin(y) * cos(r) + cos(y) * sin(p) * sin(r);
 	R[2] = sin(y) * sin(r) + cos(y) * sin(p) * cos(r);
 	R[3] = sin(y) * cos(p);
