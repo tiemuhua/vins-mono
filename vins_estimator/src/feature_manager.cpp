@@ -1,4 +1,5 @@
 #include "feature_manager.h"
+#include "log.h"
 
 int FeaturePerId::endFrame() {
     return start_frame + feature_per_frame.size() - 1;
@@ -6,8 +7,8 @@ int FeaturePerId::endFrame() {
 
 FeatureManager::FeatureManager(Matrix3d _Rs[])
         : Rs(_Rs) {
-    for (int i = 0; i < NUM_OF_CAM; i++)
-        ric[i].setIdentity();
+    for (auto & i : ric)
+        i.setIdentity();
 }
 
 void FeatureManager::setRic(Matrix3d _ric[]) {
@@ -82,9 +83,9 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count,
 void FeatureManager::debugShow() {
     LOG_D("debug show");
     for (auto &it: feature) {
-        ROS_ASSERT(it.feature_per_frame.size() != 0);
-        ROS_ASSERT(it.start_frame >= 0);
-        ROS_ASSERT(it.used_num >= 0);
+        assert(it.feature_per_frame.size() != 0);
+        assert(it.start_frame >= 0);
+        assert(it.used_num >= 0);
 
         LOG_D("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
         int sum = 0;
@@ -93,7 +94,7 @@ void FeatureManager::debugShow() {
             sum += j.is_used;
             printf("(%lf,%lf) ", j.point(0), j.point(1));
         }
-        ROS_ASSERT(it.used_num == sum);
+        assert(it.used_num == sum);
     }
 }
 
@@ -123,7 +124,6 @@ void FeatureManager::setDepth(const VectorXd &x) {
             continue;
 
         it_per_id.estimated_depth = 1.0 / x(++feature_index);
-        //LOG_I("feature id %d , start_frame %d, depth %f ", it_per_id->feature_id, it_per_id-> start_frame, it_per_id->estimated_depth);
         if (it_per_id.estimated_depth < 0) {
             it_per_id.solve_flag = 2;
         } else
@@ -157,11 +157,7 @@ VectorXd FeatureManager::getDepthVector() {
         it_per_id.used_num = it_per_id.feature_per_frame.size();
         if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
-#if 1
         dep_vec(++feature_index) = 1. / it_per_id.estimated_depth;
-#else
-        dep_vec(++feature_index) = it_per_id->estimated_depth;
-#endif
     }
     return dep_vec;
 }
@@ -176,7 +172,7 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
             continue;
         int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
 
-        ROS_ASSERT(NUM_OF_CAM == 1);
+        assert(NUM_OF_CAM == 1);
         Eigen::MatrixXd svd_A(2 * it_per_id.feature_per_frame.size(), 4);
         int svd_idx = 0;
 
@@ -203,7 +199,7 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
             if (imu_i == imu_j)
                 continue;
         }
-        ROS_ASSERT(svd_idx == svd_A.rows());
+        assert(svd_idx == svd_A.rows());
         Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
         double svd_method = svd_V[2] / svd_V[3];
         //it_per_id->estimated_depth = -b / A;
@@ -220,13 +216,12 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
 }
 
 void FeatureManager::removeOutlier() {
-    ROS_BREAK();
     int i = -1;
     for (auto it = feature.begin(), it_next = feature.begin();
          it != feature.end(); it = it_next) {
         it_next++;
         i += it->used_num != 0;
-        if (it->used_num != 0 && it->is_outlier == true) {
+        if (it->used_num != 0 && it->is_outlier) {
             feature.erase(it);
         }
     }
@@ -257,13 +252,6 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
                     it->estimated_depth = INIT_DEPTH;
             }
         }
-        // remove tracking-lost feature after marginalize
-        /*
-        if (it->endFrame() < WINDOW_SIZE - 1)
-        {
-            feature.erase(it);
-        }
-        */
     }
 }
 
@@ -276,7 +264,7 @@ void FeatureManager::removeBack() {
             it->start_frame--;
         else {
             it->feature_per_frame.erase(it->feature_per_frame.begin());
-            if (it->feature_per_frame.size() == 0)
+            if (it->feature_per_frame.empty())
                 feature.erase(it);
         }
     }
@@ -293,7 +281,7 @@ void FeatureManager::removeFront(int frame_count) {
             if (it->endFrame() < frame_count - 1)
                 continue;
             it->feature_per_frame.erase(it->feature_per_frame.begin() + j);
-            if (it->feature_per_frame.size() == 0)
+            if (it->feature_per_frame.empty())
                 feature.erase(it);
         }
     }
@@ -314,9 +302,6 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
     Vector3d p_i = frame_i.point;
     Vector3d p_i_comp;
 
-    //int r_i = frame_count - 2;
-    //int r_j = frame_count - 1;
-    //p_i_comp = ric[camera_id_j].transpose() * Rs[r_j].transpose() * Rs[r_i] * ric[camera_id_i] * p_i;
     p_i_comp = p_i;
     double dep_i = p_i(2);
     double u_i = p_i(0) / dep_i;

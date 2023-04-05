@@ -13,8 +13,6 @@
 using namespace Eigen;
 using namespace std;
 
-
-
 struct SFMFeature {
     bool state;
     int id;
@@ -70,5 +68,5 @@ private:
                               int frame1, Eigen::Matrix<double, 3, 4> &Pose1,
                               vector<SFMFeature> &sfm_f);
 
-    int feature_num;
+    int feature_num{};
 };

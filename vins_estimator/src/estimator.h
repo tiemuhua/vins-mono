@@ -8,8 +8,6 @@
 #include "initial/initial_sfm.h"
 #include "initial/initial_alignment.h"
 #include "initial/initial_ex_rotation.h"
-#include <std_msgs/Header.h>
-#include <std_msgs/Float32.h>
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
@@ -129,7 +127,7 @@ public:
     int loop_window_index;
 
     MarginalizationInfo *last_marginalization_info;
-    vector<double *> last_marginalization_parameter_blocks;
+    vector<double *> last_marginal_param_blocks;
 
     map<double, ImageFrame> all_image_frame;
     IntegrationBase *tmp_pre_integration;

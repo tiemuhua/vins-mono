@@ -4,7 +4,7 @@ project(pose_graph)
 add_library(pose_graph
     src/pose_graph.cpp
     src/keyframe.cpp
-    src/utility/CameraPoseVisualization.cpp
+#    src/utility/CameraPoseVisualization.cpp
     src/ThirdParty/DBoW/BowVector.cpp
     src/ThirdParty/DBoW/FBrief.cpp
     src/ThirdParty/DBoW/FeatureVector.cpp
@@ -18,5 +18,5 @@ add_library(pose_graph
 
 target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
 
-add_executable(pose_graph_node src/pose_graph_node.cpp)
-target_link_libraries(pose_graph_node pose_graph)
+#add_executable(pose_graph_node src/pose_graph_node.cpp)
+#target_link_libraries(pose_graph_node pose_graph)

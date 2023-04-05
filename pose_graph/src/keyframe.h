@@ -40,7 +40,7 @@ public:
 	void computeBRIEFPoint();
 	//void extractBrief();
 	int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b);
-	bool searchInAera(const BRIEF::bitset window_descriptor,
+	bool searchInAera(const BRIEF::bitset& window_descriptor,
 	                  const std::vector<BRIEF::bitset> &descriptors_old,
 	                  const std::vector<cv::KeyPoint> &keypoints_old,
 	                  const std::vector<cv::KeyPoint> &keypoints_old_norm,

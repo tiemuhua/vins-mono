@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ros/ros.h>
-#include <ros/console.h>
 #include <cstdlib>
 #include <pthread.h>
 #include <ceres/ceres.h>
@@ -24,7 +22,7 @@ struct ResidualBlockInfo
     std::vector<double *> parameter_blocks;
     std::vector<int> drop_set;
 
-    double **raw_jacobians;
+    double **raw_jacobians{};
     std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
     Eigen::VectorXd residuals;
 
@@ -47,8 +45,8 @@ class MarginalizationInfo
 {
   public:
     ~MarginalizationInfo();
-    int localSize(int size) const;
-    int globalSize(int size) const;
+    static int localSize(int size) ;
+    static int globalSize(int size) ;
     void addResidualBlockInfo(ResidualBlockInfo *residual_block_info);
     void preMarginalize();
     void marginalize();

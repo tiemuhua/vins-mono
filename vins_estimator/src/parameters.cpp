@@ -1,4 +1,5 @@
 #include "parameters.h"
+#include "log.h"
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -23,19 +24,8 @@ std::string IMU_TOPIC;
 double ROW, COL;
 double TD, TR;
 
-template<typename T>
-T readParam(ros::NodeHandle &n, std::string name) {
-    T ans;
-    if (n.getParam(name, ans)) {
-    } else {
-        n.shutdown();
-    }
-    return ans;
-}
-
-void readParameters(ros::NodeHandle &n) {
+void readParameters() {
     std::string config_file;
-    config_file = readParam<std::string>(n, "config_file");
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
     if (!fsSettings.isOpened()) {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;

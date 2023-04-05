@@ -3,8 +3,7 @@ project(vins_estimator)
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-add_executable(vins_estimator
-    src/estimator_node.cpp
+add_library(vins_estimator
     src/parameters.cpp
     src/estimator.cpp
     src/feature_manager.cpp
@@ -13,8 +12,6 @@ add_executable(vins_estimator
     src/factor/projection_td_factor.cpp
     src/factor/marginalization_factor.cpp
     src/utility/utility.cpp
-    src/utility/visualization.cpp
-    src/utility/CameraPoseVisualization.cpp
     src/initial/solve_5pts.cpp
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp

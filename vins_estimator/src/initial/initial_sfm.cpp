@@ -23,7 +23,7 @@ bool GlobalSFM::solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
     vector<cv::Point2f> pts_2_vector;
     vector<cv::Point3f> pts_3_vector;
     for (int j = 0; j < feature_num; j++) {
-        if (sfm_f[j].state != true)
+        if (!sfm_f[j].state)
             continue;
         Vector2d point2d;
         for (int k = 0; k < (int) sfm_f[j].observation.size(); k++) {
@@ -102,7 +102,7 @@ void GlobalSFM::triangulateTwoFrames(int frame0, Eigen::Matrix<double, 3, 4> &Po
 // relative_q[i][j]  j_q_i
 // relative_t[i][j]  j_t_ji  (j < i)
 bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
-                          const Matrix3d relative_R, const Vector3d relative_T,
+                          const Matrix3d &relative_R, const Vector3d &relative_T,
                           vector<SFMFeature> &sfm_f, map<int, Vector3d> &sfm_tracked_points) {
     feature_num = sfm_f.size();
     //cout << "set 0 and " << l << " as known " << endl;
@@ -179,7 +179,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
     }
     //5: triangulate all other points
     for (int j = 0; j < feature_num; j++) {
-        if (sfm_f[j].state == true)
+        if (sfm_f[j].state)
             continue;
         if ((int) sfm_f[j].observation.size() >= 2) {
             Vector2d point0, point1;
@@ -193,26 +193,12 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
             sfm_f[j].position[0] = point_3d(0);
             sfm_f[j].position[1] = point_3d(1);
             sfm_f[j].position[2] = point_3d(2);
-            //cout << "trangulated : " << frame_0 << " " << frame_1 << "  3d point : "  << j << "  " << point_3d.transpose() << endl;
         }
     }
 
-/*
-	for (int i = 0; i < frame_num; i++)
-	{
-		q[i] = c_Rotation[i].transpose(); 
-		cout << "solvePnP  q" << " i " << i <<"  " <<q[i].w() << "  " << q[i].vec().transpose() << endl;
-	}
-	for (int i = 0; i < frame_num; i++)
-	{
-		Vector3d t_tmp;
-		t_tmp = -1 * (q[i] * c_Translation[i]);
-		cout << "solvePnP  t" << " i " << i <<"  " << t_tmp.x() <<"  "<< t_tmp.y() <<"  "<< t_tmp.z() << endl;
-	}
-*/
     //full BA
     ceres::Problem problem;
-    ceres::Manifold *local_parameterization = new ceres::QuaternionParameterization();
+    ceres::Manifold *local_parameterization = new ceres::QuaternionManifold();
     //cout << " begin full BA " << endl;
     for (int i = 0; i < frame_num; i++) {
         //double array for ceres
@@ -234,7 +220,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
     }
 
     for (int i = 0; i < feature_num; i++) {
-        if (sfm_f[i].state != true)
+        if (!sfm_f[i].state)
             continue;
         for (int j = 0; j < int(sfm_f[i].observation.size()); j++) {
             int l = sfm_f[i].observation[j].first;
@@ -245,7 +231,6 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
             problem.AddResidualBlock(cost_function, NULL, c_rotation[l], c_translation[l],
                                      sfm_f[i].position);
         }
-
     }
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_SCHUR;

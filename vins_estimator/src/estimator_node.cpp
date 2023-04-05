@@ -4,13 +4,10 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include <ros/ros.h>
-#include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 
 #include "estimator.h"
 #include "parameters.h"
-#include "utility/visualization.h"
 
 
 Estimator estimator;
@@ -281,7 +278,6 @@ void process() {
                 double p_v = img_msg->channels[2].values[i];
                 double velocity_x = img_msg->channels[3].values[i];
                 double velocity_y = img_msg->channels[4].values[i];
-                ROS_ASSERT(z == 1);
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
                 image[feature_id].emplace_back(camera_id, xyz_uv_velocity);
