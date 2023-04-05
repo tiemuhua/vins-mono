@@ -33,8 +33,8 @@ public:
     void
     processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double &time_stamp);
 
-    void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t,
-                      Matrix3d _relo_r);
+    void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
+                      const Vector3d &_relo_t, const Matrix3d &_relo_r);
 
     // internal
     void clearState();
@@ -100,18 +100,15 @@ public:
     vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)];
 
     int frame_count;
-    int sum_of_outlier, sum_of_back, sum_of_front, sum_of_invalid;
+    int sum_of_back, sum_of_front;
 
     FeatureManager f_manager;
     MotionEstimator m_estimator;
     InitialEXRotation initial_ex_rotation;
 
     bool first_imu;
-    bool is_valid, is_key;
     bool failure_occur;
 
-    vector<Vector3d> point_cloud;
-    vector<Vector3d> margin_cloud;
     vector<Vector3d> key_poses;
     double initial_timestamp;
 
@@ -120,11 +117,7 @@ public:
     double para_SpeedBias[WINDOW_SIZE + 1][SIZE_SPEEDBIAS];
     double para_Feature[NUM_OF_F][SIZE_FEATURE];
     double para_Ex_Pose[NUM_OF_CAM][SIZE_POSE];
-    double para_Retrive_Pose[SIZE_POSE];
     double para_Td[1][1];
-    double para_Tr[1][1];
-
-    int loop_window_index;
 
     MarginalizationInfo *last_marginalization_info;
     vector<double *> last_marginal_param_blocks;
@@ -135,15 +128,10 @@ public:
     //relocalization variable
     bool relocalization_info;
     double relo_frame_stamp;
-    double relo_frame_index;
     int relo_frame_local_index;
     vector<Vector3d> match_points;
     double relo_Pose[SIZE_POSE];
     Matrix3d drift_correct_r;
-    Vector3d drift_correct_t;
     Vector3d prev_relo_t;
     Matrix3d prev_relo_r;
-    Vector3d relo_relative_t;
-    Quaterniond relo_relative_q;
-    double relo_relative_yaw;
 };
