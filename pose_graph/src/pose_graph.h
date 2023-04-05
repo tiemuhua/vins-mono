@@ -98,6 +98,20 @@ public:
         return true;
     }
 
+    template <typename T>
+    bool Plus(const T *x, const T *delta, T *x_plus_delta) const {
+        *x_plus_delta = NormalizeAngle(*x + *delta);
+        return true;
+    }
+
+    template <typename T>
+    bool Minus(const T *x, const T *delta, T *x_plus_delta) const {
+        *x_plus_delta =
+                NormalizeAngle(*x - *delta);
+
+        return true;
+    }
+
     static ceres::Manifold *Create() {
         return (new ceres::AutoDiffManifold<AngleManifold, 1, 1>);
     }
