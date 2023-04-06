@@ -31,12 +31,12 @@ public:
     Vector3d point;
     Vector2d uv;
     Vector2d velocity;
-    double z;
-    bool is_used;
-    double parallax;
+    double z{};
+    bool is_used{};
+    double parallax{};
     MatrixXd A;
     VectorXd b;
-    double dep_gradient;
+    double dep_gradient{};
 };
 
 class FeaturePerId {
@@ -58,7 +58,7 @@ public:
               used_num(0), estimated_depth(-1.0), solve_flag(0) {
     }
 
-    int endFrame();
+    int endFrame() const;
 };
 
 class FeatureManager {
@@ -74,11 +74,8 @@ public:
     bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
                                  double td);
 
-    void debugShow();
-
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
 
-    //void updateDepth(const VectorXd &x);
     void setDepth(const VectorXd &x);
 
     void removeFailures();
@@ -89,8 +86,8 @@ public:
 
     void triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]);
 
-    void
-    removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3d marg_P, Eigen::Matrix3d new_R, Eigen::Vector3d new_P);
+    void removeBackShiftDepth(const Eigen::Matrix3d& marg_R, const Eigen::Vector3d& marg_P,
+                              const Eigen::Matrix3d& new_R, const Eigen::Vector3d& new_P);
 
     void removeBack();
 
@@ -102,7 +99,7 @@ public:
     int last_track_num;
 
 private:
-    double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
+    static double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
 
     const Matrix3d *Rs;
     Matrix3d ric[NUM_OF_CAM];

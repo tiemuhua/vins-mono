@@ -78,15 +78,14 @@ void PoseGraph::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
                 vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
                 vio_R_cur = w_r_vio * vio_R_cur;
                 cur_kf->updateVioPose(vio_P_cur, vio_R_cur);
-                list<KeyFrame *>::iterator it = keyframelist_.begin();
-                for (; it != keyframelist_.end(); it++) {
-                    if ((*it)->sequence == cur_kf->sequence) {
+                for (KeyFrame* key_frame: keyframelist_) {
+                    if (key_frame->sequence == cur_kf->sequence) {
                         Vector3d vio_P_cur;
                         Matrix3d vio_R_cur;
-                        (*it)->getVioPose(vio_P_cur, vio_R_cur);
+                        key_frame->getVioPose(vio_P_cur, vio_R_cur);
                         vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
                         vio_R_cur = w_r_vio * vio_R_cur;
-                        (*it)->updateVioPose(vio_P_cur, vio_R_cur);
+                        key_frame->updateVioPose(vio_P_cur, vio_R_cur);
                     }
                 }
                 sequence_loop[cur_kf->sequence] = true;
@@ -109,15 +108,12 @@ void PoseGraph::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
 }
 
 KeyFrame *PoseGraph::getKeyFrame(int index) {
-    auto it = keyframelist_.begin();
-    for (; it != keyframelist_.end(); it++) {
-        if ((*it)->index == index)
-            break;
+    for (KeyFrame* key_frame: keyframelist_) {
+        if (key_frame->index == index) {
+            return key_frame;
+        }
     }
-    if (it != keyframelist_.end())
-        return *it;
-    else
-        return nullptr;
+    return nullptr;
 }
 
 int PoseGraph::detectLoop(KeyFrame *keyframe, int frame_index) {
@@ -140,7 +136,7 @@ int PoseGraph::detectLoop(KeyFrame *keyframe, int frame_index) {
     cv::Mat loop_result;
     if (DEBUG_IMAGE) {
         loop_result = compressed_image.clone();
-        if (ret.size() > 0)
+        if (!ret.empty())
             putText(loop_result, "neighbour score:" + to_string(ret[0].Score), cv::Point2f(10, 50),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255));
     }

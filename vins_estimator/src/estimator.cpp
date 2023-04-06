@@ -64,8 +64,8 @@ void Estimator::clearState() {
 
     f_manager.clearState();
 
-    failure_occur = 0;
-    relocalization_info = 0;
+    failure_occur = false;
+    relocalization_info = false;
 
     drift_correct_r = Matrix3d::Identity();
 }
@@ -666,7 +666,7 @@ void Estimator::optimization() {
                                               match_points[retrive_feature_index].y(), 1.0);
                     Vector3d pts_i = it_per_id.feature_per_frame[0].point;
 
-                    ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
+                    auto *f = new ProjectionFactor(pts_i, pts_j);
                     problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0],
                                              para_Feature[feature_index]);
                     retrive_feature_index++;

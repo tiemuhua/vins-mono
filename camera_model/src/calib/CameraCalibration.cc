@@ -33,7 +33,7 @@ namespace camodocal {
     }
 
     void
-    CameraCalibration::clear(void) {
+    CameraCalibration::clear() {
         m_imagePoints.clear();
         m_scenePoints.clear();
     }
@@ -96,9 +96,8 @@ namespace camodocal {
         Eigen::Vector2d errMean = errSum / static_cast<double>(errCount);
 
         Eigen::Matrix2d measurementCovariance = Eigen::Matrix2d::Zero();
-        for (size_t i = 0; i < errVec.size(); ++i) {
-            for (size_t j = 0; j < errVec.at(i).size(); ++j) {
-                cv::Point2f err = errVec.at(i).at(j);
+        for (const auto & i : errVec) {
+            for (const auto& err : i) {
                 double d0 = err.x - errMean(0);
                 double d1 = err.y - errMean(1);
 
@@ -116,57 +115,57 @@ namespace camodocal {
     }
 
     int
-    CameraCalibration::sampleCount(void) const {
+    CameraCalibration::sampleCount() const {
         return m_imagePoints.size();
     }
 
     std::vector<std::vector<cv::Point2f> > &
-    CameraCalibration::imagePoints(void) {
+    CameraCalibration::imagePoints() {
         return m_imagePoints;
     }
 
     const std::vector<std::vector<cv::Point2f> > &
-    CameraCalibration::imagePoints(void) const {
+    CameraCalibration::imagePoints() const {
         return m_imagePoints;
     }
 
     std::vector<std::vector<cv::Point3f> > &
-    CameraCalibration::scenePoints(void) {
+    CameraCalibration::scenePoints() {
         return m_scenePoints;
     }
 
     const std::vector<std::vector<cv::Point3f> > &
-    CameraCalibration::scenePoints(void) const {
+    CameraCalibration::scenePoints() const {
         return m_scenePoints;
     }
 
     CameraPtr &
-    CameraCalibration::camera(void) {
+    CameraCalibration::camera() {
         return m_camera;
     }
 
     const CameraConstPtr
-    CameraCalibration::camera(void) const {
+    CameraCalibration::camera() const {
         return m_camera;
     }
 
     Eigen::Matrix2d &
-    CameraCalibration::measurementCovariance(void) {
+    CameraCalibration::measurementCovariance() {
         return m_measurementCovariance;
     }
 
     const Eigen::Matrix2d &
-    CameraCalibration::measurementCovariance(void) const {
+    CameraCalibration::measurementCovariance() const {
         return m_measurementCovariance;
     }
 
     cv::Mat &
-    CameraCalibration::cameraPoses(void) {
+    CameraCalibration::cameraPoses() {
         return m_cameraPoses;
     }
 
     const cv::Mat &
-    CameraCalibration::cameraPoses(void) const {
+    CameraCalibration::cameraPoses() const {
         return m_cameraPoses;
     }
 

@@ -1,7 +1,7 @@
 #include "feature_manager.h"
 #include "log.h"
 
-int FeaturePerId::endFrame() {
+int FeaturePerId::endFrame() const {
     return start_frame + feature_per_frame.size() - 1;
 }
 
@@ -52,10 +52,10 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count,
         });
 
         if (it == feature.end()) {
-            feature.push_back(FeaturePerId(feature_id, frame_count));
+            feature.emplace_back(FeaturePerId(feature_id, frame_count));
             feature.back().feature_per_frame.push_back(f_per_fra);
-        } else if (it->feature_id == feature_id) {
-            it->feature_per_frame.push_back(f_per_fra);
+        } else {
+            it->feature_per_frame.emplace_back(f_per_fra);
             last_track_num++;
         }
     }
@@ -80,24 +80,6 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count,
     }
 }
 
-void FeatureManager::debugShow() {
-    LOG_D("debug show");
-    for (auto &it: feature) {
-        assert(it.feature_per_frame.size() != 0);
-        assert(it.start_frame >= 0);
-        assert(it.used_num >= 0);
-
-        LOG_D("%d,%d,%d ", it.feature_id, it.used_num, it.start_frame);
-        int sum = 0;
-        for (auto &j: it.feature_per_frame) {
-            LOG_D("%d,", int(j.is_used));
-            sum += j.is_used;
-            printf("(%lf,%lf) ", j.point(0), j.point(1));
-        }
-        assert(it.used_num == sum);
-    }
-}
-
 vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r) {
     vector<pair<Vector3d, Vector3d>> corres;
     for (auto &it: feature) {
@@ -110,7 +92,7 @@ vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_coun
 
             b = it.feature_per_frame[idx_r].point;
 
-            corres.push_back(make_pair(a, b));
+            corres.emplace_back(make_pair(a, b));
         }
     }
     return corres;
@@ -176,11 +158,8 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
         Eigen::MatrixXd svd_A(2 * it_per_id.feature_per_frame.size(), 4);
         int svd_idx = 0;
 
-        Eigen::Matrix<double, 3, 4> P0;
         Eigen::Vector3d t0 = Ps[imu_i] + Rs[imu_i] * tic[0];
         Eigen::Matrix3d R0 = Rs[imu_i] * ric[0];
-        P0.leftCols<3>() = Eigen::Matrix3d::Identity();
-        P0.rightCols<1>() = Eigen::Vector3d::Zero();
 
         for (auto &it_per_frame: it_per_id.feature_per_frame) {
             imu_j++;
@@ -202,11 +181,8 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
         assert(svd_idx == svd_A.rows());
         Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
         double svd_method = svd_V[2] / svd_V[3];
-        //it_per_id->estimated_depth = -b / A;
-        //it_per_id->estimated_depth = svd_V[2] / svd_V[3];
 
         it_per_id.estimated_depth = svd_method;
-        //it_per_id->estimated_depth = INIT_DEPTH;
 
         if (it_per_id.estimated_depth < 0.1) {
             it_per_id.estimated_depth = INIT_DEPTH;
@@ -227,8 +203,8 @@ void FeatureManager::removeOutlier() {
     }
 }
 
-void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3d marg_P, Eigen::Matrix3d new_R,
-                                          Eigen::Vector3d new_P) {
+void FeatureManager::removeBackShiftDepth(const Eigen::Matrix3d& marg_R, const Eigen::Vector3d& marg_P,
+                                          const Eigen::Matrix3d& new_R, const Eigen::Vector3d& new_P) {
     for (auto it = feature.begin(), it_next = feature.begin();
          it != feature.end(); it = it_next) {
         it_next++;
@@ -289,7 +265,7 @@ void FeatureManager::removeFront(int frame_count) {
 
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count) {
     //check the second last frame is keyframe or not
-    //parallax betwwen seconde last frame and third last frame
+    //parallax between second last frame and third last frame
     const FeaturePerFrame &frame_i = it_per_id.feature_per_frame[frame_count - 2 - it_per_id.start_frame];
     const FeaturePerFrame &frame_j = it_per_id.feature_per_frame[frame_count - 1 - it_per_id.start_frame];
 
