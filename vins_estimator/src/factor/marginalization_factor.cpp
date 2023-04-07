@@ -50,44 +50,40 @@ MarginalizationInfo::~MarginalizationInfo() {
         delete[] it.second;
 
     for (auto & factor : factors) {
-
-        delete[] factor->raw_jacobians;
-
-        delete factor->cost_function;
-
-        delete factor;
+        delete[] factor.raw_jacobians;
+        delete factor.cost_function;
     }
 }
 
-void MarginalizationInfo::addResidualBlockInfo(ResidualBlockInfo *residual_block_info) {
+void MarginalizationInfo::addResidualBlockInfo(const ResidualBlockInfo &residual_block_info) {
     factors.emplace_back(residual_block_info);
 
-    std::vector<double *> &parameter_blocks = residual_block_info->parameter_blocks;
-    std::vector<int> parameter_block_sizes = residual_block_info->cost_function->parameter_block_sizes();
+    const std::vector<double *> &parameter_blocks = residual_block_info.parameter_blocks;
+    std::vector<int> parameter_block_sizes = residual_block_info.cost_function->parameter_block_sizes();
 
-    for (int i = 0; i < static_cast<int>(residual_block_info->parameter_blocks.size()); i++) {
+    for (int i = 0; i < static_cast<int>(residual_block_info.parameter_blocks.size()); i++) {
         double *addr = parameter_blocks[i];
         int size = parameter_block_sizes[i];
         parameter_block_size[reinterpret_cast<long>(addr)] = size;
     }
 
-    for (int i : residual_block_info->drop_set) {
+    for (int i : residual_block_info.drop_set) {
         double *addr = parameter_blocks[i];
         parameter_block_idx[reinterpret_cast<long>(addr)] = 0;
     }
 }
 
 void MarginalizationInfo::preMarginalize() {
-    for (auto it: factors) {
-        it->Evaluate();
+    for (ResidualBlockInfo &it: factors) {
+        it.Evaluate();
 
-        std::vector<int> block_sizes = it->cost_function->parameter_block_sizes();
+        std::vector<int> block_sizes = it.cost_function->parameter_block_sizes();
         for (int i = 0; i < static_cast<int>(block_sizes.size()); i++) {
-            long addr = reinterpret_cast<long>(it->parameter_blocks[i]);
+            long addr = reinterpret_cast<long>(it.parameter_blocks[i]);
             int size = block_sizes[i];
             if (parameter_block_data.find(addr) == parameter_block_data.end()) {
                 double *data = new double[size];
-                memcpy(data, it->parameter_blocks[i], sizeof(double) * size);
+                memcpy(data, it.parameter_blocks[i], sizeof(double) * size);
                 parameter_block_data[addr] = data;
             }
         }
@@ -103,26 +99,26 @@ int MarginalizationInfo::globalSize(int size) {
 }
 
 void *ThreadsConstructA(ThreadsStruct *p) {
-    for (auto it: p->sub_factors) {
-        for (int i = 0; i < static_cast<int>(it->parameter_blocks.size()); i++) {
-            int idx_i = p->parameter_block_idx[reinterpret_cast<long>(it->parameter_blocks[i])];
-            int size_i = p->parameter_block_size[reinterpret_cast<long>(it->parameter_blocks[i])];
+    for (const ResidualBlockInfo& it: p->sub_factors) {
+        for (int i = 0; i < static_cast<int>(it.parameter_blocks.size()); i++) {
+            int idx_i = p->parameter_block_idx[reinterpret_cast<long>(it.parameter_blocks[i])];
+            int size_i = p->parameter_block_size[reinterpret_cast<long>(it.parameter_blocks[i])];
             if (size_i == 7)
                 size_i = 6;
-            Eigen::MatrixXd jacobian_i = it->jacobians[i].leftCols(size_i);
-            for (int j = i; j < static_cast<int>(it->parameter_blocks.size()); j++) {
-                int idx_j = p->parameter_block_idx[reinterpret_cast<long>(it->parameter_blocks[j])];
-                int size_j = p->parameter_block_size[reinterpret_cast<long>(it->parameter_blocks[j])];
+            Eigen::MatrixXd jacobian_i = it.jacobians[i].leftCols(size_i);
+            for (int j = i; j < static_cast<int>(it.parameter_blocks.size()); j++) {
+                int idx_j = p->parameter_block_idx[reinterpret_cast<long>(it.parameter_blocks[j])];
+                int size_j = p->parameter_block_size[reinterpret_cast<long>(it.parameter_blocks[j])];
                 if (size_j == 7)
                     size_j = 6;
-                Eigen::MatrixXd jacobian_j = it->jacobians[j].leftCols(size_j);
+                Eigen::MatrixXd jacobian_j = it.jacobians[j].leftCols(size_j);
                 p->A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
                 if(i != j) {
                     p->A.block(idx_j, idx_i, size_j, size_i) =
                             p->A.block(idx_i, idx_j, size_i, size_j).transpose();
                 }
             }
-            p->b.segment(idx_i, size_i) += jacobian_i.transpose() * it->residuals;
+            p->b.segment(idx_i, size_i) += jacobian_i.transpose() * it.residuals;
         }
     }
     return p;

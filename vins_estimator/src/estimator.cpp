@@ -707,10 +707,9 @@ void Estimator::optimization() {
             }
             // construct new marginlization_factor
             auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
-            auto *residual_block_info = new ResidualBlockInfo(marginalization_factor, NULL,
-                                                              last_marginal_param_blocks,
-                                                              drop_set);
 
+            ResidualBlockInfo residual_block_info(marginalization_factor, NULL,
+                                                  last_marginal_param_blocks, drop_set);
             marginalization_info->addResidualBlockInfo(residual_block_info);
         }
 
@@ -723,7 +722,7 @@ void Estimator::optimization() {
                     para_SpeedBias[1]
             };
             vector<int> drop_set = {0, 1};
-            auto *residual_block_info = new ResidualBlockInfo(imu_factor, NULL,
+            ResidualBlockInfo residual_block_info(imu_factor, NULL,
                                                               parameter_blocks, drop_set);
             marginalization_info->addResidualBlockInfo(residual_block_info);
         }
@@ -764,8 +763,7 @@ void Estimator::optimization() {
                             para_Feature[feature_index],
                             para_Td[0]
                     };
-                    auto *residual_block_info =
-                            new ResidualBlockInfo(f_td, loss_function, parameter_blocks, drop_set);
+                    ResidualBlockInfo residual_block_info(f_td, loss_function, parameter_blocks, drop_set);
                     marginalization_info->addResidualBlockInfo(residual_block_info);
                 } else {
                     auto *f = new ProjectionFactor(pts_i, pts_j);
@@ -775,8 +773,7 @@ void Estimator::optimization() {
                             para_Ex_Pose[0],
                             para_Feature[feature_index],
                     };
-                    auto *residual_block_info =
-                            new ResidualBlockInfo(f, loss_function, parameter_blocks, drop_set);
+                    ResidualBlockInfo residual_block_info(f, loss_function, parameter_blocks, drop_set);
                     marginalization_info->addResidualBlockInfo(residual_block_info);
                 }
             }
@@ -822,8 +819,8 @@ void Estimator::optimization() {
                 }
                 // construct new marginalization_factor
                 auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
-                auto *residual_block_info = new ResidualBlockInfo(marginalization_factor, NULL,
-                                                                  last_marginal_param_blocks, drop_set);
+                ResidualBlockInfo residual_block_info(marginalization_factor, NULL,
+                                                      last_marginal_param_blocks, drop_set);
 
                 marginalization_info->addResidualBlockInfo(residual_block_info);
             }
