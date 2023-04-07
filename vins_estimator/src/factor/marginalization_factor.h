@@ -4,27 +4,29 @@
 #include <pthread.h>
 #include <ceres/ceres.h>
 #include <unordered_map>
+#include <utility>
 
 #include "../utility/utility.h"
 #include "../utility/tic_toc.h"
 
 const int NUM_THREADS = 4;
 
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> JacobianType;
 struct ResidualBlockInfo
 {
     ResidualBlockInfo(ceres::CostFunction *_cost_function, ceres::LossFunction *_loss_function, std::vector<double *> _parameter_blocks, std::vector<int> _drop_set)
-        : cost_function(_cost_function), loss_function(_loss_function), parameter_blocks(_parameter_blocks), drop_set(_drop_set) {}
+        : cost_function_(_cost_function), loss_function_(_loss_function), parameter_blocks_(std::move(_parameter_blocks)), drop_set_(std::move(_drop_set)) {}
 
     void Evaluate();
 
-    ceres::CostFunction *cost_function;
-    ceres::LossFunction *loss_function;
-    std::vector<double *> parameter_blocks;
-    std::vector<int> drop_set;
+    ceres::CostFunction *cost_function_;
+    ceres::LossFunction *loss_function_;
+    std::vector<double *> parameter_blocks_;
+    std::vector<int> drop_set_;
 
-    double **raw_jacobians{};
-    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
-    Eigen::VectorXd residuals;
+    double **raw_jacobians_{};
+    std::vector<JacobianType> jacobians_;
+    Eigen::VectorXd residuals_;
 
     int localSize(int size)
     {
