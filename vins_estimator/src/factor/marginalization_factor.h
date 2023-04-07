@@ -46,34 +46,31 @@ class MarginalizationInfo
   public:
     ~MarginalizationInfo();
     static int localSize(int size) ;
-    static int globalSize(int size) ;
     void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
     void preMarginalize();
     void marginalize();
     std::vector<double *> getParameterBlocks(std::unordered_map<long, double *> &addr_shift);
 
-    std::vector<ResidualBlockInfo> factors;
+    std::vector<ResidualBlockInfo> factors_;
     int m, n;
-    std::unordered_map<long, int> parameter_block_size; //global size
-    int sum_block_size;
-    std::unordered_map<long, int> parameter_block_idx; //local size
-    std::unordered_map<long, double *> parameter_block_data;
+    std::unordered_map<long, int> parameter_block_size_; //global size
+    std::unordered_map<long, int> parameter_block_idx_; //local size
+    std::unordered_map<long, double *> parameter_block_data_;
 
-    std::vector<int> keep_block_size; //global size
-    std::vector<int> keep_block_idx;  //local size
-    std::vector<double *> keep_block_data;
+    std::vector<int> keep_block_size_; //global size
+    std::vector<int> keep_block_idx_;  //local size
+    std::vector<double *> keep_block_data_;
 
-    Eigen::MatrixXd linearized_jacobians;
-    Eigen::VectorXd linearized_residuals;
-    const double eps = 1e-8;
-
+    Eigen::MatrixXd linearized_jacobians_;
+    Eigen::VectorXd linearized_residuals_;
+    static constexpr double EPS = 1e-8;
 };
 
 class MarginalizationFactor : public ceres::CostFunction
 {
   public:
-    MarginalizationFactor(MarginalizationInfo* _marginalization_info);
-    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const;
+    explicit MarginalizationFactor(MarginalizationInfo* _marginalization_info);
+    bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
-    MarginalizationInfo* marginalization_info;
+    MarginalizationInfo* marginalization_info_;
 };
