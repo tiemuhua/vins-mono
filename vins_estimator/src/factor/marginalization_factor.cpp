@@ -177,9 +177,8 @@ void MarginalizationInfo::marginalize() {
     b = brr - Arm * Amm_inv * bmm;
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(A);
-    Eigen::VectorXd S = Eigen::VectorXd((saes2.eigenvalues().array() > EPS).select(saes2.eigenvalues().array(), 0));
-    Eigen::VectorXd S_inv = Eigen::VectorXd(
-            (saes2.eigenvalues().array() > EPS).select(saes2.eigenvalues().array().inverse(), 0));
+    Eigen::VectorXd S = (saes2.eigenvalues().array() > EPS).select(saes2.eigenvalues().array(), 0);
+    Eigen::VectorXd S_inv = (saes2.eigenvalues().array() > EPS).select(saes2.eigenvalues().array().inverse(), 0);
 
     Eigen::VectorXd S_sqrt = S.cwiseSqrt();
     Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
