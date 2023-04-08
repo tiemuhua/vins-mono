@@ -144,18 +144,16 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
 
         if (it_per_id.estimated_depth > 0)
             continue;
-        int imu_i = it_per_id.start_frame_, imu_j = imu_i - 1;
 
         assert(NUM_OF_CAM == 1);
         Eigen::MatrixXd svd_A(2 * it_per_id.feature_per_frame_.size(), 4);
-        int svd_idx = 0;
 
+        int imu_i = it_per_id.start_frame_;
         Eigen::Vector3d t0 = Ps[imu_i] + Rs[imu_i] * tic[0];
         Eigen::Matrix3d R0 = Rs[imu_i] * ric[0];
 
-        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frame_) {
-            imu_j++;
-
+        for (int i = 0; i < it_per_id.feature_per_frame_.size(); ++i) {
+            int imu_j = it_per_id.start_frame_ + i;
             Eigen::Vector3d t1 = Ps[imu_j] + Rs[imu_j] * tic[0];
             Eigen::Matrix3d R1 = Rs[imu_j] * ric[0];
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
@@ -163,14 +161,10 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
             Eigen::Matrix<double, 3, 4> P;
             P.leftCols<3>() = R.transpose();
             P.rightCols<1>() = -R.transpose() * t;
-            Eigen::Vector3d f = it_per_frame.point_.normalized();
-            svd_A.row(svd_idx++) = f[0] * P.row(2) - f[2] * P.row(0);
-            svd_A.row(svd_idx++) = f[1] * P.row(2) - f[2] * P.row(1);
-
-            if (imu_i == imu_j)
-                continue;
+            Eigen::Vector3d f = it_per_id.feature_per_frame_[i].point_.normalized();
+            svd_A.row(2 * i) = f[0] * P.row(2) - f[2] * P.row(0);
+            svd_A.row(2 * i + 1) = f[1] * P.row(2) - f[2] * P.row(1);
         }
-        assert(svd_idx == svd_A.rows());
         Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
         double svd_method = svd_V[2] / svd_V[3];
 
