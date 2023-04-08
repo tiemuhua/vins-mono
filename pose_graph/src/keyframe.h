@@ -39,7 +39,7 @@ public:
 	void computeWindowBRIEFPoint();
 	void computeBRIEFPoint();
 	//void extractBrief();
-	int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b);
+	static int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b);
 	bool searchInAera(const BRIEF::bitset& window_descriptor,
 	                  const std::vector<BRIEF::bitset> &descriptors_old,
 	                  const std::vector<cv::KeyPoint> &keypoints_old,
@@ -56,7 +56,7 @@ public:
 	               const std::vector<cv::Point3f> &matched_3d,
 	               std::vector<uchar> &status,
 	               Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old);
-	void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i);
+	void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
 	void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i);
 	void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
 	void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);

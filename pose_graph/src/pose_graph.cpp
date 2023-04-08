@@ -80,11 +80,9 @@ void PoseGraph::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
                 cur_kf->updateVioPose(vio_P_cur, vio_R_cur);
                 for (KeyFrame* key_frame: keyframelist_) {
                     if (key_frame->sequence == cur_kf->sequence) {
-                        Vector3d vio_P_cur;
-                        Matrix3d vio_R_cur;
                         key_frame->getVioPose(vio_P_cur, vio_R_cur);
-                        vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
-                        vio_R_cur = w_r_vio * vio_R_cur;
+                        Vector3d vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
+                        Matrix3d vio_R_cur = w_r_vio * vio_R_cur;
                         key_frame->updateVioPose(vio_P_cur, vio_R_cur);
                     }
                 }

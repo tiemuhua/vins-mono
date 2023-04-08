@@ -61,10 +61,9 @@ void readParameters() {
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
     if (ESTIMATE_EXTRINSIC == 2) {
         LOG_W("have no prior about extrinsic param, calibrate extrinsic param");
-        RIC.push_back(Eigen::Matrix3d::Identity());
-        TIC.push_back(Eigen::Vector3d::Zero());
+        RIC.emplace_back(Eigen::Matrix3d::Identity());
+        TIC.emplace_back(Eigen::Vector3d::Zero());
         EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
-
     } else {
         if (ESTIMATE_EXTRINSIC == 1) {
             LOG_W(" Optimize extrinsic param around initial guess!");

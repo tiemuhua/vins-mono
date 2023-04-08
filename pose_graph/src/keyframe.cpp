@@ -82,7 +82,7 @@ void KeyFrame::computeWindowBRIEFPoint() {
 }
 
 void KeyFrame::computeBRIEFPoint() {
-    BriefExtractor extractor(BRIEF_PATTERN_FILE.c_str());
+    BriefExtractor extractor(BRIEF_PATTERN_FILE);
     const int fast_th = 20; // corner detector response threshold
     cv::FAST(image, keypoints, fast_th, true);
     extractor(image, keypoints, brief_descriptors);
@@ -275,14 +275,11 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
     return false;
 }
 
-
-int KeyFrame::HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
-    BRIEF::bitset xor_of_bitset = a ^ b;
-    int dis = xor_of_bitset.count();
-    return dis;
+inline int KeyFrame::HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
+    return (a ^ b).count();
 }
 
-void KeyFrame::getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) {
+void KeyFrame::getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const {
     _T_w_i = vio_T_w_i;
     _R_w_i = vio_R_w_i;
 }
@@ -317,8 +314,7 @@ double KeyFrame::getLoopRelativeYaw() {
 }
 
 void KeyFrame::updateLoop(Eigen::Matrix<double, 8, 1> &_loop_info) {
-    if (abs(_loop_info(7)) < 30.0 && Vector3d(_loop_info(0), _loop_info(1), _loop_info(2)).norm() < 20.0) {
-        //printf("update loop info\n");
+    if (abs(_loop_info(7)) < 30.0 && _loop_info.block<3,1>(0,0).norm() < 20.0) {
         loop_info = _loop_info;
     }
 }

@@ -138,7 +138,7 @@ public:
         midPointIntegration(_dt, acc_0, gyr_0, _acc_1, _gyr_1, delta_p, delta_q, delta_v,
                             linearized_ba, linearized_bg,
                             result_delta_p, result_delta_q, result_delta_v,
-                            result_linearized_ba, result_linearized_bg, 1);
+                            result_linearized_ba, result_linearized_bg, true);
 
         delta_p = result_delta_p;
         delta_q = result_delta_q;
@@ -191,8 +191,6 @@ public:
     Eigen::Vector3d linearized_ba, linearized_bg;
 
     Eigen::Matrix<double, 15, 15> jacobian, covariance;
-    Eigen::Matrix<double, 15, 15> step_jacobian;
-    Eigen::Matrix<double, 15, 18> step_V;
     Eigen::Matrix<double, 18, 18> noise;
 
     double sum_dt;

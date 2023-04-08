@@ -563,18 +563,18 @@ void Estimator::optimization() {
     ceres::Problem problem;
     ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
     for (int i = 0; i < WINDOW_SIZE + 1; i++) {
-        ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
-        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization);
+        ceres::Manifold *manifold = new ceres::SE3Manifold();
+        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, manifold);
         problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEED_BIAS);
     }
     for (auto &i: para_Ex_Pose) {
-        ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
-        problem.AddParameterBlock(i, SIZE_POSE, local_parameterization);
+        ceres::Manifold *manifold = new ceres::SE3Manifold();
+        problem.AddParameterBlock(i, SIZE_POSE, manifold);
         if (!ESTIMATE_EXTRINSIC) {
-            LOG_D("fix extinsic param");
+            LOG_D("fix extrinsic param");
             problem.SetParameterBlockConstant(i);
         } else
-            LOG_D("estimate extinsic param");
+            LOG_D("estimate extrinsic param");
     }
     if (ESTIMATE_TD) {
         problem.AddParameterBlock(para_Td[0], 1);
