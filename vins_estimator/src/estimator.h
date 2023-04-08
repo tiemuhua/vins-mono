@@ -99,7 +99,7 @@ private:
     int frame_count{};
     int sum_of_back{}, sum_of_front{};
 
-    FeatureManager f_manager;
+    FeatureManager feature_manager;
     MotionEstimator m_estimator;
     InitialEXRotation initial_ex_rotation;
 

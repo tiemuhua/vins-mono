@@ -1,6 +1,6 @@
 #include "estimator.h"
 
-Estimator::Estimator() : f_manager{Rs} {
+Estimator::Estimator() : feature_manager{Rs} {
     LOG_I("init begins");
     clearState();
 }
@@ -10,7 +10,7 @@ void Estimator::setParameter() {
         tic[i] = TIC[i];
         ric[i] = RIC[i];
     }
-    f_manager.setRic(ric);
+    feature_manager.setRic(ric);
     ProjectionFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     ProjectionTdFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     td = TD;
@@ -62,7 +62,7 @@ void Estimator::clearState() {
     last_marginalization_info = nullptr;
     last_marginal_param_blocks.clear();
 
-    f_manager.clearState();
+    feature_manager.clearState();
 
     failure_occur = false;
     relocalization_info = false;
@@ -105,7 +105,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                              const double &time_stamp) {
     LOG_D("new image coming ------------------------------------------");
     LOG_D("Adding feature points %lu", image.size());
-    if (f_manager.addFeatureCheckParallax(frame_count, image, td))
+    if (feature_manager.addFeatureCheckParallax(frame_count, image, td))
         marginalization_flag = MARGIN_OLD;
     else
         marginalization_flag = MARGIN_SECOND_NEW;
@@ -113,7 +113,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     LOG_D("this frame is--------------------%s", marginalization_flag ? "reject" : "accept");
     LOG_D("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
     LOG_D("Solving %d", frame_count);
-    LOG_D("number of feature: %d", f_manager.getFeatureCount());
+    LOG_D("number of feature: %d", feature_manager.getFeatureCount());
     time_stamps[frame_count] = time_stamp;
 
     ImageFrame image_frame(image, time_stamp);
@@ -124,7 +124,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     if (ESTIMATE_EXTRINSIC == 2) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0) {
-            vector<pair<Vector3d, Vector3d>> corres = f_manager.getCorresponding(frame_count - 1, frame_count);
+            vector<pair<Vector3d, Vector3d>> corres = feature_manager.getCorresponding(frame_count - 1, frame_count);
             Matrix3d calib_ric;
             if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrations[frame_count]->delta_q, calib_ric)) {
                 LOG_W("initial extrinsic rotation calib success");
@@ -146,7 +146,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                 solver_flag = NON_LINEAR;
                 solveOdometry();
                 slideWindow();
-                f_manager.removeFailures();
+                feature_manager.removeFailures();
                 LOG_I("Initialization finish!");
                 last_R = Rs[WINDOW_SIZE];
                 last_P = Ps[WINDOW_SIZE];
@@ -173,7 +173,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
         TicToc t_margin;
         slideWindow();
-        f_manager.removeFailures();
+        feature_manager.removeFailures();
         LOG_D("marginalization costs: %fms", t_margin.toc());
         // prepare output of VINS
         key_poses.clear();
@@ -213,7 +213,7 @@ bool Estimator::initialStructure() {
     // global sfm
     map<int, Vector3d> sfm_tracked_points;
     vector<SFMFeature> sfm_f;
-    for (FeaturePerId &it_per_id: f_manager.feature) {
+    for (FeaturePerId &it_per_id: feature_manager.feature) {
         int imu_j = it_per_id.start_frame - 1;
         SFMFeature tmp_feature;
         tmp_feature.state = false;
@@ -323,18 +323,18 @@ bool Estimator::visualInitialAlign() {
         all_image_frame[time_stamps[i]].is_key_frame = true;
     }
 
-    VectorXd dep = f_manager.getDepthVector();
+    VectorXd dep = feature_manager.getDepthVector();
     for (int i = 0; i < dep.size(); i++)
         dep[i] = -1;
-    f_manager.clearDepth(dep);
+    feature_manager.clearDepth(dep);
 
     //triangulate on cam pose , no tic
     Vector3d TIC_TMP[NUM_OF_CAM];
     for (auto &i: TIC_TMP)
         i.setZero();
     ric[0] = RIC[0];
-    f_manager.setRic(ric);
-    f_manager.triangulate(Ps, &(TIC_TMP[0]), &(RIC[0]));
+    feature_manager.setRic(ric);
+    feature_manager.triangulate(Ps, &(TIC_TMP[0]), &(RIC[0]));
 
     double s = (x.tail<1>())(0);
     for (int i = 0; i <= WINDOW_SIZE; i++) {
@@ -349,7 +349,7 @@ bool Estimator::visualInitialAlign() {
             Vs[kv] = frame.second.R * x.segment<3>(kv*3);
         }
     }
-    for (FeaturePerId &it_per_id: f_manager.feature) {
+    for (FeaturePerId &it_per_id: feature_manager.feature) {
         if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
         it_per_id.estimated_depth *= s;
@@ -373,7 +373,7 @@ bool Estimator::visualInitialAlign() {
 bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l) {
     // find previous frame which contains enough correspondence and parallax with the newest frame
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        vector<pair<Vector3d, Vector3d>> correspondences = f_manager.getCorresponding(i, WINDOW_SIZE);
+        vector<pair<Vector3d, Vector3d>> correspondences = feature_manager.getCorresponding(i, WINDOW_SIZE);
         if (correspondences.size() > 20) {
             double sum_parallax = 0;
             for (auto &correspond: correspondences) {
@@ -399,7 +399,7 @@ void Estimator::solveOdometry() {
         return;
     if (solver_flag == NON_LINEAR) {
         TicToc t_tri;
-        f_manager.triangulate(Ps, tic, ric);
+        feature_manager.triangulate(Ps, tic, ric);
         LOG_D("triangulation costs %f", t_tri.toc());
         optimization();
     }
@@ -439,8 +439,8 @@ void Estimator::vector2double() {
         para_Ex_Pose[i][6] = q.w();
     }
 
-    VectorXd dep = f_manager.getDepthVector();
-    for (int i = 0; i < f_manager.getFeatureCount(); i++)
+    VectorXd dep = feature_manager.getDepthVector();
+    for (int i = 0; i < feature_manager.getFeatureCount(); i++)
         para_Feature[i][0] = dep(i);
     if (ESTIMATE_TD)
         para_Td[0][0] = td;
@@ -502,10 +502,10 @@ void Estimator::double2vector() {
                              para_Ex_Pose[i][5]).toRotationMatrix();
     }
 
-    VectorXd dep = f_manager.getDepthVector();
-    for (int i = 0; i < f_manager.getFeatureCount(); i++)
+    VectorXd dep = feature_manager.getDepthVector();
+    for (int i = 0; i < feature_manager.getFeatureCount(); i++)
         dep(i) = para_Feature[i][0];
-    f_manager.setDepth(dep);
+    feature_manager.setDepth(dep);
     if (ESTIMATE_TD)
         td = para_Td[0][0];
 
@@ -522,8 +522,8 @@ void Estimator::double2vector() {
 }
 
 bool Estimator::failureDetection() {
-    if (f_manager.last_track_num < 2) {
-        LOG_I(" little feature %d", f_manager.last_track_num);
+    if (feature_manager.last_track_num < 2) {
+        LOG_I(" little feature %d", feature_manager.last_track_num);
         //return true;
     }
     if (Bas[WINDOW_SIZE].norm() > 2.5) {
@@ -598,7 +598,7 @@ void Estimator::optimization() {
     }
     int f_m_cnt = 0;
     int feature_index = -1;
-    for (FeaturePerId &it_per_id: f_manager.feature) {
+    for (FeaturePerId &it_per_id: feature_manager.feature) {
         if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
 
@@ -638,7 +638,7 @@ void Estimator::optimization() {
         problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
         int retrive_feature_index = 0;
         feature_index = -1;
-        for (FeaturePerId &it_per_id: f_manager.feature) {
+        for (FeaturePerId &it_per_id: feature_manager.feature) {
             if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                 continue;
             ++feature_index;
@@ -713,7 +713,7 @@ void Estimator::optimization() {
         }
 
         feature_index = -1;
-        for (FeaturePerId &it_per_id: f_manager.feature) {
+        for (FeaturePerId &it_per_id: feature_manager.feature) {
             if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                 continue;
 
@@ -931,7 +931,7 @@ void Estimator::slideWindow() {
 // real marginalization is removed in solve_ceres()
 void Estimator::slideWindowNew() {
     sum_of_front++;
-    f_manager.removeFront(frame_count);
+    feature_manager.removeFront(frame_count);
 }
 
 // real marginalization is removed in solve_ceres()
@@ -945,7 +945,7 @@ void Estimator::slideWindowOld() {
     R1 = Rs[0] * ric[0];
     P0 = back_P0 + back_R0 * tic[0];
     P1 = Ps[0] + Rs[0] * tic[0];
-    f_manager.removeBackShiftDepth(R0, P0, R1, P1);
+    feature_manager.removeBackShiftDepth(R0, P0, R1, P1);
 }
 
 void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
