@@ -74,8 +74,6 @@ private:
     SolverFlag solver_flag;
     MarginalizationFlag marginalization_flag;
     Vector3d g;
-    MatrixXd Ap[2], backup_A;
-    VectorXd bp[2], backup_b;
 
     Matrix3d ric[NUM_OF_CAM];
     Vector3d tic[NUM_OF_CAM];
@@ -111,11 +109,10 @@ private:
     vector<Vector3d> key_poses;
     double initial_timestamp{};
 
-
-    double para_Pose[WINDOW_SIZE + 1][SIZE_POSE]{};
-    double para_SpeedBias[WINDOW_SIZE + 1][SIZE_SPEEDBIAS]{};
-    double para_Feature[NUM_OF_F][SIZE_FEATURE]{};
-    double para_Ex_Pose[NUM_OF_CAM][SIZE_POSE]{};
+    Pose para_Pose[WINDOW_SIZE + 1]{};
+    SpeedBias para_SpeedBias[WINDOW_SIZE + 1]{};
+    Feature para_Feature[NUM_OF_F]{};
+    Pose para_Ex_Pose[NUM_OF_CAM]{};
     double para_Td[1][1]{};
 
     MarginalizationInfo *last_marginalization_info{};

@@ -189,40 +189,36 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
 bool Estimator::initialStructure() {
     TicToc t_sfm;
-    //check imu observibility
-    Vector3d sum_g;
-    for (auto frame_it = all_image_frame.begin(); frame_it != all_image_frame.end(); frame_it++) {
-        frame_it++;
-        double dt = frame_it->second.pre_integration->sum_dt;
-        Vector3d tmp_g = frame_it->second.pre_integration->delta_v / dt;
-        sum_g += tmp_g;
+    //check imu observability
+    Vector3d sum_acc;
+    // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
+    for (const pair<const double, ImageFrame> &frame: all_image_frame) {
+        double dt = frame.second.pre_integration->sum_dt;
+        Vector3d tmp_acc = frame.second.pre_integration->delta_v / dt;
+        sum_acc += tmp_acc;
     }
-    Vector3d aver_g;
-    aver_g = sum_g * 1.0 / ((int) all_image_frame.size() - 1);
+    Vector3d aver_acc = sum_acc / (double )all_image_frame.size();
     double var = 0;
-    for (auto frame_it = all_image_frame.begin(); frame_it != all_image_frame.end(); frame_it++) {
-        frame_it++;
-        double dt = frame_it->second.pre_integration->sum_dt;
-        Vector3d tmp_g = frame_it->second.pre_integration->delta_v / dt;
-        var += (tmp_g - aver_g).transpose() * (tmp_g - aver_g);
+    for (const pair<const double, ImageFrame> &frame:all_image_frame) {
+        double dt = frame.second.pre_integration->sum_dt;
+        Vector3d tmp_acc = frame.second.pre_integration->delta_v / dt;
+        var += (tmp_acc - aver_acc).transpose() * (tmp_acc - aver_acc);
     }
-    var = sqrt(var / ((int) all_image_frame.size() - 1));
+    var = sqrt(var / (double )all_image_frame.size());
     if (var < 0.25) {
-        LOG_I("IMU excitation not enouth!");
+        LOG_E("IMU excitation not enough!");
         //return false;
     }
 
     // global sfm
-    Quaterniond Q[frame_count + 1];
-    Vector3d T[frame_count + 1];
     map<int, Vector3d> sfm_tracked_points;
     vector<SFMFeature> sfm_f;
-    for (auto &it_per_id: f_manager.feature) {
+    for (FeaturePerId &it_per_id: f_manager.feature) {
         int imu_j = it_per_id.start_frame - 1;
         SFMFeature tmp_feature;
         tmp_feature.state = false;
         tmp_feature.id = it_per_id.feature_id;
-        for (auto &it_per_frame: it_per_id.feature_per_frame) {
+        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frame) {
             imu_j++;
             Vector3d pts_j = it_per_frame.point;
             tmp_feature.observation.emplace_back(make_pair(imu_j, Eigen::Vector2d{pts_j.x(), pts_j.y()}));
@@ -237,6 +233,8 @@ bool Estimator::initialStructure() {
         return false;
     }
     GlobalSFM sfm;
+    Quaterniond Q[frame_count + 1];
+    Vector3d T[frame_count + 1];
     if (!sfm.construct(frame_count + 1, Q, T, l,
                        relative_R, relative_T,
                        sfm_f, sfm_tracked_points)) {
@@ -246,18 +244,18 @@ bool Estimator::initialStructure() {
     }
 
     //solve pnp for all frame
-    auto frame_it = all_image_frame.begin();
-    for (int i = 0; frame_it != all_image_frame.end(); frame_it++) {
+    int i = 0;
+    for (pair<const double, ImageFrame> &frame:all_image_frame) {
         // provide initial guess
         cv::Mat r, rvec, t, D, tmp_r;
-        if ((frame_it->first) == time_stamps[i]) {
-            frame_it->second.is_key_frame = true;
-            frame_it->second.R = Q[i].toRotationMatrix() * RIC[0].transpose();
-            frame_it->second.T = T[i];
+        if ((frame.first) == time_stamps[i]) {
+            frame.second.is_key_frame = true;
+            frame.second.R = Q[i].toRotationMatrix() * RIC[0].transpose();
+            frame.second.T = T[i];
             i++;
             continue;
         }
-        if ((frame_it->first) > time_stamps[i]) {
+        if ((frame.first) > time_stamps[i]) {
             i++;
         }
         Matrix3d R_inital = (Q[i].inverse()).toRotationMatrix();
@@ -266,20 +264,17 @@ bool Estimator::initialStructure() {
         cv::Rodrigues(tmp_r, rvec);
         cv::eigen2cv(P_inital, t);
 
-        frame_it->second.is_key_frame = false;
+        frame.second.is_key_frame = false;
         vector<cv::Point3f> pts_3_vector;
         vector<cv::Point2f> pts_2_vector;
-        for (auto &id_pts: frame_it->second.points) {
+        for (auto &id_pts: frame.second.points) {
             int feature_id = id_pts.first;
             for (auto &i_p: id_pts.second) {
                 auto it = sfm_tracked_points.find(feature_id);
                 if (it != sfm_tracked_points.end()) {
                     Vector3d world_pts = it->second;
-                    cv::Point3f pts_3(world_pts(0), world_pts(1), world_pts(2));
-                    pts_3_vector.push_back(pts_3);
-                    Vector2d img_pts = i_p.second.head<2>();
-                    cv::Point2f pts_2(img_pts(0), img_pts(1));
-                    pts_2_vector.push_back(pts_2);
+                    pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
+                    pts_2_vector.emplace_back(i_p.second(0), i_p.second(1));
                 }
             }
         }
@@ -293,15 +288,15 @@ bool Estimator::initialStructure() {
             LOG_D("solve pnp fail!");
             return false;
         }
+
         cv::Rodrigues(rvec, r);
-        MatrixXd R_pnp, tmp_R_pnp;
+        MatrixXd tmp_R_pnp;
         cv::cv2eigen(r, tmp_R_pnp);
-        R_pnp = tmp_R_pnp.transpose();
+        MatrixXd R_pnp = tmp_R_pnp.transpose();
         MatrixXd T_pnp;
         cv::cv2eigen(t, T_pnp);
-        T_pnp = R_pnp * (-T_pnp);
-        frame_it->second.R = R_pnp * RIC[0].transpose();
-        frame_it->second.T = T_pnp;
+        frame.second.T = R_pnp * (-T_pnp);
+        frame.second.R = R_pnp * RIC[0].transpose();
     }
     if (visualInitialAlign())
         return true;
@@ -577,7 +572,7 @@ void Estimator::optimization() {
     for (int i = 0; i < WINDOW_SIZE + 1; i++) {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
         problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization);
-        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
+        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEED_BIAS);
     }
     for (auto &i: para_Ex_Pose) {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
@@ -706,9 +701,9 @@ void Estimator::optimization() {
                     drop_set.push_back(i);
             }
             // construct new marginlization_factor
-            auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
+            auto *cost_function = new MarginalizationFactor(last_marginalization_info);
 
-            ResidualBlockInfo residual_block_info(marginalization_factor, NULL,
+            ResidualBlockInfo residual_block_info(cost_function, nullptr,
                                                   last_marginal_param_blocks, drop_set);
             marginalization_info->addResidualBlockInfo(residual_block_info);
         }
@@ -787,15 +782,15 @@ void Estimator::optimization() {
         marginalization_info->marginalize();
         LOG_D("marginalization %f ms", t_margin.toc());
 
-        std::unordered_map<long, double *> addr_shift;
+        std::unordered_map<double*, double *> addr_shift;
         for (int i = 1; i <= WINDOW_SIZE; i++) {
-            addr_shift[reinterpret_cast<long>(para_Pose[i])] = para_Pose[i - 1];
-            addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i - 1];
+            addr_shift[para_Pose[i]] = para_Pose[i - 1];
+            addr_shift[para_SpeedBias[i]] = para_SpeedBias[i - 1];
         }
         for (auto &i: para_Ex_Pose)
-            addr_shift[reinterpret_cast<long>(i)] = i;
+            addr_shift[i] = i;
         if (ESTIMATE_TD) {
-            addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
+            addr_shift[para_Td[0]] = para_Td[0];
         }
         vector<double *> parameter_blocks = marginalization_info->getParameterBlocks(addr_shift);
 
@@ -835,22 +830,22 @@ void Estimator::optimization() {
             marginalization_info->marginalize();
             LOG_D("end marginalization, %f ms", t_margin.toc());
 
-            std::unordered_map<long, double *> addr_shift;
+            std::unordered_map<double*, double *> addr_shift;
             for (int i = 0; i <= WINDOW_SIZE; i++) {
                 if (i == WINDOW_SIZE - 1)
                     continue;
                 else if (i == WINDOW_SIZE) {
-                    addr_shift[reinterpret_cast<long>(para_Pose[i])] = para_Pose[i - 1];
-                    addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i - 1];
+                    addr_shift[para_Pose[i]] = para_Pose[i - 1];
+                    addr_shift[para_SpeedBias[i]] = para_SpeedBias[i - 1];
                 } else {
-                    addr_shift[reinterpret_cast<long>(para_Pose[i])] = para_Pose[i];
-                    addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i];
+                    addr_shift[para_Pose[i]] = para_Pose[i];
+                    addr_shift[para_SpeedBias[i]] = para_SpeedBias[i];
                 }
             }
-            for (auto &i: para_Ex_Pose)
-                addr_shift[reinterpret_cast<long>(i)] = i;
+            for (Pose &i: para_Ex_Pose)
+                addr_shift[i] = i;
             if (ESTIMATE_TD) {
-                addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
+                addr_shift[para_Td[0]] = para_Td[0];
             }
 
             vector<double *> parameter_blocks = marginalization_info->getParameterBlocks(addr_shift);

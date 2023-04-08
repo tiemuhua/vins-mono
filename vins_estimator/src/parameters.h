@@ -42,9 +42,13 @@ void readParameters();
 
 enum SIZE_PARAMETERIZATION {
     SIZE_POSE = 7,
-    SIZE_SPEEDBIAS = 9,
+    SIZE_SPEED_BIAS = 9,
     SIZE_FEATURE = 1
 };
+
+typedef double Pose[SIZE_POSE];
+typedef double SpeedBias[SIZE_SPEED_BIAS];
+typedef double Feature[SIZE_FEATURE];
 
 enum StateOrder {
     O_P = 0,
