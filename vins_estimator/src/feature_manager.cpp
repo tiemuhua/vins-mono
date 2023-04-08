@@ -252,30 +252,17 @@ void FeatureManager::removeFront(int frame_count) {
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count) {
     //check the second last frame is keyframe or not
     //parallax between second last frame and third last frame
-    const FeaturePerFrame &frame_i = it_per_id.feature_per_frame_[frame_count - 2 - it_per_id.start_frame_];
-    const FeaturePerFrame &frame_j = it_per_id.feature_per_frame_[frame_count - 1 - it_per_id.start_frame_];
-
-    double ans = 0;
-    Vector3d p_j = frame_j.point_;
+    Vector3d p_i = it_per_id.feature_per_frame_[frame_count - 2 - it_per_id.start_frame_].point_;
+    Vector3d p_j = it_per_id.feature_per_frame_[frame_count - 1 - it_per_id.start_frame_].point_;
 
     double u_j = p_j(0);
     double v_j = p_j(1);
 
-    Vector3d p_i = frame_i.point_;
-    Vector3d p_i_comp;
+    double u_i = p_i(0) / p_i(2);
+    double v_i = p_i(1) / p_i(2);
 
-    p_i_comp = p_i;
-    double dep_i = p_i(2);
-    double u_i = p_i(0) / dep_i;
-    double v_i = p_i(1) / dep_i;
+    // todo tiemuhuaguo u_i - u_j有物理意义吗？？？
     double du = u_i - u_j, dv = v_i - v_j;
 
-    double dep_i_comp = p_i_comp(2);
-    double u_i_comp = p_i_comp(0) / dep_i_comp;
-    double v_i_comp = p_i_comp(1) / dep_i_comp;
-    double du_comp = u_i_comp - u_j, dv_comp = v_i_comp - v_j;
-
-    ans = max(ans, sqrt(min(du * du + dv * dv, du_comp * du_comp + dv_comp * dv_comp)));
-
-    return ans;
+    return sqrt(du * du + dv * dv);
 }
