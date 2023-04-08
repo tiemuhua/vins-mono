@@ -846,52 +846,39 @@ void Estimator::optimization() {
 }
 
 void Estimator::slideWindow() {
-    TicToc t_margin;
+    if (frame_count != WINDOW_SIZE) {
+        return;
+    }
     if (marginalization_flag == MARGIN_OLD) {
         double t_0 = time_stamps[0];
-        if (frame_count == WINDOW_SIZE) {
-            for (int i = 0; i < WINDOW_SIZE; i++) {
-                Rs[i].swap(Rs[i + 1]);
+        for (int i = 0; i < WINDOW_SIZE; i++) {
+            Rs[i].swap(Rs[i + 1]);
 
-                std::swap(pre_integrations[i], pre_integrations[i + 1]);
+            std::swap(pre_integrations[i], pre_integrations[i + 1]);
 
-                dt_buf[i].swap(dt_buf[i + 1]);
-                linear_acceleration_buf[i].swap(linear_acceleration_buf[i + 1]);
-                angular_velocity_buf[i].swap(angular_velocity_buf[i + 1]);
+            dt_buf[i].swap(dt_buf[i + 1]);
+            linear_acceleration_buf[i].swap(linear_acceleration_buf[i + 1]);
+            angular_velocity_buf[i].swap(angular_velocity_buf[i + 1]);
 
-                time_stamps[i] = time_stamps[i + 1];
-                Ps[i].swap(Ps[i + 1]);
-                Vs[i].swap(Vs[i + 1]);
-                Bas[i].swap(Bas[i + 1]);
-                Bgs[i].swap(Bgs[i + 1]);
-            }
-            time_stamps[WINDOW_SIZE] = time_stamps[WINDOW_SIZE - 1];
-            Ps[WINDOW_SIZE] = Ps[WINDOW_SIZE - 1];
-            Vs[WINDOW_SIZE] = Vs[WINDOW_SIZE - 1];
-            Rs[WINDOW_SIZE] = Rs[WINDOW_SIZE - 1];
-            Bas[WINDOW_SIZE] = Bas[WINDOW_SIZE - 1];
-            Bgs[WINDOW_SIZE] = Bgs[WINDOW_SIZE - 1];
-
-            delete pre_integrations[WINDOW_SIZE];
-            pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
-
-            dt_buf[WINDOW_SIZE].clear();
-            linear_acceleration_buf[WINDOW_SIZE].clear();
-            angular_velocity_buf[WINDOW_SIZE].clear();
-
-            map<double, ImageFrame>::iterator it_0;
-            it_0 = all_image_frame.find(t_0);
-            delete it_0->second.pre_integration;
-            it_0->second.pre_integration = nullptr;
-            for (auto it = all_image_frame.begin(); it != it_0; ++it) {
-                delete it->second.pre_integration;
-                it->second.pre_integration = nullptr;
-            }
-            all_image_frame.erase(all_image_frame.begin(), it_0);
-            all_image_frame.erase(t_0);
-            slideWindowOld();
+            time_stamps[i] = time_stamps[i + 1];
+            Ps[i].swap(Ps[i + 1]);
+            Vs[i].swap(Vs[i + 1]);
+            Bas[i].swap(Bas[i + 1]);
+            Bgs[i].swap(Bgs[i + 1]);
         }
-    } else if (frame_count == WINDOW_SIZE) {
+
+        map<double, ImageFrame>::iterator it_0;
+        it_0 = all_image_frame.find(t_0);
+        delete it_0->second.pre_integration;
+        it_0->second.pre_integration = nullptr;
+        for (auto it = all_image_frame.begin(); it != it_0; ++it) {
+            delete it->second.pre_integration;
+            it->second.pre_integration = nullptr;
+        }
+        all_image_frame.erase(all_image_frame.begin(), it_0);
+        all_image_frame.erase(t_0);
+        slideWindowOld();
+    } else {
         for (unsigned int i = 0; i < dt_buf[frame_count].size(); i++) {
             double tmp_dt = dt_buf[frame_count][i];
             Vector3d tmp_linear_acceleration = linear_acceleration_buf[frame_count][i];
@@ -903,23 +890,21 @@ void Estimator::slideWindow() {
             linear_acceleration_buf[frame_count - 1].push_back(tmp_linear_acceleration);
             angular_velocity_buf[frame_count - 1].push_back(tmp_angular_velocity);
         }
-
-        time_stamps[frame_count - 1] = time_stamps[frame_count];
-        Ps[frame_count - 1] = Ps[frame_count];
-        Vs[frame_count - 1] = Vs[frame_count];
-        Rs[frame_count - 1] = Rs[frame_count];
-        Bas[frame_count - 1] = Bas[frame_count];
-        Bgs[frame_count - 1] = Bgs[frame_count];
-
-        delete pre_integrations[WINDOW_SIZE];
-        pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
-
-        dt_buf[WINDOW_SIZE].clear();
-        linear_acceleration_buf[WINDOW_SIZE].clear();
-        angular_velocity_buf[WINDOW_SIZE].clear();
-
         slideWindowNew();
     }
+    time_stamps[WINDOW_SIZE] = time_stamps[WINDOW_SIZE - 1];
+    Ps[WINDOW_SIZE] = Ps[WINDOW_SIZE - 1];
+    Vs[WINDOW_SIZE] = Vs[WINDOW_SIZE - 1];
+    Rs[WINDOW_SIZE] = Rs[WINDOW_SIZE - 1];
+    Bas[WINDOW_SIZE] = Bas[WINDOW_SIZE - 1];
+    Bgs[WINDOW_SIZE] = Bgs[WINDOW_SIZE - 1];
+
+    delete pre_integrations[WINDOW_SIZE];
+    pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
+
+    dt_buf[WINDOW_SIZE].clear();
+    linear_acceleration_buf[WINDOW_SIZE].clear();
+    angular_velocity_buf[WINDOW_SIZE].clear();
 }
 
 // real marginalization is removed in solve_ceres()
