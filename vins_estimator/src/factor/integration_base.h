@@ -14,7 +14,7 @@ public:
     IntegrationBase(const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0,
                     const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
             : acc_0{_acc_0}, gyr_0{_gyr_0}, linearized_acc{_acc_0}, linearized_gyr{_gyr_0},
-              linearized_ba{_linearized_ba}, linearized_bg{_linearized_bg},
+              ba{_linearized_ba}, bg{_linearized_bg},
               jacobian{Eigen::Matrix<double, 15, 15>::Identity()}, covariance{Eigen::Matrix<double, 15, 15>::Zero()},
               sum_dt{0.0}, delta_p{Eigen::Vector3d::Zero()}, delta_q{Eigen::Quaterniond::Identity()},
               delta_v{Eigen::Vector3d::Zero()} {
@@ -41,8 +41,8 @@ public:
         delta_p.setZero();
         delta_q.setIdentity();
         delta_v.setZero();
-        linearized_ba = _linearized_ba;
-        linearized_bg = _linearized_bg;
+        ba = _linearized_ba;
+        bg = _linearized_bg;
         jacobian.setIdentity();
         covariance.setZero();
         for (int i = 0; i < static_cast<int>(dt_buf.size()); i++)
@@ -136,15 +136,15 @@ public:
         Vector3d result_linearized_bg;
 
         midPointIntegration(_dt, acc_0, gyr_0, _acc_1, _gyr_1, delta_p, delta_q, delta_v,
-                            linearized_ba, linearized_bg,
+                            ba, bg,
                             result_delta_p, result_delta_q, result_delta_v,
                             result_linearized_ba, result_linearized_bg, true);
 
         delta_p = result_delta_p;
         delta_q = result_delta_q;
         delta_v = result_delta_v;
-        linearized_ba = result_linearized_ba;
-        linearized_bg = result_linearized_bg;
+        ba = result_linearized_ba;
+        bg = result_linearized_bg;
         delta_q.normalize();
         sum_dt += dt;
         acc_0 = acc_1;
@@ -167,8 +167,8 @@ public:
         Eigen::Matrix3d dv_dba = jacobian.block<3, 3>(O_V, O_BA);
         Eigen::Matrix3d dv_dbg = jacobian.block<3, 3>(O_V, O_BG);
 
-        Eigen::Vector3d dba = Bai - linearized_ba;
-        Eigen::Vector3d dbg = Bgi - linearized_bg;
+        Eigen::Vector3d dba = Bai - ba;
+        Eigen::Vector3d dbg = Bgi - bg;
 
         Eigen::Quaterniond corrected_delta_q = delta_q * Utility::deltaQ(dq_dbg * dbg);
         Eigen::Vector3d corrected_delta_v = delta_v + dv_dba * dba + dv_dbg * dbg;
@@ -188,7 +188,7 @@ public:
     Eigen::Vector3d acc_1, gyr_1;
 
     const Eigen::Vector3d linearized_acc, linearized_gyr;
-    Eigen::Vector3d linearized_ba, linearized_bg;
+    Eigen::Vector3d ba, bg;
 
     Eigen::Matrix<double, 15, 15> jacobian, covariance;
     Eigen::Matrix<double, 18, 18> noise;
