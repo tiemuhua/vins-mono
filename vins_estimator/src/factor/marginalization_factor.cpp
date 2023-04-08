@@ -164,10 +164,9 @@ void MarginalizationInfo::marginalize() {
 
     const Eigen::MatrixXd &Amm = A.block(0, 0, m, m);
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
-
-    Eigen::MatrixXd Amm_inv = saes.eigenvectors() * Eigen::VectorXd(
-            (saes.eigenvalues().array() > EPS).select(saes.eigenvalues().array().inverse(), 0)).asDiagonal() *
-                              saes.eigenvectors().transpose();
+    Eigen::VectorXd eigen_val_inv_vec = (saes.eigenvalues().array() > EPS).select(saes.eigenvalues().array().inverse(), 0);
+    Eigen::MatrixXd eigen_val_inv_mat = eigen_val_inv_vec.asDiagonal();
+    Eigen::MatrixXd Amm_inv = saes.eigenvectors() * eigen_val_inv_mat * saes.eigenvectors().transpose();
 
     Eigen::VectorXd bmm = b.segment(0, m);
     Eigen::MatrixXd Amr = A.block(0, m, m, n);

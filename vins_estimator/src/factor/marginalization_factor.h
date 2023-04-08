@@ -9,7 +9,7 @@
 #include "../utility/utility.h"
 #include "../utility/tic_toc.h"
 
-const int NUM_THREADS = 4;
+constexpr int NUM_THREADS = 4;
 
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> JacobianType;
 struct ResidualBlockInfo
