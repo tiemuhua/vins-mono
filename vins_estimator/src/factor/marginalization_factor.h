@@ -38,8 +38,8 @@ struct ThreadsStruct
     std::vector<ResidualBlockInfo> sub_factors;
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
-    std::unordered_map<long, int> parameter_block_size; //global size
-    std::unordered_map<long, int> parameter_block_idx; //local size
+    std::unordered_map<double*, int> parameter_block_size; //global size
+    std::unordered_map<double*, int> parameter_block_idx; //local size
 };
 
 class MarginalizationInfo
@@ -50,13 +50,13 @@ class MarginalizationInfo
     void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
     void preMarginalize();
     void marginalize();
-    std::vector<double *> getParameterBlocks(std::unordered_map<long, double *> &addr_shift);
+    std::vector<double *> getParameterBlocks(std::unordered_map<double*, double *> &addr_shift);
 
     std::vector<ResidualBlockInfo> factors_;
     int m, n;
-    std::unordered_map<long, int> parameter_block_size_; //global size
-    std::unordered_map<long, int> parameter_block_idx_; //local size
-    std::unordered_map<long, double *> parameter_block_data_;
+    std::unordered_map<double*, int> parameter_block_size_; //global size
+    std::unordered_map<double*, int> parameter_block_idx_; //local size
+    std::unordered_map<double*, double *> parameter_block_data_;
 
     std::vector<int> keep_block_size_; //global size
     std::vector<int> keep_block_idx_;  //local size
