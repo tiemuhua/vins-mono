@@ -15,28 +15,25 @@ void ResidualBlockInfo::Evaluate() {
     cost_function_->Evaluate(parameter_blocks_.data(), residuals_.data(), raw_jacobians.data());
 
     if (loss_function_) {
-        double residual_scaling, alpha_sq_norm;
-
         double rho[3];
-
         double sq_norm = residuals_.squaredNorm();
         loss_function_->Evaluate(sq_norm, rho);
+        double sqrt_rho1 = sqrt(rho[1]);
 
-        double sqrt_rho1_ = sqrt(rho[1]);
-
+        double residual_scaling, alpha_sq_norm;
         if (abs(sq_norm) < MarginalizationInfo::EPS || (rho[2] <= 0.0)) {
-            residual_scaling = sqrt_rho1_;
+            residual_scaling = sqrt_rho1;
             alpha_sq_norm = 0.0;
         } else {
             const double D = 1.0 + 2.0 * sq_norm * rho[2] / rho[1];
             const double alpha = 1.0 - sqrt(D);
-            residual_scaling = sqrt_rho1_ / (1 - alpha);
+            residual_scaling = sqrt_rho1 / (1 - alpha);
             alpha_sq_norm = alpha / sq_norm;
         }
 
         for (int i = 0; i < static_cast<int>(parameter_blocks_.size()); i++) {
             jacobians_[i] =
-                    sqrt_rho1_ * (jacobians_[i] - alpha_sq_norm * residuals_ * (residuals_.transpose() * jacobians_[i]));
+                    sqrt_rho1 * (jacobians_[i] - alpha_sq_norm * residuals_ * residuals_.transpose() * jacobians_[i]);
         }
 
         residuals_ *= residual_scaling;
