@@ -63,7 +63,7 @@ public:
                         Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
 
                 Eigen::Quaterniond corrected_delta_q =
-                        pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->linearized_bg));
+                        pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->bg));
                 jacobian_pose_i.block<3, 3>(O_R, O_R) =
                         -(Utility::Qleft(Qj.inverse() * Qi) * Utility::Qright(corrected_delta_q)).bottomRightCorner<3, 3>();
 
@@ -103,7 +103,7 @@ public:
                 jacobian_pose_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
 
                 Eigen::Quaterniond corrected_delta_q =
-                        pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->linearized_bg));
+                        pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->bg));
                 jacobian_pose_j.block<3, 3>(O_R, O_R) = Utility::Qleft(
                         corrected_delta_q.inverse() * Qi.inverse() * Qj).bottomRightCorner<3, 3>();
 

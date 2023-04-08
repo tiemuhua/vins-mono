@@ -74,7 +74,7 @@ public:
 
     VectorXd getDepthVector();
 
-    void triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]);
+    void triangulate(PosWindow pos_window, Vector3d tic[], Matrix3d ric[]);
 
     void removeBackShiftDepth();
 

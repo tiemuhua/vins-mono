@@ -137,7 +137,7 @@ VectorXd FeatureManager::getDepthVector() {
     return dep_vec;
 }
 
-void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) {
+void FeatureManager::triangulate(PosWindow pos_window, Vector3d tic[], Matrix3d ric[]) {
     for (FeaturePerId &it_per_id: features_) {
         if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
@@ -149,12 +149,12 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
         Eigen::MatrixXd svd_A(2 * it_per_id.feature_per_frame_.size(), 4);
 
         int imu_i = it_per_id.start_frame_;
-        Eigen::Vector3d t0 = Ps[imu_i] + Rs[imu_i] * tic[0];
+        Eigen::Vector3d t0 = pos_window[imu_i] + Rs[imu_i] * tic[0];
         Eigen::Matrix3d R0 = Rs[imu_i] * ric[0];
 
         for (int i = 0; i < it_per_id.feature_per_frame_.size(); ++i) {
             int imu_j = it_per_id.start_frame_ + i;
-            Eigen::Vector3d t1 = Ps[imu_j] + Rs[imu_j] * tic[0];
+            Eigen::Vector3d t1 = pos_window[imu_j] + Rs[imu_j] * tic[0];
             Eigen::Matrix3d R1 = Rs[imu_j] * ric[0];
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;

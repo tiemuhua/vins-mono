@@ -77,23 +77,23 @@ private:
     Matrix3d ric[NUM_OF_CAM];
     Vector3d tic[NUM_OF_CAM];
 
-    Vector3d Ps[(WINDOW_SIZE + 1)];
-    Vector3d Vs[(WINDOW_SIZE + 1)];
-    Matrix3d Rs[(WINDOW_SIZE + 1)];
-    Vector3d Bas[(WINDOW_SIZE + 1)];
-    Vector3d Bgs[(WINDOW_SIZE + 1)];
+    PosWindow pos_window;
+    VecWindow vec_window;
+    RotWindow rot_window;
+    BaWindow ba_window;
+    BgWindow bg_window;
+    TimeStampWindow time_stamp_window{};
+    PreIntegrateWindow pre_integrate_window{};
+    DtBufWindow dt_buf_window;
+    AccBufWindow acc_buf_window;
+    GyrBufWindow gyr_buf_window;
+
     double td{};
 
     Matrix3d last_R, last_R0;
     Vector3d last_P, last_P0;
-    double time_stamps[WINDOW_SIZE + 1]{};
 
-    IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)]{};
     Vector3d acc_0, gyr_0;
-
-    vector<double> dt_buf[(WINDOW_SIZE + 1)];
-    vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)];
-    vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)];
 
     int frame_count{};
     int sum_of_back{}, sum_of_front{};
