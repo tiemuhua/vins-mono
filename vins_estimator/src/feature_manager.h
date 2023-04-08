@@ -17,51 +17,41 @@ using namespace Eigen;
 class FeaturePerFrame {
 public:
     FeaturePerFrame(const Eigen::Matrix<double, 7, 1> &_point, double td) {
-        point.x() = _point(0);
-        point.y() = _point(1);
-        point.z() = _point(2);
-        uv.x() = _point(3);
-        uv.y() = _point(4);
-        velocity.x() = _point(5);
-        velocity.y() = _point(6);
+        point_ = _point.block<3,1>(0, 0);
+        uv = _point.block<2,1>(3,0);
+        velocity = _point.block<2,1>(5,0);
         cur_td = td;
     }
 
     double cur_td;
-    Vector3d point;
+    Vector3d point_;
     Vector2d uv;
     Vector2d velocity;
     double z{};
-    bool is_used{};
-    double parallax{};
     MatrixXd A;
     VectorXd b;
-    double dep_gradient{};
 };
 
 class FeaturePerId {
 public:
-    const int feature_id;
-    int start_frame;
-    vector<FeaturePerFrame> feature_per_frame;
+    const int feature_id_;
+    int start_frame_;
+    vector<FeaturePerFrame> feature_per_frame_;
 
-    bool is_outlier{};
-    bool is_margin{};
+    bool is_outlier_{};
     double estimated_depth;
     enum {
         FeatureHaveNotSolved,
         FeatureSolvedSucc,
         FeatureSolveFail,
-    }solve_flag;
-
-    Vector3d gt_p;
+    }solve_flag_;
 
     FeaturePerId(int _feature_id, int _start_frame)
-            : feature_id(_feature_id), start_frame(_start_frame),
-            estimated_depth(-1.0), solve_flag(FeatureHaveNotSolved) {
+            : feature_id_(_feature_id), start_frame_(_start_frame),
+              estimated_depth(-1.0), solve_flag_(FeatureHaveNotSolved) {
     }
 
-    int endFrame() const;
+    [[nodiscard]] int endFrame() const;
 };
 
 class FeatureManager {
@@ -97,7 +87,7 @@ public:
 
     void removeOutlier();
 
-    list<FeaturePerId> feature;
+    list<FeaturePerId> features_;
     int last_track_num{};
 
 private:

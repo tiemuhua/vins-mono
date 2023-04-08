@@ -211,14 +211,14 @@ bool Estimator::initialStructure() {
     // global sfm
     map<int, Vector3d> sfm_tracked_points;
     vector<SFMFeature> sfm_f;
-    for (FeaturePerId &it_per_id: feature_manager.feature) {
-        int imu_j = it_per_id.start_frame - 1;
+    for (FeaturePerId &it_per_id: feature_manager.features_) {
+        int imu_j = it_per_id.start_frame_ - 1;
         SFMFeature tmp_feature;
         tmp_feature.state = false;
-        tmp_feature.id = it_per_id.feature_id;
-        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frame) {
+        tmp_feature.id = it_per_id.feature_id_;
+        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frame_) {
             imu_j++;
-            Vector3d pts_j = it_per_frame.point;
+            Vector3d pts_j = it_per_frame.point_;
             tmp_feature.observation.emplace_back(make_pair(imu_j, Eigen::Vector2d{pts_j.x(), pts_j.y()}));
         }
         sfm_f.push_back(tmp_feature);
@@ -347,8 +347,8 @@ bool Estimator::visualInitialAlign() {
             Vs[kv] = frame.second.R * x.segment<3>(kv*3);
         }
     }
-    for (FeaturePerId &it_per_id: feature_manager.feature) {
-        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+    for (FeaturePerId &it_per_id: feature_manager.features_) {
+        if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
         it_per_id.estimated_depth *= s;
     }
@@ -380,7 +380,7 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
                 sum_parallax += parallax;
             }
             double average_parallax = 1.0 * sum_parallax / int(correspondences.size());
-            if (average_parallax * 460 > 30 && m_estimator.solveRelativeRT(correspondences, relative_R, relative_T)) {
+            if (average_parallax * 460 > 30 && MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T)) {
                 l = i;
                 LOG_D("average_parallax %f choose l %d and newest frame to triangulate the whole structure",
                       average_parallax * 460, l);
@@ -460,7 +460,7 @@ void Estimator::double2vector() {
 
     Matrix3d rot_diff = Utility::ypr2R(Vector3d(y_diff, 0, 0));
     if (abs(abs(origin_R0.y()) - 90) < 1.0 || abs(abs(origin_R00.y()) - 90) < 1.0) {
-        LOG_D("euler singular point!");
+        LOG_D("euler singular point_!");
         rot_diff = Rs[0] * Quaterniond(para_Pose[0][6],
                                        para_Pose[0][3],
                                        para_Pose[0][4],
@@ -593,27 +593,27 @@ void Estimator::optimization() {
     }
     int f_m_cnt = 0;
     int feature_index = -1;
-    for (FeaturePerId &it_per_id: feature_manager.feature) {
-        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+    for (FeaturePerId &it_per_id: feature_manager.features_) {
+        if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
 
         ++feature_index;
 
-        int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
+        int imu_i = it_per_id.start_frame_, imu_j = imu_i - 1;
 
-        Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+        Vector3d pts_i = it_per_id.feature_per_frame_[0].point_;
 
-        for (auto &it_per_frame: it_per_id.feature_per_frame) {
+        for (auto &it_per_frame: it_per_id.feature_per_frame_) {
             imu_j++;
             if (imu_i == imu_j) {
                 continue;
             }
-            Vector3d pts_j = it_per_frame.point;
+            Vector3d pts_j = it_per_frame.point_;
             if (ESTIMATE_TD) {
                 auto *f_td = new ProjectionTdFactor(pts_i, pts_j,
-                                                    it_per_id.feature_per_frame[0].velocity, it_per_frame.velocity,
-                                                    it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td,
-                                                    it_per_id.feature_per_frame[0].uv.y(), it_per_frame.uv.y());
+                                                    it_per_id.feature_per_frame_[0].velocity, it_per_frame.velocity,
+                                                    it_per_id.feature_per_frame_[0].cur_td, it_per_frame.cur_td,
+                                                    it_per_id.feature_per_frame_[0].uv.y(), it_per_frame.uv.y());
                 problem.AddResidualBlock(f_td, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0],
                                          para_Feature[feature_index], para_Td[0]);
             } else {
@@ -633,19 +633,19 @@ void Estimator::optimization() {
         problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
         int retrive_feature_index = 0;
         feature_index = -1;
-        for (FeaturePerId &it_per_id: feature_manager.feature) {
-            if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+        for (FeaturePerId &it_per_id: feature_manager.features_) {
+            if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
                 continue;
             ++feature_index;
-            int start = it_per_id.start_frame;
+            int start = it_per_id.start_frame_;
             if (start <= relo_frame_local_index) {
-                while ((int) match_points[retrive_feature_index].z() < it_per_id.feature_id) {
+                while ((int) match_points[retrive_feature_index].z() < it_per_id.feature_id_) {
                     retrive_feature_index++;
                 }
-                if ((int) match_points[retrive_feature_index].z() == it_per_id.feature_id) {
+                if ((int) match_points[retrive_feature_index].z() == it_per_id.feature_id_) {
                     Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(),
                                               match_points[retrive_feature_index].y(), 1.0);
-                    Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+                    Vector3d pts_i = it_per_id.feature_per_frame_[0].point_;
 
                     auto *f = new ProjectionFactor(pts_i, pts_j);
                     problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0],
@@ -708,32 +708,32 @@ void Estimator::optimization() {
         }
 
         feature_index = -1;
-        for (FeaturePerId &it_per_id: feature_manager.feature) {
-            if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+        for (FeaturePerId &it_per_id: feature_manager.features_) {
+            if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
                 continue;
 
             ++feature_index;
 
-            int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
+            int imu_i = it_per_id.start_frame_, imu_j = imu_i - 1;
             if (imu_i != 0)
                 continue;
 
-            Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+            Vector3d pts_i = it_per_id.feature_per_frame_[0].point_;
 
-            for (auto &it_per_frame: it_per_id.feature_per_frame) {
+            for (auto &it_per_frame: it_per_id.feature_per_frame_) {
                 imu_j++;
                 if (imu_i == imu_j)
                     continue;
 
                 vector<int> drop_set = {0, 3};
-                Vector3d pts_j = it_per_frame.point;
+                Vector3d pts_j = it_per_frame.point_;
                 if (ESTIMATE_TD) {
                     auto *f_td = new ProjectionTdFactor(pts_i, pts_j,
-                                                        it_per_id.feature_per_frame[0].velocity,
+                                                        it_per_id.feature_per_frame_[0].velocity,
                                                         it_per_frame.velocity,
-                                                        it_per_id.feature_per_frame[0].cur_td,
+                                                        it_per_id.feature_per_frame_[0].cur_td,
                                                         it_per_frame.cur_td,
-                                                        it_per_id.feature_per_frame[0].uv.y(),
+                                                        it_per_id.feature_per_frame_[0].uv.y(),
                                                         it_per_frame.uv.y());
                     vector<double *> parameter_blocks = {
                             para_Pose[imu_i],

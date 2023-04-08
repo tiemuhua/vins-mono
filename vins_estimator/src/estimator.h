@@ -99,7 +99,6 @@ private:
     int sum_of_back{}, sum_of_front{};
 
     FeatureManager feature_manager;
-    MotionEstimator m_estimator;
     InitialEXRotation initial_ex_rotation;
 
     bool first_imu{};
