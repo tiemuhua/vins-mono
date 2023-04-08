@@ -27,9 +27,6 @@ public:
     Vector3d point_;
     Vector2d uv;
     Vector2d velocity;
-    double z{};
-    MatrixXd A;
-    VectorXd b;
 };
 
 class FeaturePerId {
