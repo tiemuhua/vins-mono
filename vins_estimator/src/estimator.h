@@ -84,8 +84,8 @@ private:
     Vector3d Bgs[(WINDOW_SIZE + 1)];
     double td{};
 
-    Matrix3d back_R0, last_R, last_R0;
-    Vector3d back_P0, last_P, last_P0;
+    Matrix3d last_R, last_R0;
+    Vector3d last_P, last_P0;
     double time_stamps[WINDOW_SIZE + 1]{};
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)]{};

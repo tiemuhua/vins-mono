@@ -357,7 +357,6 @@ bool Estimator::visualInitialAlign() {
     double yaw = Utility::R2ypr(R0 * Rs[0]).x();
     R0 = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
     g = R0 * g;
-    //Matrix3d rot_diff = R0 * Rs[0].transpose();
     Matrix3d rot_diff = R0;
     for (int i = 0; i <= frame_count; i++) {
         Ps[i] = rot_diff * Ps[i];
@@ -805,15 +804,8 @@ void Estimator::optimization() {
                 marginalization_info->addResidualBlockInfo(residual_block_info);
             }
 
-            TicToc t_pre_margin;
-            LOG_D("begin marginalization");
             marginalization_info->preMarginalize();
-            LOG_D("end pre marginalization, %f ms", t_pre_margin.toc());
-
-            TicToc t_margin;
-            LOG_D("begin marginalization");
             marginalization_info->marginalize();
-            LOG_D("end marginalization, %f ms", t_margin.toc());
 
             std::unordered_map<double*, double *> addr_shift;
             for (int i = 0; i <= WINDOW_SIZE; i++) {
@@ -923,13 +915,12 @@ void Estimator::slideWindowOld() {
 
 void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
                              const Vector3d &_relo_t, const Matrix3d &_relo_r) {
-    relo_frame_stamp = _frame_stamp;
     match_points.clear();
     match_points = _match_points;
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        if (relo_frame_stamp == time_stamps[i]) {
+        if (_frame_stamp == time_stamps[i]) {
             relo_frame_local_index = i;
-            re_localization_info_ = 1;
+            re_localization_info_ = true;
             for (int j = 0; j < SIZE_POSE; j++)
                 relo_Pose[j] = para_Pose[i][j];
         }

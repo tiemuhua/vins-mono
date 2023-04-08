@@ -175,20 +175,19 @@ namespace cv {
 }
 
 
-bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres, Matrix3d &Rotation,
-                                      Vector3d &Translation) {
+bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres,
+                                      Matrix3d &Rotation, Vector3d &Translation) {
     if (corres.size() >= 15) {
         vector<cv::Point2f> ll, rr;
         for (const auto & corre : corres) {
-            ll.emplace_back(cv::Point2f(corre.first(0), corre.first(1)));
-            rr.emplace_back(cv::Point2f(corre.second(0), corre.second(1)));
+            ll.emplace_back(corre.first(0), corre.first(1));
+            rr.emplace_back(corre.second(0), corre.second(1));
         }
         cv::Mat mask;
         cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);
         cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
         cv::Mat rot, trans;
         int inlier_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, rot, trans, mask);
-        //cout << "inlier_cnt " << inlier_cnt << endl;
 
         Eigen::Matrix3d R;
         Eigen::Vector3d T;

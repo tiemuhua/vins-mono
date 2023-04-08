@@ -51,9 +51,7 @@ MatrixXd TangentBasis(Vector3d &g0) {
 void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
     Vector3d g0 = g.normalized() * G.norm();
     Vector3d lx, ly;
-    //VectorXd x;
-    int all_frame_count = all_image_frame.size();
-    int n_state = all_frame_count * 3 + 2 + 1;
+    int n_state = all_image_frame.size() * 3 + 2 + 1;
 
     MatrixXd A{n_state, n_state};
     A.setZero();
@@ -119,8 +117,7 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
 }
 
 bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
-    int all_frame_count = all_image_frame.size();
-    int n_state = all_frame_count * 3 + 3 + 1;
+    int n_state = all_image_frame.size() * 3 + 3 + 1;
 
     MatrixXd A{n_state, n_state};
     A.setZero();
@@ -144,18 +141,13 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
         tmp_A.block<3, 3>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Matrix3d::Identity();
         tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;
         tmp_b.block<3, 1>(0, 0) =
-                frame_j->second.pre_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] -
-                TIC[0];
-        //cout << "delta_p   " << frame_j->second.pre_integration->delta_p.transpose() << endl;
+                frame_j->second.pre_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
         tmp_A.block<3, 3>(3, 6) = frame_i->second.R.transpose() * dt * Matrix3d::Identity();
         tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->delta_v;
-        //cout << "delta_v   " << frame_j->second.pre_integration->delta_v.transpose() << endl;
 
         Matrix<double, 6, 6> cov_inv = Matrix<double, 6, 6>::Zero();
-        //cov.block<6, 6>(0, 0) = IMU_cov[i + 1];
-        //MatrixXd cov_inv = cov.inverse();
         cov_inv.setIdentity();
 
         MatrixXd r_A = tmp_A.transpose() * cov_inv * tmp_A;

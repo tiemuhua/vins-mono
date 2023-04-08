@@ -17,7 +17,7 @@ void triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 
 
 
 bool solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
-                                const vector<SFMFeature> &sfm_features) {
+                     const vector<SFMFeature> &sfm_features) {
     vector<cv::Point2f> pts_2_vector;
     vector<cv::Point3f> pts_3_vector;
     for (const SFMFeature & sfm : sfm_features) {
@@ -60,8 +60,8 @@ bool solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
 }
 
 void triangulateTwoFrames(int frame0, Eigen::Matrix<double, 3, 4> &Pose0,
-                                     int frame1, Eigen::Matrix<double, 3, 4> &Pose1,
-                                     vector<SFMFeature> &sfm_features) {
+                          int frame1, Eigen::Matrix<double, 3, 4> &Pose1,
+                          vector<SFMFeature> &sfm_features) {
     assert(frame0 != frame1);
     for (SFMFeature & sfm : sfm_features) {
         if (sfm.state)
