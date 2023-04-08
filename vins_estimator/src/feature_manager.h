@@ -89,8 +89,7 @@ public:
 
     void triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]);
 
-    void removeBackShiftDepth(const Eigen::Matrix3d& marg_R, const Eigen::Vector3d& marg_P,
-                              const Eigen::Matrix3d& new_R, const Eigen::Vector3d& new_P);
+    void removeBackShiftDepth();
 
     void removeBack();
 

@@ -192,8 +192,7 @@ void FeatureManager::removeOutlier() {
     }
 }
 
-void FeatureManager::removeBackShiftDepth(const Eigen::Matrix3d& marg_R, const Eigen::Vector3d& marg_P,
-                                          const Eigen::Matrix3d& new_R, const Eigen::Vector3d& new_P) {
+void FeatureManager::removeBackShiftDepth() {
     for (auto it = feature.begin(), it_next = feature.begin();
          it != feature.end(); it = it_next) {
         it_next++;
@@ -208,9 +207,7 @@ void FeatureManager::removeBackShiftDepth(const Eigen::Matrix3d& marg_R, const E
                 continue;
             } else {
                 Eigen::Vector3d pts_i = uv_i * it->estimated_depth;
-                Eigen::Vector3d w_pts_i = marg_R * pts_i + marg_P;
-                Eigen::Vector3d pts_j = new_R.transpose() * (w_pts_i - new_P);
-                double dep_j = pts_j(2);
+                double dep_j = pts_i(2);
                 if (dep_j > 0)
                     it->estimated_depth = dep_j;
                 else

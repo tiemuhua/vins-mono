@@ -849,8 +849,6 @@ void Estimator::slideWindow() {
     TicToc t_margin;
     if (marginalization_flag == MARGIN_OLD) {
         double t_0 = time_stamps[0];
-        back_R0 = Rs[0];
-        back_P0 = Ps[0];
         if (frame_count == WINDOW_SIZE) {
             for (int i = 0; i < WINDOW_SIZE; i++) {
                 Rs[i].swap(Rs[i + 1]);
@@ -935,13 +933,7 @@ void Estimator::slideWindowOld() {
     sum_of_back++;
 
     bool shift_depth = solver_flag == NON_LINEAR;
-    Matrix3d R0, R1;
-    Vector3d P0, P1;
-    R0 = back_R0 * ric[0];
-    R1 = Rs[0] * ric[0];
-    P0 = back_P0 + back_R0 * tic[0];
-    P1 = Ps[0] + Rs[0] * tic[0];
-    feature_manager.removeBackShiftDepth(R0, P0, R1, P1);
+    feature_manager.removeBackShiftDepth();
 }
 
 void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
