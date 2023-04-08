@@ -7,7 +7,6 @@ add_library(vins_estimator
     src/parameters.cpp
     src/estimator.cpp
     src/feature_manager.cpp
-    src/factor/pose_local_parameterization.cpp
     src/factor/projection_factor.cpp
     src/factor/projection_td_factor.cpp
     src/factor/marginalization_factor.cpp

@@ -161,7 +161,8 @@ void MarginalizationInfo::marginalize() {
 
     const Eigen::MatrixXd &Amm = A.block(0, 0, m, m);
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
-    Eigen::VectorXd eigen_val_inv_vec = (saes.eigenvalues().array() > EPS).select(saes.eigenvalues().array().inverse(), 0);
+    auto eigen_values = saes.eigenvalues().array();
+    Eigen::VectorXd eigen_val_inv_vec = (eigen_values > EPS).select(eigen_values.inverse(), 0);
     Eigen::MatrixXd eigen_val_inv_mat = eigen_val_inv_vec.asDiagonal();
     Eigen::MatrixXd Amm_inv = saes.eigenvectors() * eigen_val_inv_mat * saes.eigenvectors().transpose();
 
@@ -174,8 +175,9 @@ void MarginalizationInfo::marginalize() {
     b = brr - Arm * Amm_inv * bmm;
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(A);
-    Eigen::VectorXd S = (saes2.eigenvalues().array() > EPS).select(saes2.eigenvalues().array(), 0);
-    Eigen::VectorXd S_inv = (saes2.eigenvalues().array() > EPS).select(saes2.eigenvalues().array().inverse(), 0);
+    auto eigen_values2 = saes2.eigenvalues().array();
+    Eigen::VectorXd S = (eigen_values2 > EPS).select(eigen_values2, 0);
+    Eigen::VectorXd S_inv = (eigen_values2 > EPS).select(eigen_values2.inverse(), 0);
 
     Eigen::VectorXd S_sqrt = S.cwiseSqrt();
     Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
@@ -208,7 +210,7 @@ MarginalizationFactor::MarginalizationFactor(MarginalizationInfo *_marginalizati
         mutable_parameter_block_sizes()->push_back(it);
     }
     set_num_residuals(marginalization_info_->n);
-};
+}
 
 bool MarginalizationFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     int n = marginalization_info_->n;

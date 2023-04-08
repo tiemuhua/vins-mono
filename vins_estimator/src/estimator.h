@@ -11,7 +11,6 @@
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
-#include "factor/pose_local_parameterization.h"
 #include "factor/projection_factor.h"
 #include "factor/projection_td_factor.h"
 #include "factor/marginalization_factor.h"
@@ -115,19 +114,16 @@ private:
     Pose para_Ex_Pose[NUM_OF_CAM]{};
     double para_Td[1][1]{};
 
-    MarginalizationInfo *last_marginalization_info{};
-    vector<double *> last_marginal_param_blocks;
+    MarginalizationInfo *last_marginalization_info_{};
+    vector<double *> last_marginal_param_blocks_;
 
     map<double, ImageFrame> all_image_frame;
     IntegrationBase *tmp_pre_integration{};
 
     //relocalization variable
-    bool relocalization_info{};
+    bool re_localization_info_{};
     double relo_frame_stamp{};
     int relo_frame_local_index{};
     vector<Vector3d> match_points;
     double relo_Pose[SIZE_POSE]{};
-    Matrix3d drift_correct_r;
-    Vector3d prev_relo_t;
-    Matrix3d prev_relo_r;
 };
