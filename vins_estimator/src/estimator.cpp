@@ -116,9 +116,9 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     LOG_D("number of feature: %d", f_manager.getFeatureCount());
     time_stamps[frame_count] = time_stamp;
 
-    ImageFrame imageframe(image, time_stamp);
-    imageframe.pre_integration = tmp_pre_integration;
-    all_image_frame.insert(make_pair(time_stamp, imageframe));
+    ImageFrame image_frame(image, time_stamp);
+    image_frame.pre_integration = tmp_pre_integration;
+    all_image_frame.insert(make_pair(time_stamp, image_frame));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
     if (ESTIMATE_EXTRINSIC == 2) {
@@ -164,7 +164,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
         if (failureDetection()) {
             LOG_W("failure detection!");
-            failure_occur = 1;
+            failure_occur = true;
             clearState();
             setParameter();
             LOG_W("system reboot!");
@@ -232,12 +232,9 @@ bool Estimator::initialStructure() {
         LOG_I("Not enough features or parallax; Move device around");
         return false;
     }
-    GlobalSFM sfm;
     Quaterniond Q[frame_count + 1];
     Vector3d T[frame_count + 1];
-    if (!sfm.construct(frame_count + 1, Q, T, l,
-                       relative_R, relative_T,
-                       sfm_f, sfm_tracked_points)) {
+    if (!GlobalSFM::construct(frame_count + 1, Q, T, l, relative_R, relative_T, sfm_f, sfm_tracked_points)) {
         LOG_D("global SFM failed!");
         marginalization_flag = MARGIN_OLD;
         return false;
@@ -258,11 +255,11 @@ bool Estimator::initialStructure() {
         if ((frame.first) > time_stamps[i]) {
             i++;
         }
-        Matrix3d R_inital = (Q[i].inverse()).toRotationMatrix();
-        Vector3d P_inital = -R_inital * T[i];
-        cv::eigen2cv(R_inital, tmp_r);
+        Matrix3d R_initial = (Q[i].inverse()).toRotationMatrix();
+        Vector3d P_initial = -R_initial * T[i];
+        cv::eigen2cv(R_initial, tmp_r);
         cv::Rodrigues(tmp_r, rvec);
-        cv::eigen2cv(P_inital, t);
+        cv::eigen2cv(P_initial, t);
 
         frame.second.is_key_frame = false;
         vector<cv::Point3f> pts_3_vector;
@@ -284,7 +281,7 @@ bool Estimator::initialStructure() {
             LOG_D("Not enough points for solve pnp !");
             return false;
         }
-        if (!cv::solvePnP(pts_3_vector, pts_2_vector, K, D, rvec, t, 1)) {
+        if (!cv::solvePnP(pts_3_vector, pts_2_vector, K, D, rvec, t, false)) {
             LOG_D("solve pnp fail!");
             return false;
         }
@@ -301,7 +298,7 @@ bool Estimator::initialStructure() {
     if (visualInitialAlign())
         return true;
     else {
-        LOG_I("misalign visual structure with IMU");
+        LOG_I("misaligned visual structure with IMU");
         return false;
     }
 
@@ -331,7 +328,7 @@ bool Estimator::visualInitialAlign() {
         dep[i] = -1;
     f_manager.clearDepth(dep);
 
-    //triangulat on cam pose , no tic
+    //triangulate on cam pose , no tic
     Vector3d TIC_TMP[NUM_OF_CAM];
     for (auto &i: TIC_TMP)
         i.setZero();
@@ -346,16 +343,14 @@ bool Estimator::visualInitialAlign() {
     for (int i = frame_count; i >= 0; i--)
         Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);
     int kv = -1;
-    map<double, ImageFrame>::iterator frame_i;
-    for (frame_i = all_image_frame.begin(); frame_i != all_image_frame.end(); frame_i++) {
-        if (frame_i->second.is_key_frame) {
+    for (const auto &frame:all_image_frame) {
+        if (frame.second.is_key_frame) {
             kv++;
-            Vs[kv] = frame_i->second.R * x.segment<3>(kv * 3);
+            Vs[kv] = frame.second.R * x.segment<3>(kv*3);
         }
     }
-    for (auto &it_per_id: f_manager.feature) {
-        it_per_id.used_num = it_per_id.feature_per_frame.size();
-        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+    for (FeaturePerId &it_per_id: f_manager.feature) {
+        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
         it_per_id.estimated_depth *= s;
     }
@@ -378,19 +373,17 @@ bool Estimator::visualInitialAlign() {
 bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l) {
     // find previous frame which contains enough correspondence and parallax with the newest frame
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        vector<pair<Vector3d, Vector3d>> corres;
-        corres = f_manager.getCorresponding(i, WINDOW_SIZE);
-        if (corres.size() > 20) {
+        vector<pair<Vector3d, Vector3d>> correspondences = f_manager.getCorresponding(i, WINDOW_SIZE);
+        if (correspondences.size() > 20) {
             double sum_parallax = 0;
-            double average_parallax;
-            for (auto &corre: corres) {
-                Vector2d pts_0(corre.first(0), corre.first(1));
-                Vector2d pts_1(corre.second(0), corre.second(1));
+            for (auto &correspond: correspondences) {
+                Vector2d pts_0(correspond.first(0), correspond.first(1));
+                Vector2d pts_1(correspond.second(0), correspond.second(1));
                 double parallax = (pts_0 - pts_1).norm();
-                sum_parallax = sum_parallax + parallax;
+                sum_parallax += parallax;
             }
-            average_parallax = 1.0 * sum_parallax / int(corres.size());
-            if (average_parallax * 460 > 30 && m_estimator.solveRelativeRT(corres, relative_R, relative_T)) {
+            double average_parallax = 1.0 * sum_parallax / int(correspondences.size());
+            if (average_parallax * 460 > 30 && m_estimator.solveRelativeRT(correspondences, relative_R, relative_T)) {
                 l = i;
                 LOG_D("average_parallax %f choose l %d and newest frame to triangulate the whole structure",
                       average_parallax * 460, l);
@@ -460,14 +453,14 @@ void Estimator::double2vector() {
     if (failure_occur) {
         origin_R0 = Utility::R2ypr(last_R0);
         origin_P0 = last_P0;
-        failure_occur = 0;
+        failure_occur = false;
     }
     Vector3d origin_R00 = Utility::R2ypr(Quaterniond(para_Pose[0][6],
                                                      para_Pose[0][3],
                                                      para_Pose[0][4],
                                                      para_Pose[0][5]).toRotationMatrix());
     double y_diff = origin_R0.x() - origin_R00.x();
-    //TODO
+
     Matrix3d rot_diff = Utility::ypr2R(Vector3d(y_diff, 0, 0));
     if (abs(abs(origin_R0.y()) - 90) < 1.0 || abs(abs(origin_R00.y()) - 90) < 1.0) {
         LOG_D("euler singular point!");
@@ -601,13 +594,12 @@ void Estimator::optimization() {
         if (pre_integrations[j]->sum_dt > 10.0)
             continue;
         auto *imu_factor = new IMUFactor(pre_integrations[j]);
-        problem.AddResidualBlock(imu_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
+        problem.AddResidualBlock(imu_factor, nullptr, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
     }
     int f_m_cnt = 0;
     int feature_index = -1;
-    for (auto &it_per_id: f_manager.feature) {
-        it_per_id.used_num = it_per_id.feature_per_frame.size();
-        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+    for (FeaturePerId &it_per_id: f_manager.feature) {
+        if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
 
         ++feature_index;
@@ -645,10 +637,9 @@ void Estimator::optimization() {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
         problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
         int retrive_feature_index = 0;
-        int feature_index = -1;
-        for (auto &it_per_id: f_manager.feature) {
-            it_per_id.used_num = it_per_id.feature_per_frame.size();
-            if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+        feature_index = -1;
+        for (FeaturePerId &it_per_id: f_manager.feature) {
+            if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                 continue;
             ++feature_index;
             int start = it_per_id.start_frame;
@@ -668,7 +659,6 @@ void Estimator::optimization() {
                 }
             }
         }
-
     }
 
     ceres::Solver::Options options;
@@ -717,15 +707,14 @@ void Estimator::optimization() {
                     para_SpeedBias[1]
             };
             vector<int> drop_set = {0, 1};
-            ResidualBlockInfo residual_block_info(imu_factor, NULL,
+            ResidualBlockInfo residual_block_info(imu_factor, nullptr,
                                                               parameter_blocks, drop_set);
             marginalization_info->addResidualBlockInfo(residual_block_info);
         }
 
-        int feature_index = -1;
-        for (auto &it_per_id: f_manager.feature) {
-            it_per_id.used_num = it_per_id.feature_per_frame.size();
-            if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+        feature_index = -1;
+        for (FeaturePerId &it_per_id: f_manager.feature) {
+            if (!(it_per_id.feature_per_frame.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                 continue;
 
             ++feature_index;
@@ -814,7 +803,7 @@ void Estimator::optimization() {
                 }
                 // construct new marginalization_factor
                 auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
-                ResidualBlockInfo residual_block_info(marginalization_factor, NULL,
+                ResidualBlockInfo residual_block_info(marginalization_factor, nullptr,
                                                       last_marginal_param_blocks, drop_set);
 
                 marginalization_info->addResidualBlockInfo(residual_block_info);

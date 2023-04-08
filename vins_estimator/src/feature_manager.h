@@ -45,17 +45,20 @@ public:
     int start_frame;
     vector<FeaturePerFrame> feature_per_frame;
 
-    int used_num;
-    bool is_outlier;
-    bool is_margin;
+    bool is_outlier{};
+    bool is_margin{};
     double estimated_depth;
-    int solve_flag; // 0 haven't solve yet; 1 solve succ; 2 solve fail;
+    enum {
+        FeatureHaveNotSolved,
+        FeatureSolvedSucc,
+        FeatureSolveFail,
+    }solve_flag;
 
     Vector3d gt_p;
 
     FeaturePerId(int _feature_id, int _start_frame)
             : feature_id(_feature_id), start_frame(_start_frame),
-              used_num(0), estimated_depth(-1.0), solve_flag(0) {
+            estimated_depth(-1.0), solve_flag(FeatureHaveNotSolved) {
     }
 
     int endFrame() const;
@@ -63,7 +66,7 @@ public:
 
 class FeatureManager {
 public:
-    FeatureManager(Matrix3d _Rs[]);
+    explicit FeatureManager(Matrix3d _Rs[]);
 
     void setRic(Matrix3d _ric[]);
 
@@ -96,7 +99,7 @@ public:
     void removeOutlier();
 
     list<FeaturePerId> feature;
-    int last_track_num;
+    int last_track_num{};
 
 private:
     static double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
