@@ -5,14 +5,14 @@ void ResidualBlockInfo::Evaluate() {
     residuals_.resize(cost_function_->num_residuals());
 
     std::vector<int> block_sizes = cost_function_->parameter_block_sizes();
-    raw_jacobians_ = new double *[block_sizes.size()];
+    std::vector<double*> raw_jacobians(block_sizes.size(), nullptr);
     jacobians_.resize(block_sizes.size());
 
     for (int i = 0; i < static_cast<int>(block_sizes.size()); i++) {
         jacobians_[i].resize(cost_function_->num_residuals(), block_sizes[i]);
-        raw_jacobians_[i] = jacobians_[i].data();
+        raw_jacobians[i] = jacobians_[i].data();
     }
-    cost_function_->Evaluate(parameter_blocks_.data(), residuals_.data(), raw_jacobians_);
+    cost_function_->Evaluate(parameter_blocks_.data(), residuals_.data(), raw_jacobians.data());
 
     if (loss_function_) {
         double residual_scaling_, alpha_sq_norm_;
@@ -49,7 +49,6 @@ MarginalizationInfo::~MarginalizationInfo() {
         delete[] it.second;
 
     for (auto & factor : factors_) {
-        delete[] factor.raw_jacobians_;
         delete factor.cost_function_;
     }
 }

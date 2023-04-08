@@ -24,7 +24,6 @@ struct ResidualBlockInfo
     std::vector<double *> parameter_blocks_;
     std::vector<int> drop_set_;
 
-    double **raw_jacobians_{};
     std::vector<JacobianType> jacobians_;
     Eigen::VectorXd residuals_;
 
