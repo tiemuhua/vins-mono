@@ -14,7 +14,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9> {
 public:
     IMUFactor() = delete;
 
-    explicit IMUFactor(IntegrationBase *_pre_integration) : pre_integration(_pre_integration) {}
+    explicit IMUFactor(PreIntegration *_pre_integration) : pre_integration(_pre_integration) {}
 
     bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override {
 
@@ -51,7 +51,7 @@ public:
             Eigen::Matrix3d dv_dbg = pre_integration->jacobian.template block<3, 3>(O_V, O_BG);
 
             if (pre_integration->jacobian.maxCoeff() > 1e8 || pre_integration->jacobian.minCoeff() < -1e8) {
-                LOG_W("numerical unstable in preintegration");
+                LOG_W("numerical unstable in pre-integration");
             }
 
             if (jacobians[0]) {
@@ -63,7 +63,7 @@ public:
                         Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
 
                 Eigen::Quaterniond corrected_delta_q =
-                        pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->bg));
+                        pre_integration->DeltaQuat() * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->bg_));
                 jacobian_pose_i.block<3, 3>(O_R, O_R) =
                         -(Utility::Qleft(Qj.inverse() * Qi) * Utility::Qright(corrected_delta_q)).bottomRightCorner<3, 3>();
 
@@ -72,29 +72,28 @@ public:
                 jacobian_pose_i = sqrt_info * jacobian_pose_i;
 
                 if (jacobian_pose_i.maxCoeff() > 1e8 || jacobian_pose_i.minCoeff() < -1e8) {
-                    LOG_W("numerical unstable in preintegration");
+                    LOG_W("numerical unstable in pre-integration");
                 }
             }
             if (jacobians[1]) {
-                Eigen::Map<Eigen::Matrix<double, 15, 9, Eigen::RowMajor>> jacobian_speedbias_i(jacobians[1]);
-                jacobian_speedbias_i.setZero();
-                jacobian_speedbias_i.block<3, 3>(O_P, O_V - O_V) = -Qi.inverse().toRotationMatrix() * sum_dt;
-                jacobian_speedbias_i.block<3, 3>(O_P, O_BA - O_V) = -dp_dba;
-                jacobian_speedbias_i.block<3, 3>(O_P, O_BG - O_V) = -dp_dbg;
+                Eigen::Map<Eigen::Matrix<double, 15, 9, Eigen::RowMajor>> jacobian_speed_bias_i(jacobians[1]);
+                jacobian_speed_bias_i.setZero();
+                jacobian_speed_bias_i.block<3, 3>(O_P, O_V - O_V) = -Qi.inverse().toRotationMatrix() * sum_dt;
+                jacobian_speed_bias_i.block<3, 3>(O_P, O_BA - O_V) = -dp_dba;
+                jacobian_speed_bias_i.block<3, 3>(O_P, O_BG - O_V) = -dp_dbg;
 
-                jacobian_speedbias_i.block<3, 3>(O_R, O_BG - O_V) =
-                        -Utility::Qleft(Qj.inverse() * Qi * pre_integration->delta_q).bottomRightCorner<3, 3>() *
-                        dq_dbg;
+                jacobian_speed_bias_i.block<3, 3>(O_R, O_BG - O_V) =
+                        -Utility::Qleft(Qj.inverse() * Qi * pre_integration->DeltaQuat()).bottomRightCorner<3, 3>() * dq_dbg;
 
-                jacobian_speedbias_i.block<3, 3>(O_V, O_V - O_V) = -Qi.inverse().toRotationMatrix();
-                jacobian_speedbias_i.block<3, 3>(O_V, O_BA - O_V) = -dv_dba;
-                jacobian_speedbias_i.block<3, 3>(O_V, O_BG - O_V) = -dv_dbg;
+                jacobian_speed_bias_i.block<3, 3>(O_V, O_V - O_V) = -Qi.inverse().toRotationMatrix();
+                jacobian_speed_bias_i.block<3, 3>(O_V, O_BA - O_V) = -dv_dba;
+                jacobian_speed_bias_i.block<3, 3>(O_V, O_BG - O_V) = -dv_dbg;
 
-                jacobian_speedbias_i.block<3, 3>(O_BA, O_BA - O_V) = -Eigen::Matrix3d::Identity();
+                jacobian_speed_bias_i.block<3, 3>(O_BA, O_BA - O_V) = -Eigen::Matrix3d::Identity();
 
-                jacobian_speedbias_i.block<3, 3>(O_BG, O_BG - O_V) = -Eigen::Matrix3d::Identity();
+                jacobian_speed_bias_i.block<3, 3>(O_BG, O_BG - O_V) = -Eigen::Matrix3d::Identity();
 
-                jacobian_speedbias_i = sqrt_info * jacobian_speedbias_i;
+                jacobian_speed_bias_i = sqrt_info * jacobian_speed_bias_i;
             }
             if (jacobians[2]) {
                 Eigen::Map<Eigen::Matrix<double, 15, 7, Eigen::RowMajor>> jacobian_pose_j(jacobians[2]);
@@ -103,29 +102,29 @@ public:
                 jacobian_pose_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
 
                 Eigen::Quaterniond corrected_delta_q =
-                        pre_integration->delta_q * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->bg));
+                        pre_integration->DeltaQuat() * Utility::deltaQ(dq_dbg * (Bgi - pre_integration->bg_));
                 jacobian_pose_j.block<3, 3>(O_R, O_R) = Utility::Qleft(
                         corrected_delta_q.inverse() * Qi.inverse() * Qj).bottomRightCorner<3, 3>();
 
                 jacobian_pose_j = sqrt_info * jacobian_pose_j;
             }
             if (jacobians[3]) {
-                Eigen::Map<Eigen::Matrix<double, 15, 9, Eigen::RowMajor>> jacobian_speedbias_j(jacobians[3]);
-                jacobian_speedbias_j.setZero();
+                Eigen::Map<Eigen::Matrix<double, 15, 9, Eigen::RowMajor>> jacobian_speed_bias_j(jacobians[3]);
+                jacobian_speed_bias_j.setZero();
 
-                jacobian_speedbias_j.block<3, 3>(O_V, O_V - O_V) = Qi.inverse().toRotationMatrix();
+                jacobian_speed_bias_j.block<3, 3>(O_V, O_V - O_V) = Qi.inverse().toRotationMatrix();
 
-                jacobian_speedbias_j.block<3, 3>(O_BA, O_BA - O_V) = Eigen::Matrix3d::Identity();
+                jacobian_speed_bias_j.block<3, 3>(O_BA, O_BA - O_V) = Eigen::Matrix3d::Identity();
 
-                jacobian_speedbias_j.block<3, 3>(O_BG, O_BG - O_V) = Eigen::Matrix3d::Identity();
+                jacobian_speed_bias_j.block<3, 3>(O_BG, O_BG - O_V) = Eigen::Matrix3d::Identity();
 
-                jacobian_speedbias_j = sqrt_info * jacobian_speedbias_j;
+                jacobian_speed_bias_j = sqrt_info * jacobian_speed_bias_j;
             }
         }
 
         return true;
     }
-    IntegrationBase *pre_integration;
+    PreIntegration *pre_integration;
 
 };
 

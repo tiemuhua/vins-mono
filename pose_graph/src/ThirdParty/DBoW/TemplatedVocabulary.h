@@ -732,7 +732,7 @@ namespace DBoW2 {
             m_nodes.push_back(Node(id));
             m_nodes.back().descriptor = clusters[i];
             m_nodes.back().parent = parent_id;
-            m_nodes[parent_id].children.prediction(id);
+            m_nodes[parent_id].children.push_back(id);
         }
 
         // go on with the next level
@@ -1358,7 +1358,7 @@ namespace DBoW2 {
             m_nodes[nid].id = nid;
             m_nodes[nid].parent = pid;
             m_nodes[nid].weight = weight;
-            m_nodes[pid].children.prediction(nid);
+            m_nodes[pid].children.push_back(nid);
 
             F::fromString(m_nodes[nid].descriptor, d);
         }
@@ -1407,7 +1407,7 @@ namespace DBoW2 {
             m_nodes[nid].id = nid;
             m_nodes[nid].parent = pid;
             m_nodes[nid].weight = weight;
-            m_nodes[pid].children.prediction(nid);
+            m_nodes[pid].children.push_back(nid);
 
             // Sorry to break template here
             m_nodes[nid].descriptor = boost::dynamic_bitset<>(voc.nodes[i].descriptor, voc.nodes[i].descriptor + 4);

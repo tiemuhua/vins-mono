@@ -26,7 +26,7 @@ public:
 
     void setParameter();
 
-    void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
+    void processIMU(double t, const Vector3d &acc, const Vector3d &gyr);
 
     void
     processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double &time_stamp);
@@ -118,7 +118,7 @@ private:
     vector<double *> last_marginal_param_blocks_;
 
     map<double, ImageFrame> all_image_frame;
-    IntegrationBase *tmp_pre_integration{};
+    PreIntegration *tmp_pre_integration{};
 
     //relocalization variable
     bool re_localization_info_{};

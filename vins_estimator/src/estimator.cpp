@@ -68,35 +68,35 @@ void Estimator::clearState() {
     re_localization_info_ = false;
 }
 
-void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity) {
+void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) {
     if (!first_imu) {
         first_imu = true;
-        acc_0 = linear_acceleration;
-        gyr_0 = angular_velocity;
+        acc_0 = acc;
+        gyr_0 = gyr;
     }
 
     if (!pre_integrate_window[frame_count]) {
-        pre_integrate_window[frame_count] = new IntegrationBase{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
+        pre_integrate_window[frame_count] = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
     }
     if (frame_count != 0) {
-        pre_integrate_window[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
-        tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
+        pre_integrate_window[frame_count]->prediction(dt, acc, gyr);
+        tmp_pre_integration->prediction(dt, acc, gyr);
 
         dt_buf_window[frame_count].push_back(dt);
-        acc_buf_window[frame_count].push_back(linear_acceleration);
-        gyr_buf_window[frame_count].push_back(angular_velocity);
+        acc_buf_window[frame_count].push_back(acc);
+        gyr_buf_window[frame_count].push_back(gyr);
 
         int j = frame_count;
         Vector3d un_acc_0 = rot_window[j] * (acc_0 - ba_window[j]) - g;
-        Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - bg_window[j];
+        Vector3d un_gyr = 0.5 * (gyr_0 + gyr) - bg_window[j];
         rot_window[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
-        Vector3d un_acc_1 = rot_window[j] * (linear_acceleration - ba_window[j]) - g;
+        Vector3d un_acc_1 = rot_window[j] * (acc - ba_window[j]) - g;
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
         pos_window[j] += dt * vec_window[j] + 0.5 * dt * dt * un_acc;
         vec_window[j] += dt * un_acc;
     }
-    acc_0 = linear_acceleration;
-    gyr_0 = angular_velocity;
+    acc_0 = acc;
+    gyr_0 = gyr;
 }
 
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
@@ -117,14 +117,14 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     ImageFrame image_frame(image, time_stamp);
     image_frame.pre_integration = tmp_pre_integration;
     all_image_frame.insert(make_pair(time_stamp, image_frame));
-    tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
+    tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
 
     if (ESTIMATE_EXTRINSIC == 2) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0) {
             vector<pair<Vector3d, Vector3d>> corres = feature_manager.getCorresponding(frame_count - 1, frame_count);
             Matrix3d calib_ric;
-            if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrate_window[frame_count]->delta_q, calib_ric)) {
+            if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
                 LOG_W("initial extrinsic rotation calib success");
                 ric[0] = calib_ric;
                 RIC[0] = calib_ric;
@@ -192,15 +192,15 @@ bool Estimator::initialStructure() {
     // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
     for (const pair<const double, ImageFrame> &frame: all_image_frame) {
         double dt = frame.second.pre_integration->sum_dt;
-        Vector3d tmp_acc = frame.second.pre_integration->delta_v / dt;
+        Vector3d tmp_acc = frame.second.pre_integration->DeltaVel() / dt;
         sum_acc += tmp_acc;
     }
-    Vector3d aver_acc = sum_acc / (double )all_image_frame.size();
+    Vector3d avg_acc = sum_acc / (double )all_image_frame.size();
     double var = 0;
     for (const pair<const double, ImageFrame> &frame:all_image_frame) {
         double dt = frame.second.pre_integration->sum_dt;
-        Vector3d tmp_acc = frame.second.pre_integration->delta_v / dt;
-        var += (tmp_acc - aver_acc).transpose() * (tmp_acc - aver_acc);
+        Vector3d tmp_acc = frame.second.pre_integration->DeltaVel() / dt;
+        var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
     }
     var = sqrt(var / (double )all_image_frame.size());
     if (var < 0.25) {
@@ -336,7 +336,7 @@ bool Estimator::visualInitialAlign() {
 
     double s = (x.tail<1>())(0);
     for (int i = 0; i <= WINDOW_SIZE; i++) {
-        pre_integrate_window[i]->repropagate(Vector3d::Zero(), bg_window[i]);
+        pre_integrate_window[i]->rePrediction(Vector3d::Zero(), bg_window[i]);
     }
     for (int i = frame_count; i >= 0; i--)
         pos_window[i] = s * pos_window[i] - rot_window[i] * TIC[0] - (s * pos_window[0] - rot_window[0] * TIC[0]);
@@ -876,7 +876,7 @@ void Estimator::slideWindow() {
             Vector3d tmp_linear_acceleration = acc_buf_window[frame_count][i];
             Vector3d tmp_angular_velocity = gyr_buf_window[frame_count][i];
 
-            pre_integrate_window[frame_count - 1]->push_back(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity);
+            pre_integrate_window[frame_count - 1]->prediction(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity);
 
             dt_buf_window[frame_count - 1].push_back(tmp_dt);
             acc_buf_window[frame_count - 1].push_back(tmp_linear_acceleration);
@@ -892,7 +892,7 @@ void Estimator::slideWindow() {
     bg_window[WINDOW_SIZE] = bg_window[WINDOW_SIZE - 1];
 
     delete pre_integrate_window[WINDOW_SIZE];
-    pre_integrate_window[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, ba_window[WINDOW_SIZE], bg_window[WINDOW_SIZE]};
+    pre_integrate_window[WINDOW_SIZE] = new PreIntegration{acc_0, gyr_0, ba_window[WINDOW_SIZE], bg_window[WINDOW_SIZE]};
 
     dt_buf_window[WINDOW_SIZE].clear();
     acc_buf_window[WINDOW_SIZE].clear();

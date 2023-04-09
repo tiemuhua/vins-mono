@@ -22,7 +22,7 @@ public:
     double t{};
     Matrix3d R;
     Vector3d T;
-    IntegrationBase *pre_integration{};
+    PreIntegration *pre_integration{};
     bool is_key_frame{};
 };
 
