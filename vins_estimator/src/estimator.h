@@ -120,7 +120,7 @@ private:
     map<double, ImageFrame> all_image_frame;
     PreIntegration *tmp_pre_integration{};
 
-    //relocalization variable
+    //re-localization variable
     bool re_localization_info_{};
     double relo_frame_stamp{};
     int relo_frame_local_index{};
