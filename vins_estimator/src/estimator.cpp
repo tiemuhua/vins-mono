@@ -46,7 +46,7 @@ void Estimator::clearState() {
 
     solver_flag = INITIAL;
     first_imu = false,
-            sum_of_back = 0;
+    sum_of_back = 0;
     sum_of_front = 0;
     frame_count = 0;
     solver_flag = INITIAL;
@@ -79,8 +79,8 @@ void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) 
         pre_integrate_window[frame_count] = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
     }
     if (frame_count != 0) {
-        pre_integrate_window[frame_count]->prediction(dt, acc, gyr);
-        tmp_pre_integration->prediction(dt, acc, gyr);
+        pre_integrate_window[frame_count]->predict(dt, acc, gyr);
+        tmp_pre_integration->predict(dt, acc, gyr);
 
         dt_buf_window[frame_count].push_back(dt);
         acc_buf_window[frame_count].push_back(acc);
@@ -871,16 +871,16 @@ void Estimator::slideWindow() {
         all_image_frame.erase(t_0);
         slideWindowOld();
     } else {
-        for (unsigned int i = 0; i < dt_buf_window[frame_count].size(); i++) {
-            double tmp_dt = dt_buf_window[frame_count][i];
-            Vector3d tmp_linear_acceleration = acc_buf_window[frame_count][i];
-            Vector3d tmp_angular_velocity = gyr_buf_window[frame_count][i];
+        for (unsigned int i = 0; i < dt_buf_window[WINDOW_SIZE].size(); i++) {
+            double tmp_dt = dt_buf_window[WINDOW_SIZE][i];
+            Vector3d tmp_linear_acceleration = acc_buf_window[WINDOW_SIZE][i];
+            Vector3d tmp_angular_velocity = gyr_buf_window[WINDOW_SIZE][i];
 
-            pre_integrate_window[frame_count - 1]->prediction(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity);
+            pre_integrate_window[WINDOW_SIZE - 1]->predict(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity);
 
-            dt_buf_window[frame_count - 1].push_back(tmp_dt);
-            acc_buf_window[frame_count - 1].push_back(tmp_linear_acceleration);
-            gyr_buf_window[frame_count - 1].push_back(tmp_angular_velocity);
+            dt_buf_window[WINDOW_SIZE - 1].push_back(tmp_dt);
+            acc_buf_window[WINDOW_SIZE - 1].push_back(tmp_linear_acceleration);
+            gyr_buf_window[WINDOW_SIZE - 1].push_back(tmp_angular_velocity);
         }
         slideWindowNew();
     }

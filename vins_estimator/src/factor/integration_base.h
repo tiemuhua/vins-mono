@@ -30,7 +30,7 @@ public:
         noise.block<3, 3>(15, 15) = (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
     }
 
-    void prediction(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr) {
+    void predict(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr) {
         Eigen::Vector3d cur_pos = Eigen::Vector3d::Zero();
         Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
         Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
