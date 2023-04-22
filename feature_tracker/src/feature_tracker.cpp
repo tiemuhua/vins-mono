@@ -84,7 +84,7 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
             reduceVector(prev_uniformed_pts_, mask);
             reduceVector(feature_ids_, mask);
             reduceVector(track_cnt_, mask);
-            LOG_D("FM ransac: %d -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
+            LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
         }
 
         // 通过mask去掉离得过近的特征点，优先保留跟踪时间长的特征点 todo 有可能保留时间短的特征点反而在前面吗？？？？
@@ -93,12 +93,12 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
             cv::circle(mask, p, MIN_DIST, 0, -1);
         }
 
-        int n_max_cnt = MAX_CNT - static_cast<int>(next_pts.size());
-        if (n_max_cnt > 0) {
-            vector<cv::Point2f> n_pts;
+        int max_new_pnt_num = MAX_CNT - static_cast<int>(next_pts.size());
+        if (max_new_pnt_num > 0) {
+            vector<cv::Point2f> new_pts;
             constexpr double qualityLevel = 0.01;
-            cv::goodFeaturesToTrack(next_img, n_pts, n_max_cnt, qualityLevel, MIN_DIST, mask);
-            for (auto &p: n_pts) {
+            cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, MIN_DIST, mask);
+            for (auto &p: new_pts) {
                 next_pts.push_back(p);
                 next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
                 feature_ids_.push_back(-1);
