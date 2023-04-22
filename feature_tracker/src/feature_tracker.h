@@ -31,10 +31,10 @@ class FeatureTracker
     FeatureTracker();
 
     struct FeatureTrackerReturn{
-        vector<cv::Point2f> cur_un_pts;
-        vector<cv::Point2f> cur_pts;
+        vector<cv::Point2f> uniformed_points;
+        vector<cv::Point2f> points;
         vector<int> ids;
-        vector<cv::Point2f> pts_velocity;
+        vector<cv::Point2f> vel;
     };
 
     FeatureTrackerReturn readImage(const cv::Mat &_img,double _cur_time);
@@ -46,15 +46,16 @@ private:
 
     void showUndistortion(const string &name);
 
-    void undistortedPoints();
+    cv::Point2f rawPoint2UniformedPoint(cv::Point2f p);
 
-    cv::Mat cur_img;
-    vector<cv::Point2f> cur_pts;
-    vector<int> ids;
-    vector<int> track_cnt;
-    map<int, cv::Point2f> prev_un_pts_map;
-    camodocal::CameraPtr m_camera;
-    double prev_time{};
+    cv::Mat prev_img_;
+    vector<cv::Point2f> prev_pts_;
+    vector<cv::Point2f> prev_uniformed_pts_;
+    double prev_time_{};
+    map<int, cv::Point2f> prev_feature_id_2_uniformed_points_map_;
+    vector<int> feature_ids_;
+    vector<int> track_cnt_;
+    camodocal::CameraPtr m_camera_;
 
     static int s_feature_id_cnt_;
 };
