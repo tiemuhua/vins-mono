@@ -87,25 +87,10 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
             LOG_D("FM ransac: %d -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
         }
 
-        // 通过mask去掉离得过近的特征点，优先保留跟踪时间长的特征点
-        vector<std::tuple<int, cv::Point2f, int>> cnt_pts_id;
-        for (unsigned int i = 0; i < next_pts.size(); i++)
-            cnt_pts_id.emplace_back(track_cnt_[i], next_pts[i], feature_ids_[i]);
-        sort(cnt_pts_id.begin(), cnt_pts_id.end(),[](const auto &a, const auto &b) {
-            return std::get<0>(a) > std::get<0>(b);
-        });
-        next_pts.clear();
-        feature_ids_.clear();
-        track_cnt_.clear();
+        // 通过mask去掉离得过近的特征点，优先保留跟踪时间长的特征点 todo 有可能保留时间短的特征点反而在前面吗？？？？
         cv::Mat mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
-        for (auto &it: cnt_pts_id) {
-            if (mask.at<uchar>(std::get<1>(it)) == 0) {
-                continue;
-            }
-            track_cnt_.emplace_back(std::get<0>(it));
-            next_pts.emplace_back(std::get<1>(it));
-            feature_ids_.emplace_back(std::get<2>(it));
-            cv::circle(mask, next_pts.back(), MIN_DIST, 0, -1);
+        for (const cv::Point2f & p: next_pts) {
+            cv::circle(mask, p, MIN_DIST, 0, -1);
         }
 
         int n_max_cnt = MAX_CNT - static_cast<int>(next_pts.size());
