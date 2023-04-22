@@ -30,31 +30,30 @@ class FeatureTracker
   public:
     FeatureTracker();
 
-    void readImage(const cv::Mat &_img,double _cur_time);
+    struct FeatureTrackerReturn{
+        vector<cv::Point2f> cur_un_pts;
+        vector<cv::Point2f> cur_pts;
+        vector<int> ids;
+        vector<cv::Point2f> pts_velocity;
+    };
+
+    FeatureTrackerReturn readImage(const cv::Mat &_img,double _cur_time);
 
 private:
-    cv::Mat getMask();
-
     bool updateID(unsigned int i);
 
     void readIntrinsicParameter(const string &calib_file);
 
     void showUndistortion(const string &name);
 
-    void rejectWithF();
-
     void undistortedPoints();
 
-    cv::Mat fisheye_mask;
-    cv::Mat cur_img, forw_img;
-    vector<cv::Point2f> prev_pts, cur_pts, forw_pts;
-    vector<cv::Point2f> cur_un_pts;
-    vector<cv::Point2f> pts_velocity;
+    cv::Mat cur_img;
+    vector<cv::Point2f> cur_pts;
     vector<int> ids;
     vector<int> track_cnt;
     map<int, cv::Point2f> prev_un_pts_map;
     camodocal::CameraPtr m_camera;
-    double cur_time{};
     double prev_time{};
 
     static int s_feature_id_cnt_;
