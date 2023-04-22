@@ -216,7 +216,7 @@ bool Estimator::initialStructure() {
         SFMFeature tmp_feature;
         tmp_feature.state = false;
         tmp_feature.id = it_per_id.feature_id_;
-        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frame_) {
+        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frames_) {
             imu_j++;
             Vector3d pts_j = it_per_frame.point_;
             tmp_feature.observation.emplace_back(make_pair(imu_j, Eigen::Vector2d{pts_j.x(), pts_j.y()}));
@@ -348,7 +348,7 @@ bool Estimator::visualInitialAlign() {
         }
     }
     for (FeaturePerId &it_per_id: feature_manager.features_) {
-        if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
+        if (!(it_per_id.feature_per_frames_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
         it_per_id.estimated_depth *= s;
     }
@@ -594,16 +594,16 @@ void Estimator::optimization() {
     int f_m_cnt = 0;
     int feature_index = -1;
     for (FeaturePerId &it_per_id: feature_manager.features_) {
-        if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
+        if (!(it_per_id.feature_per_frames_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
 
         ++feature_index;
 
         int imu_i = it_per_id.start_frame_, imu_j = imu_i - 1;
 
-        Vector3d pts_i = it_per_id.feature_per_frame_[0].point_;
+        Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
 
-        for (auto &it_per_frame: it_per_id.feature_per_frame_) {
+        for (auto &it_per_frame: it_per_id.feature_per_frames_) {
             imu_j++;
             if (imu_i == imu_j) {
                 continue;
@@ -611,9 +611,9 @@ void Estimator::optimization() {
             Vector3d pts_j = it_per_frame.point_;
             if (ESTIMATE_TD) {
                 auto *f_td = new ProjectionTdFactor(pts_i, pts_j,
-                                                    it_per_id.feature_per_frame_[0].velocity, it_per_frame.velocity,
-                                                    it_per_id.feature_per_frame_[0].cur_td, it_per_frame.cur_td,
-                                                    it_per_id.feature_per_frame_[0].uv.y(), it_per_frame.uv.y());
+                                                    it_per_id.feature_per_frames_[0].velocity, it_per_frame.velocity,
+                                                    it_per_id.feature_per_frames_[0].cur_td, it_per_frame.cur_td,
+                                                    it_per_id.feature_per_frames_[0].uv.y(), it_per_frame.uv.y());
                 problem.AddResidualBlock(f_td, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0],
                                          para_Feature[feature_index], para_Td[0]);
             } else {
@@ -634,7 +634,7 @@ void Estimator::optimization() {
         int retrive_feature_index = 0;
         feature_index = -1;
         for (FeaturePerId &it_per_id: feature_manager.features_) {
-            if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
+            if (!(it_per_id.feature_per_frames_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
                 continue;
             ++feature_index;
             int start = it_per_id.start_frame_;
@@ -645,7 +645,7 @@ void Estimator::optimization() {
                 if ((int) match_points[retrive_feature_index].z() == it_per_id.feature_id_) {
                     Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(),
                                               match_points[retrive_feature_index].y(), 1.0);
-                    Vector3d pts_i = it_per_id.feature_per_frame_[0].point_;
+                    Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
 
                     auto *f = new ProjectionFactor(pts_i, pts_j);
                     problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0],
@@ -709,7 +709,7 @@ void Estimator::optimization() {
 
         feature_index = -1;
         for (FeaturePerId &it_per_id: feature_manager.features_) {
-            if (!(it_per_id.feature_per_frame_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
+            if (!(it_per_id.feature_per_frames_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
                 continue;
 
             ++feature_index;
@@ -718,9 +718,9 @@ void Estimator::optimization() {
             if (imu_i != 0)
                 continue;
 
-            Vector3d pts_i = it_per_id.feature_per_frame_[0].point_;
+            Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
 
-            for (auto &it_per_frame: it_per_id.feature_per_frame_) {
+            for (auto &it_per_frame: it_per_id.feature_per_frames_) {
                 imu_j++;
                 if (imu_i == imu_j)
                     continue;
@@ -729,11 +729,11 @@ void Estimator::optimization() {
                 Vector3d pts_j = it_per_frame.point_;
                 if (ESTIMATE_TD) {
                     auto *f_td = new ProjectionTdFactor(pts_i, pts_j,
-                                                        it_per_id.feature_per_frame_[0].velocity,
+                                                        it_per_id.feature_per_frames_[0].velocity,
                                                         it_per_frame.velocity,
-                                                        it_per_id.feature_per_frame_[0].cur_td,
+                                                        it_per_id.feature_per_frames_[0].cur_td,
                                                         it_per_frame.cur_td,
-                                                        it_per_id.feature_per_frame_[0].uv.y(),
+                                                        it_per_id.feature_per_frames_[0].uv.y(),
                                                         it_per_frame.uv.y());
                     vector<double *> parameter_blocks = {
                             para_Pose[imu_i],

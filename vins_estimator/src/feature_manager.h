@@ -33,7 +33,7 @@ class FeaturePerId {
 public:
     const int feature_id_;
     int start_frame_;
-    vector<FeaturePerFrame> feature_per_frame_;
+    vector<FeaturePerFrame> feature_per_frames_;
 
     bool is_outlier_{};
     double estimated_depth;
