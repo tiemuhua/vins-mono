@@ -52,10 +52,6 @@ private:
 
     void solveOdometry();
 
-    void slideWindowNew();
-
-    void slideWindowOld();
-
     void optimization();
 
     void vector2double();
@@ -132,6 +128,6 @@ private:
     bool is_re_localization_{};
     double re_local_frame_stamp{};
     int re_local_frame_local_index{};
-    vector<MatchPoint> match_points;
+    vector<MatchPoint> match_points_;
     double re_local_Pose[SIZE_POSE]{};
 };

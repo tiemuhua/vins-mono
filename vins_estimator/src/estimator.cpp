@@ -634,11 +634,11 @@ void Estimator::optimization() {
             ++feature_index;
             int start = features_of_id.start_frame_;
             if (start <= re_local_frame_local_index) {
-                while ((int) match_points[retrive_feature_index].feature_id < features_of_id.feature_id_) {
+                while ((int) match_points_[retrive_feature_index].feature_id < features_of_id.feature_id_) {
                     retrive_feature_index++;
                 }
-                if (match_points[retrive_feature_index].feature_id == features_of_id.feature_id_) {
-                    auto *cost_function = new ProjectionFactor(match_points[retrive_feature_index].point,
+                if (match_points_[retrive_feature_index].feature_id == features_of_id.feature_id_) {
+                    auto *cost_function = new ProjectionFactor(match_points_[retrive_feature_index].point,
                                                                features_of_id.feature_points_[0].unified_point);
                     problem.AddResidualBlock(cost_function, loss_function,
                                              para_Pose[start], re_local_Pose, para_Ex_Pose, para_Feature[feature_index]);
@@ -719,7 +719,7 @@ void Estimator::marginOld() {
     }
 
     // 新的陀螺仪约束
-    if (pre_integrate_window[1]->sum_dt < 10.0) {
+    if (pre_integrate_window[1]->sum_dt < 10.0) {// todo tiemuhuaguo 1这个硬编码是怎么来的？
         auto *cost_function = new IMUFactor(pre_integrate_window[1]);
         vector<double *> parameter_blocks = {
                 para_Pose[0],
@@ -812,7 +812,9 @@ void Estimator::slideWindow() {
         });
         vector<ImageFrame> tmp_all_image_frame(it++, all_image_frame.end());
         all_image_frame = std::move(tmp_all_image_frame);
-        slideWindowOld();
+        sum_of_back++;
+        bool shift_depth = solver_flag == NON_LINEAR;
+        feature_manager_.removeBackShiftDepth();
     } else {
         for (unsigned int i = 0; i < dt_buf_window[WINDOW_SIZE].size(); i++) {
             double tmp_dt = dt_buf_window[WINDOW_SIZE][i];
@@ -825,8 +827,10 @@ void Estimator::slideWindow() {
             acc_buf_window[WINDOW_SIZE - 1].push_back(tmp_linear_acceleration);
             gyr_buf_window[WINDOW_SIZE - 1].push_back(tmp_angular_velocity);
         }
-        slideWindowNew();
+        sum_of_front++;
+        feature_manager_.removeFront(frame_count);
     }
+
     time_stamp_window[WINDOW_SIZE] = time_stamp_window[WINDOW_SIZE - 1];
     pos_window[WINDOW_SIZE] = pos_window[WINDOW_SIZE - 1];
     vec_window[WINDOW_SIZE] = vec_window[WINDOW_SIZE - 1];
@@ -842,24 +846,9 @@ void Estimator::slideWindow() {
     gyr_buf_window[WINDOW_SIZE].clear();
 }
 
-// real marginalization is removed in solve_ceres()
-void Estimator::slideWindowNew() {
-    sum_of_front++;
-    feature_manager_.removeFront(frame_count);
-}
-
-// real marginalization is removed in solve_ceres()
-void Estimator::slideWindowOld() {
-    sum_of_back++;
-
-    bool shift_depth = solver_flag == NON_LINEAR;
-    feature_manager_.removeBackShiftDepth();
-}
-
 void Estimator::setReLocalFrame(double _frame_stamp, int _frame_index, vector<MatchPoint> &_match_points,
                                 const Vector3d &_re_local_t, const Matrix3d &_re_local_r) {
-    match_points.clear();
-    match_points = _match_points;
+    match_points_ = _match_points;
     for (int i = 0; i < WINDOW_SIZE; i++) {
         if (_frame_stamp == time_stamp_window[i]) {
             re_local_frame_local_index = i;
