@@ -14,8 +14,12 @@ constexpr int NUM_THREADS = 4;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> JacobianType;
 struct ResidualBlockInfo
 {
-    ResidualBlockInfo(ceres::CostFunction *_cost_function, ceres::LossFunction *_loss_function, std::vector<double *> _parameter_blocks, std::vector<int> _drop_set)
-        : cost_function_(_cost_function), loss_function_(_loss_function), parameter_blocks_(std::move(_parameter_blocks)), drop_set_(std::move(_drop_set)) {}
+    ResidualBlockInfo(ceres::CostFunction *_cost_function, ceres::LossFunction *_loss_function,
+                      std::vector<double *> _parameter_blocks, std::vector<int> _drop_set):
+                      cost_function_(_cost_function),
+                      loss_function_(_loss_function),
+                      parameter_blocks_(std::move(_parameter_blocks)),
+                      drop_set_(std::move(_drop_set)) {}
 
     void Evaluate();
 
@@ -42,10 +46,10 @@ struct ThreadsStruct
     std::unordered_map<double*, int> parameter_block_idx; //local size
 };
 
-class MarginalizationInfo
+class MarginalInfo
 {
   public:
-    ~MarginalizationInfo();
+    ~MarginalInfo();
     static int localSize(int size) ;
     void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
     void preMarginalize();
@@ -67,11 +71,11 @@ class MarginalizationInfo
     static constexpr double EPS = 1e-8;
 };
 
-class MarginalizationFactor : public ceres::CostFunction
+class MarginalFactor : public ceres::CostFunction
 {
   public:
-    explicit MarginalizationFactor(MarginalizationInfo* _marginalization_info);
+    explicit MarginalFactor(MarginalInfo* _marginalization_info);
     bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
-    MarginalizationInfo* marginalization_info_;
+    MarginalInfo* marginal_info_;
 };

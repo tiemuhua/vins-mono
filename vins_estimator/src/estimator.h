@@ -116,7 +116,7 @@ private:
     Pose para_Ex_Pose{};
     Td para_Td{};
 
-    MarginalizationInfo *last_marginalization_info_{};
+    MarginalInfo *last_marginal_info_{};
     vector<double *> last_marginal_param_blocks_;
 
     vector<ImageFrame> all_image_frame;

@@ -42,10 +42,10 @@ void Estimator::clearState() {
 
 
     delete tmp_pre_integration;
-    delete last_marginalization_info_;
+    delete last_marginal_info_;
 
     tmp_pre_integration = nullptr;
-    last_marginalization_info_ = nullptr;
+    last_marginal_info_ = nullptr;
     last_marginal_param_blocks_.clear();
 
     feature_manager.clearState();
@@ -558,8 +558,8 @@ void Estimator::optimization() {
     TicToc t_whole, t_prepare;
     vector2double();
 
-    if (last_marginalization_info_) {
-        auto *cost_function = new MarginalizationFactor(last_marginalization_info_);
+    if (last_marginal_info_) {
+        auto *cost_function = new MarginalFactor(last_marginal_info_);
         problem.AddResidualBlock(cost_function, nullptr,last_marginal_param_blocks_);
     }
 
@@ -619,7 +619,7 @@ void Estimator::optimization() {
                 while ((int) match_points[retrive_feature_index].feature_id < it_per_id.feature_id_) {
                     retrive_feature_index++;
                 }
-                if ((int) match_points[retrive_feature_index].feature_id == it_per_id.feature_id_) {
+                if (match_points[retrive_feature_index].feature_id == it_per_id.feature_id_) {
                     auto *cost_function = new ProjectionFactor(match_points[retrive_feature_index].point,
                                                                it_per_id.feature_per_frames_[0].unified_point);
                     problem.AddResidualBlock(cost_function, loss_function,
@@ -647,22 +647,22 @@ void Estimator::optimization() {
 
     TicToc t_whole_marginalization;
     if (marginalization_flag == MARGIN_OLD) {
-        auto *marginalization_info = new MarginalizationInfo();
+        auto *marginal_info = new MarginalInfo();
         vector2double();
 
-        if (last_marginalization_info_) {
+        if (last_marginal_info_) {
             vector<int> drop_set;
             for (int i = 0; i < static_cast<int>(last_marginal_param_blocks_.size()); i++) {
                 if (last_marginal_param_blocks_[i] == para_Pose[0] ||
                     last_marginal_param_blocks_[i] == para_SpeedBias[0])
                     drop_set.push_back(i);
             }
-            // construct new marginlization_factor
-            auto *cost_function = new MarginalizationFactor(last_marginalization_info_);
+            // construct new marginal_factor
+            auto *cost_function = new MarginalFactor(last_marginal_info_);
 
             ResidualBlockInfo residual_block_info(cost_function, nullptr,
                                                   last_marginal_param_blocks_, drop_set);
-            marginalization_info->addResidualBlockInfo(residual_block_info);
+            marginal_info->addResidualBlockInfo(residual_block_info);
         }
 
         if (pre_integrate_window[1]->sum_dt < 10.0) {
@@ -676,7 +676,7 @@ void Estimator::optimization() {
             vector<int> drop_set = {0, 1};
             ResidualBlockInfo residual_block_info(imu_factor, nullptr,
                                                               parameter_blocks, drop_set);
-            marginalization_info->addResidualBlockInfo(residual_block_info);
+            marginal_info->addResidualBlockInfo(residual_block_info);
         }
 
         feature_index = -1;
@@ -711,7 +711,7 @@ void Estimator::optimization() {
                             para_Td
                     };
                     ResidualBlockInfo residual_block_info(f_td, loss_function, parameter_blocks, drop_set);
-                    marginalization_info->addResidualBlockInfo(residual_block_info);
+                    marginal_info->addResidualBlockInfo(residual_block_info);
                 } else {
                     auto *f = new ProjectionFactor(frame0.unified_point, it_per_frame.unified_point);
                     vector<double *> parameter_blocks = {
@@ -721,18 +721,13 @@ void Estimator::optimization() {
                             para_Feature[feature_index],
                     };
                     ResidualBlockInfo residual_block_info(f, loss_function, parameter_blocks, drop_set);
-                    marginalization_info->addResidualBlockInfo(residual_block_info);
+                    marginal_info->addResidualBlockInfo(residual_block_info);
                 }
             }
         }
 
-        TicToc t_pre_margin;
-        marginalization_info->preMarginalize();
-        LOG_D("pre marginalization %f ms", t_pre_margin.toc());
-
-        TicToc t_margin;
-        marginalization_info->marginalize();
-        LOG_D("marginalization %f ms", t_margin.toc());
+        marginal_info->preMarginalize();
+        marginal_info->marginalize();
 
         std::unordered_map<double*, double *> addr_shift;
         for (int i = 1; i <= WINDOW_SIZE; i++) {
@@ -743,19 +738,19 @@ void Estimator::optimization() {
         if (ESTIMATE_TD) {
             addr_shift[para_Td] = para_Td;
         }
-        vector<double *> parameter_blocks = marginalization_info->getParameterBlocks(addr_shift);
+        vector<double *> parameter_blocks = marginal_info->getParameterBlocks(addr_shift);
 
-        delete last_marginalization_info_;
-        last_marginalization_info_ = marginalization_info;
+        delete last_marginal_info_;
+        last_marginal_info_ = marginal_info;
         last_marginal_param_blocks_ = parameter_blocks;
 
-    } else if (last_marginalization_info_ &&
+    } else if (last_marginal_info_ &&
             std::count(std::begin(last_marginal_param_blocks_),
                        std::end(last_marginal_param_blocks_), para_Pose[WINDOW_SIZE - 1])) {
 
-        auto *marginalization_info = new MarginalizationInfo();
+        auto *marginal_info = new MarginalInfo();
         vector2double();
-        if (last_marginalization_info_) {
+        if (last_marginal_info_) {
             vector<int> drop_set;
             for (int i = 0; i < static_cast<int>(last_marginal_param_blocks_.size()); i++) {
                 assert(last_marginal_param_blocks_[i] != para_SpeedBias[WINDOW_SIZE - 1]);
@@ -763,15 +758,15 @@ void Estimator::optimization() {
                     drop_set.push_back(i);
             }
             // construct new marginalization_factor
-            auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info_);
+            auto *marginalization_factor = new MarginalFactor(last_marginal_info_);
             ResidualBlockInfo residual_block_info(marginalization_factor, nullptr,
                                                   last_marginal_param_blocks_, drop_set);
 
-            marginalization_info->addResidualBlockInfo(residual_block_info);
+            marginal_info->addResidualBlockInfo(residual_block_info);
         }
 
-        marginalization_info->preMarginalize();
-        marginalization_info->marginalize();
+        marginal_info->preMarginalize();
+        marginal_info->marginalize();
 
         std::unordered_map<double*, double *> addr_shift;
         for (int i = 0; i <= WINDOW_SIZE; i++) {
@@ -790,9 +785,9 @@ void Estimator::optimization() {
             addr_shift[para_Td] = para_Td;
         }
 
-        vector<double *> parameter_blocks = marginalization_info->getParameterBlocks(addr_shift);
-        delete last_marginalization_info_;
-        last_marginalization_info_ = marginalization_info;
+        vector<double *> parameter_blocks = marginal_info->getParameterBlocks(addr_shift);
+        delete last_marginal_info_;
+        last_marginal_info_ = marginal_info;
         last_marginal_param_blocks_ = parameter_blocks;
     }
     LOG_D("whole marginalization costs: %f", t_whole_marginalization.toc());
