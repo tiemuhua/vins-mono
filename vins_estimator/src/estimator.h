@@ -64,6 +64,10 @@ private:
 
     bool failureDetection();
 
+    void margin2ndNew();
+
+    void marginOld();
+
 
     enum SolverFlag {
         INITIAL,
@@ -101,7 +105,7 @@ private:
     int frame_count{};
     int sum_of_back{}, sum_of_front{};
 
-    FeatureManager feature_manager;
+    FeatureManager feature_manager_;
     InitialEXRotation initial_ex_rotation;
 
     bool first_imu{};
@@ -118,6 +122,8 @@ private:
 
     MarginalInfo *last_marginal_info_{};
     vector<double *> last_marginal_param_blocks_;
+    std::unordered_map<double*, double *> margin_old_addr_shift_;
+    std::unordered_map<double*, double *> margin_2nd_new_addr_shift_;
 
     vector<ImageFrame> all_image_frame;
     PreIntegration *tmp_pre_integration{};

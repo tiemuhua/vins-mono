@@ -14,14 +14,14 @@ class ImageFrame {
 public:
     ImageFrame() = delete;
 
-    ImageFrame(const map<int, vector<FeaturePoint>> &_points, double _t):
-        feature_id_2_points{_points},
+    ImageFrame(const map<int, FeaturePoint> &_points, double _t):
+        feature_id_2_point{_points},
         t{_t}{};
     ~ImageFrame() {
         delete pre_integration;
         pre_integration = nullptr;
     }
-    map<int, vector<FeaturePoint> > feature_id_2_points;
+    map<int, FeaturePoint> feature_id_2_point;
     double t{};
     Matrix3d R;
     Vector3d T;

@@ -23,11 +23,11 @@ struct FeaturePoint {
     double cur_td;
 };
 
-class FeaturePerId {
+class FeaturesOfId {
 public:
     const int feature_id_;
     int start_frame_;
-    vector<FeaturePoint> feature_per_frames_;
+    vector<FeaturePoint> feature_points_;
 
     bool is_outlier_{};
     double estimated_depth;
@@ -37,7 +37,7 @@ public:
         FeatureSolveFail,
     }solve_flag_;
 
-    FeaturePerId(int _feature_id, int _start_frame)
+    FeaturesOfId(int _feature_id, int _start_frame)
             : feature_id_(_feature_id), start_frame_(_start_frame),
               estimated_depth(-1.0), solve_flag_(FeatureHaveNotSolved) {
     }
@@ -73,11 +73,11 @@ public:
 
     void removeOutlier();
 
-    list<FeaturePerId> features_;
+    list<FeaturesOfId> features_;
     int last_track_num{};
 
 private:
-    static double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
+    static double compensatedParallax2(const FeaturesOfId &it_per_id, int frame_count);
 };
 
 #endif
