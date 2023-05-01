@@ -9,10 +9,10 @@ InitialEXRotation::InitialEXRotation() {
     ric = Matrix3d::Identity();
 }
 
-bool InitialEXRotation::CalibrationExRotation(const vector<pair<Vector3d, Vector3d>>& corres,
+bool InitialEXRotation::CalibrationExRotation(const vector<pair<cv::Point2f, cv::Point2f>>& correspondences,
                                               const Quaterniond& delta_q_imu, Matrix3d &calib_ric_result) {
     frame_count++;
-    Rc.emplace_back(solveRelativeR(corres));
+    Rc.emplace_back(solveRelativeR(correspondences));
     Rimu.emplace_back(delta_q_imu.toRotationMatrix());
     Rc_g.emplace_back(ric.inverse() * delta_q_imu * ric);
 
@@ -63,32 +63,32 @@ bool InitialEXRotation::CalibrationExRotation(const vector<pair<Vector3d, Vector
         return false;
 }
 
-Matrix3d InitialEXRotation::solveRelativeR(const vector<pair<Vector3d, Vector3d>> &corres) {
-    if (corres.size() >= 9) {
-        vector<cv::Point2f> ll, rr;
-        for (const auto & corre : corres) {
-            ll.emplace_back(corre.first(0), corre.first(1));
-            rr.emplace_back(corre.second(0), corre.second(1));
-        }
-        cv::Mat E = cv::findFundamentalMat(ll, rr);
-        cv::Mat_<double> R1, R2, t1, t2;
-        decomposeE(E, R1, R2, t1, t2);
-
-        if (determinant(R1) + 1.0 < 1e-09) {
-            E = -E;
-            decomposeE(E, R1, R2, t1, t2);
-        }
-        double ratio1 = max(testTriangulation(ll, rr, R1, t1), testTriangulation(ll, rr, R1, t2));
-        double ratio2 = max(testTriangulation(ll, rr, R2, t1), testTriangulation(ll, rr, R2, t2));
-        cv::Mat_<double> ans_R_cv = ratio1 > ratio2 ? R1 : R2;
-
-        Matrix3d ans_R_eigen;
-        for (int i = 0; i < 3; i++)
-            for (int j = 0; j < 3; j++)
-                ans_R_eigen(j, i) = ans_R_cv(i, j);
-        return ans_R_eigen;
+Matrix3d InitialEXRotation::solveRelativeR(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences) {
+    if (correspondences.size() < 9) {
+        return Matrix3d::Identity();
     }
-    return Matrix3d::Identity();
+    vector<cv::Point2f> ll, rr;
+    for (const auto & correspondence : correspondences) {
+        ll.emplace_back(correspondence.first);
+        rr.emplace_back(correspondence.second);
+    }
+    cv::Mat E = cv::findFundamentalMat(ll, rr);
+    cv::Mat_<double> R1, R2, t1, t2;
+    decomposeE(E, R1, R2, t1, t2);
+
+    if (determinant(R1) + 1.0 < 1e-09) {
+        E = -E;
+        decomposeE(E, R1, R2, t1, t2);
+    }
+    double ratio1 = max(testTriangulation(ll, rr, R1, t1), testTriangulation(ll, rr, R1, t2));
+    double ratio2 = max(testTriangulation(ll, rr, R2, t1), testTriangulation(ll, rr, R2, t2));
+    cv::Mat_<double> ans_R_cv = ratio1 > ratio2 ? R1 : R2;
+
+    Matrix3d ans_R_eigen;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            ans_R_eigen(j, i) = ans_R_cv(i, j);
+    return ans_R_eigen;
 }
 
 double InitialEXRotation::testTriangulation(const vector<cv::Point2f> &l, const vector<cv::Point2f> &r,

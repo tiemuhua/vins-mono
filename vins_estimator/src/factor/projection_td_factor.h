@@ -9,8 +9,8 @@
 class ProjectionTdFactor : public ceres::SizedCostFunction<2, 7, 7, 7, 1, 1>
 {
   public:
-    ProjectionTdFactor(const Eigen::Vector3d &_pts_i, const Eigen::Vector3d &_pts_j,
-    				   const Eigen::Vector2d &_velocity_i, const Eigen::Vector2d &_velocity_j,
+    ProjectionTdFactor(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j,
+    				   const cv::Point2f &_velocity_i, const cv::Point2f &_velocity_j,
     				   const double _td_i, const double _td_j, const double _row_i, const double _row_j);
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const;
     void check(double **parameters);

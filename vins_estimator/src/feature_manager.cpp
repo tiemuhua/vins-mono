@@ -19,38 +19,33 @@ int FeatureManager::getFeatureCount() {
     return cnt;
 }
 
-
-bool FeatureManager::addFeatureCheckParallax(int frame_count,
-                                             const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
-                                             double td) {
-    LOG_D("input feature: %d, num of feature: %d", (int) image.size(), getFeatureCount());
+bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points, double td) {
+    LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), getFeatureCount());
     double parallax_sum = 0;
     int parallax_num = 0;
     last_track_num = 0;
-    for (auto &id_pts: image) {
-        FeaturePerFrame f_per_fra(id_pts.second[0].second, td);
 
-        int feature_id = id_pts.first;
-        auto it = find_if(features_.begin(), features_.end(), [feature_id](const FeaturePerId &it)->bool {
-            return it.feature_id_ == feature_id;
+    for (const FeaturePoint &point: feature_points) {
+        auto it = find_if(features_.begin(), features_.end(), [point](const FeaturePerId &it)->bool {
+            return it.feature_id_ == point.feature_id;
         });
 
         if (it == features_.end()) {
-            features_.emplace_back(FeaturePerId(feature_id, frame_count));
-            features_.back().feature_per_frames_.push_back(f_per_fra);
+            features_.emplace_back(FeaturePerId(point.feature_id, frame_id));
+            features_.back().feature_per_frames_.push_back(point);
         } else {
-            it->feature_per_frames_.emplace_back(f_per_fra);
+            it->feature_per_frames_.emplace_back(point);
             last_track_num++;
         }
     }
 
-    if (frame_count < 2 || last_track_num < 20)
+    if (frame_id < 2 || last_track_num < 20)
         return true;
 
     for (const FeaturePerId &it_per_id: features_) {
-        if (it_per_id.start_frame_ <= frame_count - 2 &&
-            it_per_id.start_frame_ + int(it_per_id.feature_per_frames_.size()) - 1 >= frame_count - 1) {
-            parallax_sum += compensatedParallax2(it_per_id, frame_count);
+        if (it_per_id.start_frame_ <= frame_id - 2 &&
+            it_per_id.start_frame_ + int(it_per_id.feature_per_frames_.size()) - 1 >= frame_id - 1) {
+            parallax_sum += compensatedParallax2(it_per_id, frame_id);
             parallax_num++;
         }
     }
@@ -64,18 +59,14 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count,
     }
 }
 
-vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r) {
-    vector<pair<Vector3d, Vector3d>> corres;
+vector<pair<cv::Point2f, cv::Point2f>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r) {
+    vector<pair<cv::Point2f , cv::Point2f>> corres;
     for (FeaturePerId &it: features_) {
         if (it.start_frame_ <= frame_count_l && it.endFrame() >= frame_count_r) {
-            Vector3d a = Vector3d::Zero(), b = Vector3d::Zero();
             int idx_l = frame_count_l - it.start_frame_;
             int idx_r = frame_count_r - it.start_frame_;
-
-            a = it.feature_per_frames_[idx_l].point_;
-
-            b = it.feature_per_frames_[idx_r].point_;
-
+            cv::Point2f a = it.feature_per_frames_[idx_l].unified_point;
+            cv::Point2f b = it.feature_per_frames_[idx_r].unified_point;
             corres.emplace_back(make_pair(a, b));
         }
     }
@@ -150,7 +141,8 @@ void FeatureManager::triangulate(const PosWindow pos_window, const RotWindow rot
             Eigen::Matrix<double, 3, 4> P;
             P.leftCols<3>() = R.transpose();
             P.rightCols<1>() = -R.transpose() * t;
-            Eigen::Vector3d f = it_per_id.feature_per_frames_[i].point_.normalized();
+            const cv::Point2f &unified_point = it_per_id.feature_per_frames_[i].unified_point;
+            Eigen::Vector3d f = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0).normalized();
             svd_A.row(2 * i) = f[0] * P.row(2) - f[2] * P.row(0);
             svd_A.row(2 * i + 1) = f[1] * P.row(2) - f[2] * P.row(1);
         }
@@ -179,23 +171,23 @@ void FeatureManager::removeBackShiftDepth() {
     for (auto it_next = features_.begin(); it_next!=features_.end();) {
         auto it = it_next;
         it_next++;
-        if (it->start_frame_ != 0)
+        if (it->start_frame_ != 0) {
             it->start_frame_--;
-        else {
-            Eigen::Vector3d uv_i = it->feature_per_frames_[0].point_;
-            it->feature_per_frames_.erase(it->feature_per_frames_.begin());
-            if (it->feature_per_frames_.size() < 2) {
-                features_.erase(it);
-                continue;
-            } else {
-                Eigen::Vector3d pts_i = uv_i * it->estimated_depth;
-                double dep_j = pts_i(2);
-                if (dep_j > 0)
-                    it->estimated_depth = dep_j;
-                else
-                    it->estimated_depth = INIT_DEPTH;
-            }
+            continue;
         }
+        const cv::Point2f &unified_point = it->feature_per_frames_[0].unified_point;
+        Eigen::Vector3d uv_i = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0);
+        it->feature_per_frames_.erase(it->feature_per_frames_.begin());
+        if (it->feature_per_frames_.size() < 2) {
+            features_.erase(it);
+            continue;
+        }
+        Eigen::Vector3d pts_i = uv_i * it->estimated_depth;
+        double dep_j = pts_i(2);
+        if (dep_j > 0)
+            it->estimated_depth = dep_j;
+        else
+            it->estimated_depth = INIT_DEPTH;
     }
 }
 
@@ -235,17 +227,7 @@ void FeatureManager::removeFront(int frame_count) {
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count) {
     //check the second last frame is keyframe or not
     //parallax between second last frame and third last frame
-    Vector3d p_i = it_per_id.feature_per_frames_[frame_count - 2 - it_per_id.start_frame_].point_;
-    Vector3d p_j = it_per_id.feature_per_frames_[frame_count - 1 - it_per_id.start_frame_].point_;
-
-    double u_j = p_j(0);
-    double v_j = p_j(1);
-
-    double u_i = p_i(0) / p_i(2);
-    double v_i = p_i(1) / p_i(2);
-
-    // todo tiemuhuaguo u_i - u_j有物理意义吗？？？
-    double du = u_i - u_j, dv = v_i - v_j;
-
-    return sqrt(du * du + dv * dv);
+    cv::Point2f p_i = it_per_id.feature_per_frames_[frame_count - 2 - it_per_id.start_frame_].unified_point;
+    cv::Point2f p_j = it_per_id.feature_per_frames_[frame_count - 1 - it_per_id.start_frame_].unified_point;
+    return cv::norm(p_i - p_j);
 }

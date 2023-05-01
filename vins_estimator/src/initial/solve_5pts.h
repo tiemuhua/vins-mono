@@ -11,8 +11,8 @@ using namespace Eigen;
 
 class MotionEstimator {
 public:
-
-    static bool solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres, Matrix3d &R, Vector3d &T);
+    static bool solveRelativeRT(const vector<pair<cv::Point2f , cv::Point2f>> &correspondences,
+                                Matrix3d &Rotation, Vector3d &Translation);
 };
 
 

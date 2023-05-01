@@ -12,18 +12,21 @@ using namespace std;
 
 class ImageFrame {
 public:
-    ImageFrame() = default;
+    ImageFrame() = delete;
 
-    ImageFrame(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &_points, double _t) :
-    points{_points},
-    t{_t},
-    is_key_frame{false} {};
-    map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>> > points;
+    ImageFrame(const map<int, vector<FeaturePoint>> &_points, double _t):
+        feature_id_2_points{_points},
+        t{_t}{};
+    ~ImageFrame() {
+        delete pre_integration;
+        pre_integration = nullptr;
+    }
+    map<int, vector<FeaturePoint> > feature_id_2_points;
     double t{};
     Matrix3d R;
     Vector3d T;
     PreIntegration *pre_integration{};
-    bool is_key_frame{};
+    bool is_key_frame = false;
 };
 
-bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x);
+bool VisualIMUAlignment(vector<ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x);

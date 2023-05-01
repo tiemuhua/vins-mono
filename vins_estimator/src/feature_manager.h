@@ -13,27 +13,21 @@ using namespace std;
 using namespace Eigen;
 
 #include "parameters.h"
+#include "feature_tracker/src/feature_tracker.h"
 
-class FeaturePerFrame {
-public:
-    FeaturePerFrame(const Eigen::Matrix<double, 7, 1> &_point, double td) {
-        point_ = _point.block<3,1>(0, 0);
-        uv = _point.block<2,1>(3,0);
-        velocity = _point.block<2,1>(5,0);
-        cur_td = td;
-    }
-
+struct FeaturePoint {
+    cv::Point2f point;
+    cv::Point2f unified_point;
+    cv::Point2f point_velocity;
+    int feature_id;
     double cur_td;
-    Vector3d point_;
-    Vector2d uv;
-    Vector2d velocity;
 };
 
 class FeaturePerId {
 public:
     const int feature_id_;
     int start_frame_;
-    vector<FeaturePerFrame> feature_per_frames_;
+    vector<FeaturePoint> feature_per_frames_;
 
     bool is_outlier_{};
     double estimated_depth;
@@ -57,10 +51,9 @@ public:
 
     int getFeatureCount();
 
-    bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
-                                 double td);
+    bool addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points, double td);
 
-    vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
+    vector<pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r);
 
     void setDepth(const VectorXd &x);
 

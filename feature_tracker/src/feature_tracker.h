@@ -36,12 +36,6 @@ class FeatureTracker
         std::vector<cv::Point2f> points_velocity;
         std::vector<int> feature_ids;
     };
-    struct FeaturePoint {
-        cv::Point2f point;
-        cv::Point2f unified_point;
-        cv::Point2f point_velocity;
-        int feature_id;
-    };
 
     FeaturesPerImage readImage(const cv::Mat &_img,double _cur_time);
 

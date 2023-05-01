@@ -175,36 +175,37 @@ namespace cv {
 }
 
 
-bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres,
+bool MotionEstimator::solveRelativeRT(const vector<pair<cv::Point2f , cv::Point2f>> &correspondences,
                                       Matrix3d &Rotation, Vector3d &Translation) {
-    if (corres.size() >= 15) {
-        vector<cv::Point2f> ll, rr;
-        for (const auto & corre : corres) {
-            ll.emplace_back(corre.first(0), corre.first(1));
-            rr.emplace_back(corre.second(0), corre.second(1));
-        }
-        cv::Mat mask;
-        cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);
-        cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-        cv::Mat rot, trans;
-        int inlier_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, rot, trans, mask);
-
-        Eigen::Matrix3d R;
-        Eigen::Vector3d T;
-        for (int i = 0; i < 3; i++) {
-            T(i) = trans.at<double>(i, 0);
-            for (int j = 0; j < 3; j++)
-                R(i, j) = rot.at<double>(i, j);
-        }
-
-        Rotation = R.transpose();
-        Translation = -R.transpose() * T;
-        if (inlier_cnt > 12)
-            return true;
-        else
-            return false;
+    if (correspondences.size() < 15) {
+        return false;
     }
-    return false;
+    vector<cv::Point2f> ll, rr;
+    for (const auto & correspondence : correspondences) {
+        ll.emplace_back(correspondence.first);
+        rr.emplace_back(correspondence.second);
+    }
+    cv::Mat mask;
+    cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);
+    cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+    cv::Mat rot, trans;
+    int inlier_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, rot, trans, mask);
+
+    Eigen::Matrix3d R;
+    Eigen::Vector3d T;
+    for (int i = 0; i < 3; i++) {
+        T(i) = trans.at<double>(i, 0);
+        for (int j = 0; j < 3; j++)
+            R(i, j) = rot.at<double>(i, j);
+    }
+
+    Rotation = R.transpose();
+    Translation = -R.transpose() * T;
+    if (inlier_cnt > 12)
+        return true;
+    else
+        return false;
+
 }
 
 

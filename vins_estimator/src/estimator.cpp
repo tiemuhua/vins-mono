@@ -30,10 +30,10 @@ void Estimator::clearState() {
     TIC = Vector3d::Zero();
     RIC = Matrix3d::Identity();
 
-    for (auto &it: all_image_frame) {
-        if (it.second.pre_integration != nullptr) {
-            delete it.second.pre_integration;
-            it.second.pre_integration = nullptr;
+    for (ImageFrame &it: all_image_frame) {
+        if (it.pre_integration != nullptr) {
+            delete it.pre_integration;
+            it.pre_integration = nullptr;
         }
     }
 
@@ -92,11 +92,22 @@ void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) 
     gyr_0 = gyr;
 }
 
-void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
+void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
                              const double &time_stamp) {
     LOG_D("new image coming ------------------------------------------");
-    LOG_D("Adding feature points %lu", image.size());
-    if (feature_manager.addFeatureCheckParallax(frame_count, image, td))
+    LOG_D("Adding feature points %lu", image.feature_ids.size());
+    std::vector<FeaturePoint> feature_points;
+    for (int i = 0; i < image.feature_ids.size(); ++i) {
+        FeaturePoint point;
+        point.unified_point = image.unified_points[i];
+        point.point = image.points[i];
+        point.point_velocity = image.points_velocity[i];
+        point.feature_id = image.feature_ids[i];
+        point.cur_td = td;
+        feature_points.emplace_back(std::move(point));
+    }
+
+    if (feature_manager.addFeatureCheckParallax(frame_count, feature_points, td))
         marginalization_flag = MARGIN_OLD;
     else
         marginalization_flag = MARGIN_SECOND_NEW;
@@ -107,17 +118,24 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     LOG_D("number of feature: %d", feature_manager.getFeatureCount());
     time_stamp_window[frame_count] = time_stamp;
 
-    ImageFrame image_frame(image, time_stamp);
+    map<int, vector<FeaturePoint>> feature_id_2_points;
+    for (const FeaturePoint& point: feature_points) {
+        // todo 一帧图像里面有多个相同的特征点，相同的feature_id？？？？
+        feature_id_2_points[point.feature_id].emplace_back(point);
+    }
+
+    ImageFrame image_frame(feature_id_2_points, time_stamp);
     image_frame.pre_integration = tmp_pre_integration;
-    all_image_frame.insert(make_pair(time_stamp, image_frame));
+    all_image_frame.emplace_back(image_frame);
     tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
 
     if (ESTIMATE_EXTRINSIC == 2) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0) {
-            vector<pair<Vector3d, Vector3d>> corres = feature_manager.getCorresponding(frame_count - 1, frame_count);
+            vector<pair<cv::Point2f, cv::Point2f>> correspondences =
+                    feature_manager.getCorresponding(frame_count - 1, frame_count);
             Matrix3d calib_ric;
-            if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
+            if (initial_ex_rotation.CalibrationExRotation(correspondences, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
                 LOG_W("initial extrinsic rotation calib success");
                 RIC = calib_ric;
                 ESTIMATE_EXTRINSIC = 1;
@@ -182,16 +200,16 @@ bool Estimator::initialStructure() {
     //check imu observability
     Vector3d sum_acc;
     // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
-    for (const pair<const double, ImageFrame> &frame: all_image_frame) {
-        double dt = frame.second.pre_integration->sum_dt;
-        Vector3d tmp_acc = frame.second.pre_integration->DeltaVel() / dt;
+    for (const ImageFrame &frame: all_image_frame) {
+        double dt = frame.pre_integration->sum_dt;
+        Vector3d tmp_acc = frame.pre_integration->DeltaVel() / dt;
         sum_acc += tmp_acc;
     }
     Vector3d avg_acc = sum_acc / (double )all_image_frame.size();
     double var = 0;
-    for (const pair<const double, ImageFrame> &frame:all_image_frame) {
-        double dt = frame.second.pre_integration->sum_dt;
-        Vector3d tmp_acc = frame.second.pre_integration->DeltaVel() / dt;
+    for (const ImageFrame &frame:all_image_frame) {
+        double dt = frame.pre_integration->sum_dt;
+        Vector3d tmp_acc = frame.pre_integration->DeltaVel() / dt;
         var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
     }
     var = sqrt(var / (double )all_image_frame.size());
@@ -208,10 +226,9 @@ bool Estimator::initialStructure() {
         SFMFeature tmp_feature;
         tmp_feature.state = false;
         tmp_feature.id = it_per_id.feature_id_;
-        for (FeaturePerFrame &it_per_frame: it_per_id.feature_per_frames_) {
+        for (const auto &it_per_frame: it_per_id.feature_per_frames_) {
             imu_j++;
-            Vector3d pts_j = it_per_frame.point_;
-            tmp_feature.observation.emplace_back(make_pair(imu_j, Eigen::Vector2d{pts_j.x(), pts_j.y()}));
+            tmp_feature.observation.emplace_back(make_pair(imu_j, it_per_frame.unified_point));
         }
         sfm_f.push_back(tmp_feature);
     }
@@ -232,17 +249,17 @@ bool Estimator::initialStructure() {
 
     //solve pnp for all frame
     int i = 0;
-    for (pair<const double, ImageFrame> &frame:all_image_frame) {
+    for (ImageFrame &frame:all_image_frame) {
         // provide initial guess
         cv::Mat r, rvec, t, D, tmp_r;
-        if ((frame.first) == time_stamp_window[i]) {
-            frame.second.is_key_frame = true;
-            frame.second.R = Q[i].toRotationMatrix() * RIC.transpose();
-            frame.second.T = T[i];
+        if (frame.t == time_stamp_window[i]) {
+            frame.is_key_frame = true;
+            frame.R = Q[i].toRotationMatrix() * RIC.transpose();
+            frame.T = T[i];
             i++;
             continue;
         }
-        if ((frame.first) > time_stamp_window[i]) {
+        if ((frame.t) > time_stamp_window[i]) {
             i++;
         }
         Matrix3d R_initial = (Q[i].inverse()).toRotationMatrix();
@@ -251,24 +268,23 @@ bool Estimator::initialStructure() {
         cv::Rodrigues(tmp_r, rvec);
         cv::eigen2cv(P_initial, t);
 
-        frame.second.is_key_frame = false;
+        frame.is_key_frame = false;
         vector<cv::Point3f> pts_3_vector;
         vector<cv::Point2f> pts_2_vector;
-        for (auto &id_pts: frame.second.points) {
+        for (auto &id_pts: frame.feature_id_2_points) {
             int feature_id = id_pts.first;
-            for (auto &i_p: id_pts.second) {
-                auto it = sfm_tracked_points.find(feature_id);
-                if (it != sfm_tracked_points.end()) {
-                    Vector3d world_pts = it->second;
+            auto it = sfm_tracked_points.find(feature_id);
+            Vector3d world_pts = it->second;
+            if (it != sfm_tracked_points.end()) {
+                for (auto &i_p: id_pts.second) {
                     pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                    pts_2_vector.emplace_back(i_p.second(0), i_p.second(1));
+                    pts_2_vector.emplace_back(i_p.unified_point);
                 }
             }
         }
         cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
         if (pts_3_vector.size() < 6) {
-            cout << "pts_3_vector size " << pts_3_vector.size() << endl;
-            LOG_D("Not enough points for solve pnp !");
+            LOG_D("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
             return false;
         }
         if (!cv::solvePnP(pts_3_vector, pts_2_vector, K, D, rvec, t, false)) {
@@ -282,8 +298,8 @@ bool Estimator::initialStructure() {
         MatrixXd R_pnp = tmp_R_pnp.transpose();
         MatrixXd T_pnp;
         cv::cv2eigen(t, T_pnp);
-        frame.second.T = R_pnp * (-T_pnp);
-        frame.second.R = R_pnp * RIC.transpose();
+        frame.T = R_pnp * (-T_pnp);
+        frame.R = R_pnp * RIC.transpose();
     }
     if (visualInitialAlign())
         return true;
@@ -306,11 +322,11 @@ bool Estimator::visualInitialAlign() {
 
     // change state
     for (int i = 0; i <= frame_count; i++) {
-        Matrix3d Ri = all_image_frame[time_stamp_window[i]].R;
-        Vector3d Pi = all_image_frame[time_stamp_window[i]].T;
+        Matrix3d Ri = all_image_frame[i].R;
+        Vector3d Pi = all_image_frame[i].T;
         pos_window[i] = Pi;
         rot_window[i] = Ri;
-        all_image_frame[time_stamp_window[i]].is_key_frame = true;
+        all_image_frame[i].is_key_frame = true;
     }
 
     VectorXd dep = feature_manager.getDepthVector();
@@ -329,9 +345,9 @@ bool Estimator::visualInitialAlign() {
         pos_window[i] = s * pos_window[i] - rot_window[i] * TIC[0] - (s * pos_window[0] - rot_window[0] * TIC[0]);
     int kv = -1;
     for (const auto &frame:all_image_frame) {
-        if (frame.second.is_key_frame) {
+        if (frame.is_key_frame) {
             kv++;
-            vec_window[kv] = frame.second.R * x.segment<3>(kv * 3);
+            vec_window[kv] = frame.R * x.segment<3>(kv * 3);
         }
     }
     for (FeaturePerId &it_per_id: feature_manager.features_) {
@@ -357,13 +373,11 @@ bool Estimator::visualInitialAlign() {
 bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l) {
     // find previous frame which contains enough correspondence and parallax with the newest frame
     for (int i = 0; i < WINDOW_SIZE; i++) {
-        vector<pair<Vector3d, Vector3d>> correspondences = feature_manager.getCorresponding(i, WINDOW_SIZE);
+        vector<pair<cv::Point2f , cv::Point2f>> correspondences = feature_manager.getCorresponding(i, WINDOW_SIZE);
         if (correspondences.size() > 20) {
             double sum_parallax = 0;
             for (auto &correspond: correspondences) {
-                Vector2d pts_0(correspond.first(0), correspond.first(1));
-                Vector2d pts_1(correspond.second(0), correspond.second(1));
-                double parallax = (pts_0 - pts_1).norm();
+                double parallax = norm(correspond.first - correspond.second);
                 sum_parallax += parallax;
             }
             double average_parallax = 1.0 * sum_parallax / int(correspondences.size());
@@ -578,23 +592,20 @@ void Estimator::optimization() {
 
         int imu_i = it_per_id.start_frame_, imu_j = imu_i - 1;
 
-        Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
-
         for (auto &it_per_frame: it_per_id.feature_per_frames_) {
             imu_j++;
             if (imu_i == imu_j) {
                 continue;
             }
-            Vector3d pts_j = it_per_frame.point_;
             if (ESTIMATE_TD) {
-                auto *f_td = new ProjectionTdFactor(pts_i, pts_j,
-                                                    it_per_id.feature_per_frames_[0].velocity, it_per_frame.velocity,
+                auto *f_td = new ProjectionTdFactor(it_per_id.feature_per_frames_[0].unified_point, it_per_frame.unified_point,
+                                                    it_per_id.feature_per_frames_[0].point_velocity, it_per_frame.point_velocity,
                                                     it_per_id.feature_per_frames_[0].cur_td, it_per_frame.cur_td,
-                                                    it_per_id.feature_per_frames_[0].uv.y(), it_per_frame.uv.y());
+                                                    it_per_id.feature_per_frames_[0].point.y, it_per_frame.point.y);
                 problem.AddResidualBlock(f_td, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0],
                                          para_Feature[feature_index], para_Td[0]);
             } else {
-                auto *f = new ProjectionFactor(pts_i, pts_j);
+                auto *f = new ProjectionFactor(it_per_id.feature_per_frames_[0].unified_point, it_per_frame.unified_point);
                 problem.AddResidualBlock(f, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0],
                                          para_Feature[feature_index]);
             }
@@ -616,15 +627,12 @@ void Estimator::optimization() {
             ++feature_index;
             int start = it_per_id.start_frame_;
             if (start <= re_local_frame_local_index) {
-                while ((int) match_points[retrive_feature_index].z() < it_per_id.feature_id_) {
+                while ((int) match_points[retrive_feature_index].feature_id < it_per_id.feature_id_) {
                     retrive_feature_index++;
                 }
-                if ((int) match_points[retrive_feature_index].z() == it_per_id.feature_id_) {
-                    Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(),
-                                              match_points[retrive_feature_index].y(), 1.0);
-                    Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
-
-                    auto *f = new ProjectionFactor(pts_i, pts_j);
+                if ((int) match_points[retrive_feature_index].feature_id == it_per_id.feature_id_) {
+                    auto *f = new ProjectionFactor(match_points[retrive_feature_index].point,
+                                                   it_per_id.feature_per_frames_[0].unified_point);
                     problem.AddResidualBlock(f, loss_function, para_Pose[start], re_local_Pose, para_Ex_Pose[0],
                                              para_Feature[feature_index]);
                     retrive_feature_index++;
@@ -689,30 +697,26 @@ void Estimator::optimization() {
 
             ++feature_index;
 
-            int imu_i = it_per_id.start_frame_, imu_j = imu_i - 1;
-            if (imu_i != 0)
+            const int imu_i = it_per_id.start_frame_;
+            if (imu_i != 0) // todo tiemuhuaguo ????
                 continue;
 
-            Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
-
-            for (auto &it_per_frame: it_per_id.feature_per_frames_) {
-                imu_j++;
-                if (imu_i == imu_j)
-                    continue;
-
+            const auto & frame0 = it_per_id.feature_per_frames_[0];
+            for (int imu_j = 1; imu_j < it_per_id.feature_per_frames_.size(); ++imu_j) {
+                const FeaturePoint &it_per_frame = it_per_id.feature_per_frames_[imu_j];
                 vector<int> drop_set = {0, 3};
-                Vector3d pts_j = it_per_frame.point_;
                 if (ESTIMATE_TD) {
-                    auto *f_td = new ProjectionTdFactor(pts_i, pts_j,
-                                                        it_per_id.feature_per_frames_[0].velocity,
-                                                        it_per_frame.velocity,
-                                                        it_per_id.feature_per_frames_[0].cur_td,
+                    auto *f_td = new ProjectionTdFactor(frame0.unified_point,
+                                                        it_per_frame.unified_point,
+                                                        frame0.point_velocity,
+                                                        it_per_frame.point_velocity,
+                                                        frame0.cur_td,
                                                         it_per_frame.cur_td,
-                                                        it_per_id.feature_per_frames_[0].uv.y(),
-                                                        it_per_frame.uv.y());
+                                                        frame0.point.y,
+                                                        it_per_frame.point.y);
                     vector<double *> parameter_blocks = {
                             para_Pose[imu_i],
-                            para_Pose[imu_j],
+                            para_Pose[imu_i + imu_j],
                             para_Ex_Pose[0],
                             para_Feature[feature_index],
                             para_Td[0]
@@ -720,10 +724,10 @@ void Estimator::optimization() {
                     ResidualBlockInfo residual_block_info(f_td, loss_function, parameter_blocks, drop_set);
                     marginalization_info->addResidualBlockInfo(residual_block_info);
                 } else {
-                    auto *f = new ProjectionFactor(pts_i, pts_j);
+                    auto *f = new ProjectionFactor(frame0.unified_point, it_per_frame.unified_point);
                     vector<double *> parameter_blocks = {
                             para_Pose[imu_i],
-                            para_Pose[imu_j],
+                            para_Pose[imu_i + imu_j],
                             para_Ex_Pose[0],
                             para_Feature[feature_index],
                     };
@@ -833,16 +837,11 @@ void Estimator::slideWindow() {
             bg_window[i].swap(bg_window[i + 1]);
         }
 
-        map<double, ImageFrame>::iterator it_0;
-        it_0 = all_image_frame.find(t_0);
-        delete it_0->second.pre_integration;
-        it_0->second.pre_integration = nullptr;
-        for (auto it = all_image_frame.begin(); it != it_0; ++it) {
-            delete it->second.pre_integration;
-            it->second.pre_integration = nullptr;
-        }
-        all_image_frame.erase(all_image_frame.begin(), it_0);
-        all_image_frame.erase(t_0);
+        auto it = std::find(all_image_frame.begin(), all_image_frame.end(), [t_0](const ImageFrame&it)->bool {
+            return it.t == t_0;
+        });
+        vector<ImageFrame> tmp_all_image_frame(it++, all_image_frame.end());
+        all_image_frame = std::move(tmp_all_image_frame);
         slideWindowOld();
     } else {
         for (unsigned int i = 0; i < dt_buf_window[WINDOW_SIZE].size(); i++) {
@@ -887,7 +886,7 @@ void Estimator::slideWindowOld() {
     feature_manager.removeBackShiftDepth();
 }
 
-void Estimator::setReLocalFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
+void Estimator::setReLocalFrame(double _frame_stamp, int _frame_index, vector<MatchPoint> &_match_points,
                                 const Vector3d &_re_local_t, const Matrix3d &_re_local_r) {
     match_points.clear();
     match_points = _match_points;

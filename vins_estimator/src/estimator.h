@@ -22,16 +22,21 @@
 
 class Estimator {
 public:
+    struct MatchPoint{
+        cv::Point2f point;
+        int feature_id;
+    };
+
+public:
     Estimator();
 
     void setParameter();
 
     void processIMU(double t, const Vector3d &acc, const Vector3d &gyr);
 
-    void
-    processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double &time_stamp);
+    void processImage(const FeatureTracker::FeaturesPerImage &image, const double &time_stamp);
 
-    void setReLocalFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
+    void setReLocalFrame(double _frame_stamp, int _frame_index, vector<MatchPoint> &_match_points,
                          const Vector3d &_re_local_t, const Matrix3d &_re_local_r);
 
 private:
@@ -114,13 +119,13 @@ private:
     MarginalizationInfo *last_marginalization_info_{};
     vector<double *> last_marginal_param_blocks_;
 
-    map<double, ImageFrame> all_image_frame;
+    vector<ImageFrame> all_image_frame;
     PreIntegration *tmp_pre_integration{};
 
     //re-localization variable
     bool is_re_localization_{};
     double re_local_frame_stamp{};
     int re_local_frame_local_index{};
-    vector<Vector3d> match_points;
+    vector<MatchPoint> match_points;
     double re_local_Pose[SIZE_POSE]{};
 };

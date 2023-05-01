@@ -1,23 +1,23 @@
 #include "initial_alignment.h"
 #include "log.h"
 
-void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d *Bgs) {
+void solveGyroscopeBias(vector<ImageFrame> &all_image_frame, Vector3d *Bgs) {
     Matrix3d A;
     Vector3d b;
     Vector3d delta_bg;
     A.setZero();
     b.setZero();
-    map<double, ImageFrame>::iterator frame_i;
-    map<double, ImageFrame>::iterator frame_j;
+    vector<ImageFrame>::iterator frame_i;
+    vector<ImageFrame>::iterator frame_j;
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
         frame_j = next(frame_i);
         MatrixXd tmp_A(3, 3);
         tmp_A.setZero();
         VectorXd tmp_b(3);
         tmp_b.setZero();
-        Eigen::Quaterniond q_ij(frame_i->second.R.transpose() * frame_j->second.R);
-        tmp_A = frame_j->second.pre_integration->jacobian.template block<3, 3>(O_R, O_BG);
-        tmp_b = 2 * (frame_j->second.pre_integration->DeltaQuat().inverse() * q_ij).vec();
+        Eigen::Quaterniond q_ij(frame_i->R.transpose() * frame_j->R);
+        tmp_A = frame_j->pre_integration->jacobian.template block<3, 3>(O_R, O_BG);
+        tmp_b = 2 * (frame_j->pre_integration->DeltaQuat().inverse() * q_ij).vec();
         A += tmp_A.transpose() * tmp_A;
         b += tmp_A.transpose() * tmp_b;
     }
@@ -28,7 +28,7 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d *Bgs)
 
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
         frame_j = next(frame_i);
-        frame_j->second.pre_integration->rePrediction(Vector3d::Zero(), Bgs[0]);
+        frame_j->pre_integration->rePrediction(Vector3d::Zero(), Bgs[0]);
     }
 }
 
@@ -47,7 +47,7 @@ MatrixXd TangentBasis(Vector3d &g0) {
     return bc;
 }
 
-void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
+void RefineGravity(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
     Vector3d g0 = g.normalized() * G.norm();
     Vector3d lx, ly;
     int n_state = all_image_frame.size() * 3 + 2 + 1;
@@ -57,8 +57,8 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
     VectorXd b{n_state};
     b.setZero();
 
-    map<double, ImageFrame>::iterator frame_i;
-    map<double, ImageFrame>::iterator frame_j;
+    vector<ImageFrame>::iterator frame_i;
+    vector<ImageFrame>::iterator frame_j;
     for (int k = 0; k < 4; k++) {
         MatrixXd lxly = TangentBasis(g0);
         int i = 0;
@@ -70,21 +70,20 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
             VectorXd tmp_b(6);
             tmp_b.setZero();
 
-            double dt = frame_j->second.pre_integration->sum_dt;
+            double dt = frame_j->pre_integration->sum_dt;
 
 
             tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
-            tmp_A.block<3, 2>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Matrix3d::Identity() * lxly;
-            tmp_A.block<3, 1>(0, 8) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;
-            tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->DeltaPos() +
-                                      frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0] -
-                                      frame_i->second.R.transpose() * dt * dt / 2 * g0;
+            tmp_A.block<3, 2>(0, 6) = frame_i->R.transpose() * dt * dt / 2 * Matrix3d::Identity() * lxly;
+            tmp_A.block<3, 1>(0, 8) = frame_i->R.transpose() * (frame_j->T - frame_i->T) / 100.0;
+            tmp_b.block<3, 1>(0, 0) =
+                    frame_j->pre_integration->DeltaPos() + frame_i->R.transpose() * frame_j->R * TIC - TIC - frame_i->R.transpose() * dt * dt / 2 * g0;
 
             tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
-            tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
-            tmp_A.block<3, 2>(3, 6) = frame_i->second.R.transpose() * dt * Matrix3d::Identity() * lxly;
-            tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->DeltaVel() -
-                                      frame_i->second.R.transpose() * dt * Matrix3d::Identity() * g0;
+            tmp_A.block<3, 3>(3, 3) = frame_i->R.transpose() * frame_j->R;
+            tmp_A.block<3, 2>(3, 6) = frame_i->R.transpose() * dt * Matrix3d::Identity() * lxly;
+            tmp_b.block<3, 1>(3, 0) =
+                    frame_j->pre_integration->DeltaVel() - frame_i->R.transpose() * dt * Matrix3d::Identity() * g0;
 
 
             Matrix<double, 6, 6> cov_inv = Matrix<double, 6, 6>::Zero();
@@ -111,7 +110,7 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
     g = g0;
 }
 
-bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
+bool LinearAlignment(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
     int n_state = all_image_frame.size() * 3 + 3 + 1;
 
     MatrixXd A{n_state, n_state};
@@ -119,8 +118,8 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     VectorXd b{n_state};
     b.setZero();
 
-    map<double, ImageFrame>::iterator frame_i;
-    map<double, ImageFrame>::iterator frame_j;
+    vector<ImageFrame>::iterator frame_i;
+    vector<ImageFrame>::iterator frame_j;
     int i = 0;
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++) {
         frame_j = next(frame_i);
@@ -130,17 +129,17 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
         VectorXd tmp_b(6);
         tmp_b.setZero();
 
-        double dt = frame_j->second.pre_integration->sum_dt;
+        double dt = frame_j->pre_integration->sum_dt;
 
         tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
-        tmp_A.block<3, 3>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Matrix3d::Identity();
-        tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;
+        tmp_A.block<3, 3>(0, 6) = frame_i->R.transpose() * dt * dt / 2 * Matrix3d::Identity();
+        tmp_A.block<3, 1>(0, 9) = frame_i->R.transpose() * (frame_j->T - frame_i->T) / 100.0;
         tmp_b.block<3, 1>(0, 0) =
-                frame_j->second.pre_integration->DeltaPos() + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
+                frame_j->pre_integration->DeltaPos() + frame_i->R.transpose() * frame_j->R * TIC - TIC;
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
-        tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
-        tmp_A.block<3, 3>(3, 6) = frame_i->second.R.transpose() * dt * Matrix3d::Identity();
-        tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->DeltaVel();
+        tmp_A.block<3, 3>(3, 3) = frame_i->R.transpose() * frame_j->R;
+        tmp_A.block<3, 3>(3, 6) = frame_i->R.transpose() * dt * Matrix3d::Identity();
+        tmp_b.block<3, 1>(3, 0) = frame_j->pre_integration->DeltaVel();
 
         Matrix<double, 6, 6> cov_inv = Matrix<double, 6, 6>::Zero();
         cov_inv.setIdentity();
@@ -176,7 +175,7 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
         return true;
 }
 
-bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x) {
+bool VisualIMUAlignment(vector<ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x) {
     solveGyroscopeBias(all_image_frame, Bgs);
 
     if (LinearAlignment(all_image_frame, g, x))

@@ -17,10 +17,11 @@ public:
     InitialEXRotation();
 
     bool
-    CalibrationExRotation(const vector<pair<Vector3d, Vector3d>>& corres, const Quaterniond& delta_q_imu, Matrix3d &calib_ric_result);
+    CalibrationExRotation(const vector<pair<cv::Point2f, cv::Point2f>>& correspondences,
+                          const Quaterniond& delta_q_imu, Matrix3d &calib_ric_result);
 
 private:
-    Matrix3d solveRelativeR(const vector<pair<Vector3d, Vector3d>> &corres);
+    Matrix3d solveRelativeR(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences);
 
     static double testTriangulation(const vector<cv::Point2f> &l,
                              const vector<cv::Point2f> &r,
