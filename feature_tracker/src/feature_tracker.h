@@ -28,20 +28,24 @@ void reduceVector(vector<int> &v, vector<uchar> status);
 class FeatureTracker
 {
   public:
-    FeatureTracker();
+    FeatureTracker(const string &calib_file);
 
-    struct FeatureTrackerReturn{
-        vector<cv::Point2f> uniformed_points;
-        vector<cv::Point2f> points;
-        vector<int> ids;
-        vector<cv::Point2f> vel;
+    struct FeaturesPerImage {
+        std::vector<cv::Point2f> points;
+        std::vector<cv::Point2f> unified_points;
+        std::vector<cv::Point2f> points_velocity;
+        std::vector<int> feature_ids;
+    };
+    struct FeaturePoint {
+        cv::Point2f point;
+        cv::Point2f unified_point;
+        cv::Point2f point_velocity;
+        int feature_id;
     };
 
-    FeatureTrackerReturn readImage(const cv::Mat &_img,double _cur_time);
+    FeaturesPerImage readImage(const cv::Mat &_img,double _cur_time);
 
 private:
-    bool updateID(unsigned int i);
-
     void readIntrinsicParameter(const string &calib_file);
 
     void showUndistortion(const string &name);
@@ -54,7 +58,6 @@ private:
     double prev_time_{};
     map<int, cv::Point2f> prev_feature_id_2_uniformed_points_map_;
     vector<int> feature_ids_;
-    vector<int> track_cnt_;
     camodocal::CameraPtr m_camera_;
 
     static int s_feature_id_cnt_;

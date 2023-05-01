@@ -19,7 +19,10 @@ void reduceVector(vector<T> &v, vector<uchar> mask) {
     v.resize(j);
 }
 
-FeatureTracker::FeatureTracker() = default;
+FeatureTracker::FeatureTracker(const string &calib_file) {
+    LOG_I("reading parameter of camera %s", calib_file.c_str());
+    m_camera_ = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
+}
 
 cv::Point2f FeatureTracker::rawPoint2UniformedPoint(cv::Point2f p) {
     Eigen::Vector3d tmp_p;
@@ -29,7 +32,7 @@ cv::Point2f FeatureTracker::rawPoint2UniformedPoint(cv::Point2f p) {
     return {col, row};
 }
 
-FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_img, double _cur_time){
+FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, double _cur_time){
     cv::Mat img;
     TicToc t_r;
 
@@ -61,11 +64,7 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
         reduceVector(next_pts, status);
         reduceVector(prev_uniformed_pts_, status);
         reduceVector(feature_ids_, status);
-        reduceVector(track_cnt_, status);
     }
-
-    for (int &n: track_cnt_)
-        n++;
 
     vector<cv::Point2f> next_uniformed_pts(next_pts.size());
     for (const cv::Point2f &p: next_pts) {
@@ -80,17 +79,18 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
             size_t size_a = prev_pts_.size();
             reduceVector(prev_pts_, mask);
             reduceVector(next_pts, mask);
-            reduceVector(next_uniformed_pts, mask);
             reduceVector(prev_uniformed_pts_, mask);
+            reduceVector(next_uniformed_pts, mask);
             reduceVector(feature_ids_, mask);
-            reduceVector(track_cnt_, mask);
             LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
         }
 
-        // 通过mask去掉离得过近的特征点，优先保留跟踪时间长的特征点 todo 有可能保留时间短的特征点反而在前面吗？？？？
+        // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
         cv::Mat mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
         for (const cv::Point2f & p: next_pts) {
-            cv::circle(mask, p, MIN_DIST, 0, -1);
+            if (mask.at<uchar>(p.x, p.y) == 255) {
+                cv::circle(mask, p, MIN_DIST, 0, -1);
+            }
         }
 
         int max_new_pnt_num = MAX_CNT - static_cast<int>(next_pts.size());
@@ -101,8 +101,7 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
             for (auto &p: new_pts) {
                 next_pts.push_back(p);
                 next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
-                feature_ids_.push_back(-1);
-                track_cnt_.push_back(1);
+                feature_ids_.push_back(s_feature_id_cnt_++);
             }
         }
     }
@@ -111,14 +110,12 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
     double dt = _cur_time - prev_time_;
     vector<cv::Point2f> pts_velocity;
     for (unsigned int i = 0; i < next_uniformed_pts.size(); i++) {
-        if (feature_ids_[i] != -1) {
-            auto it = prev_feature_id_2_uniformed_points_map_.find(feature_ids_[i]);
-            if (it != prev_feature_id_2_uniformed_points_map_.end()) {
-                double v_x = (next_uniformed_pts[i].x - it->second.x) / dt;
-                double v_y = (next_uniformed_pts[i].y - it->second.y) / dt;
-                pts_velocity.emplace_back(cv::Point2f(v_x, v_y));
-                continue;
-            }
+        auto it = prev_feature_id_2_uniformed_points_map_.find(feature_ids_[i]);
+        if (it != prev_feature_id_2_uniformed_points_map_.end()) {
+            double v_x = (next_uniformed_pts[i].x - it->second.x) / dt;
+            double v_y = (next_uniformed_pts[i].y - it->second.y) / dt;
+            pts_velocity.emplace_back(cv::Point2f(v_x, v_y));
+            continue;
         }
         pts_velocity.emplace_back(cv::Point2f(0, 0));
     }
@@ -132,22 +129,12 @@ FeatureTracker::FeatureTrackerReturn FeatureTracker::readImage(const cv::Mat &_i
     prev_pts_ = std::move(next_pts);
     prev_time_ = _cur_time;
     prev_uniformed_pts_ = std::move(next_uniformed_pts);
-    // todo return
-}
 
-bool FeatureTracker::updateID(unsigned int i) {
-    if (i >= feature_ids_.size()) {
-        return false;
-    }
-    if (feature_ids_[i] == -1) {
-        feature_ids_[i] = s_feature_id_cnt_++;
-    }
-    return true;
-}
-
-void FeatureTracker::readIntrinsicParameter(const string &calib_file) {
-    LOG_I("reading paramerter of camera %s", calib_file.c_str());
-    m_camera_ = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
+    FeaturesPerImage features;
+    features.points = prev_pts_;
+    features.points_velocity = std::move(pts_velocity);
+    features.unified_points = prev_uniformed_pts_;
+    features.feature_ids = feature_ids_;
 }
 
 void FeatureTracker::showUndistortion(const string &name) {
