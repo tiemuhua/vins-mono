@@ -61,6 +61,7 @@ enum SIZE_PARAMETERIZATION {
 typedef double Pose[SIZE_POSE];
 typedef double SpeedBias[SIZE_SPEED_BIAS];
 typedef double Feature[SIZE_FEATURE];
+typedef double Td[1];
 
 enum StateOrder {
     O_P = 0,

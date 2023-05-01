@@ -42,10 +42,10 @@ bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<Fea
     if (frame_id < 2 || last_track_num < 20)
         return true;
 
-    for (const FeaturePerId &it_per_id: features_) {
-        if (it_per_id.start_frame_ <= frame_id - 2 &&
-            it_per_id.start_frame_ + int(it_per_id.feature_per_frames_.size()) - 1 >= frame_id - 1) {
-            parallax_sum += compensatedParallax2(it_per_id, frame_id);
+    for (const FeaturePerId &feature_per_id: features_) {
+        if (feature_per_id.start_frame_ <= frame_id - 2 &&
+                feature_per_id.start_frame_ + int(feature_per_id.feature_per_frames_.size()) >= frame_id) {
+            parallax_sum += compensatedParallax2(feature_per_id, frame_id);
             parallax_num++;
         }
     }
@@ -125,7 +125,6 @@ void FeatureManager::triangulate(const PosWindow pos_window, const RotWindow rot
         if (it_per_id.estimated_depth > 0)
             continue;
 
-        assert(NUM_OF_CAM == 1);
         Eigen::MatrixXd svd_A(2 * it_per_id.feature_per_frames_.size(), 4);
 
         int imu_i = it_per_id.start_frame_;
@@ -213,14 +212,15 @@ void FeatureManager::removeFront(int frame_count) {
 
         if (it->start_frame_ == frame_count) {
             it->start_frame_--;
-        } else {
-            int j = WINDOW_SIZE - 1 - it->start_frame_;
-            if (it->endFrame() < frame_count - 1)
-                continue;
-            it->feature_per_frames_.erase(it->feature_per_frames_.begin() + j);
-            if (it->feature_per_frames_.empty())
-                features_.erase(it);
+            continue;
         }
+        if (it->endFrame() < frame_count - 1) {
+            continue;
+        }
+        int j = WINDOW_SIZE - 1 - it->start_frame_;
+        it->feature_per_frames_.erase(it->feature_per_frames_.begin() + j);
+        if (it->feature_per_frames_.empty())
+            features_.erase(it);
     }
 }
 

@@ -113,8 +113,8 @@ private:
     Pose para_Pose[WINDOW_SIZE + 1]{};
     SpeedBias para_SpeedBias[WINDOW_SIZE + 1]{};
     Feature para_Feature[NUM_OF_F]{};
-    Pose para_Ex_Pose[1]{};
-    double para_Td[1][1]{};
+    Pose para_Ex_Pose{};
+    Td para_Td{};
 
     MarginalizationInfo *last_marginalization_info_{};
     vector<double *> last_marginal_param_blocks_;
