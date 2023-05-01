@@ -31,8 +31,8 @@ public:
     void
     processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double &time_stamp);
 
-    void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
-                      const Vector3d &_relo_t, const Matrix3d &_relo_r);
+    void setReLocalFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
+                         const Vector3d &_re_local_t, const Matrix3d &_re_local_r);
 
 private:
     void clearState();
@@ -118,9 +118,9 @@ private:
     PreIntegration *tmp_pre_integration{};
 
     //re-localization variable
-    bool re_localization_info_{};
-    double relo_frame_stamp{};
-    int relo_frame_local_index{};
+    bool is_re_localization_{};
+    double re_local_frame_stamp{};
+    int re_local_frame_local_index{};
     vector<Vector3d> match_points;
-    double relo_Pose[SIZE_POSE]{};
+    double re_local_Pose[SIZE_POSE]{};
 };

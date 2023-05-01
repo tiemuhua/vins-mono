@@ -58,7 +58,7 @@ void Estimator::clearState() {
     feature_manager.clearState();
 
     failure_occur = false;
-    re_localization_info_ = false;
+    is_re_localization_ = false;
 }
 
 void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) {
@@ -485,11 +485,10 @@ void Estimator::double2vector() {
         td = para_Td[0][0];
 
     // relative info between two loop frame
-    if (re_localization_info_) {
-        Matrix3d relo_r;
-        relo_r = rot_diff *
-                 Quaterniond(relo_Pose[6], relo_Pose[3], relo_Pose[4], relo_Pose[5]).normalized().toRotationMatrix();
-        re_localization_info_ = false;
+    if (is_re_localization_) {
+        Matrix3d re_local_r = rot_diff *
+                 Quaterniond(re_local_Pose[6], re_local_Pose[3], re_local_Pose[4], re_local_Pose[5]).normalized().toRotationMatrix();
+        is_re_localization_ = false;
     }
 }
 
@@ -606,9 +605,9 @@ void Estimator::optimization() {
     LOG_D("visual measurement count: %d", f_m_cnt);
     LOG_D("prepare for ceres: %f", t_prepare.toc());
 
-    if (re_localization_info_) {
+    if (is_re_localization_) {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
-        problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
+        problem.AddParameterBlock(re_local_Pose, SIZE_POSE, local_parameterization);
         int retrive_feature_index = 0;
         feature_index = -1;
         for (FeaturePerId &it_per_id: feature_manager.features_) {
@@ -616,7 +615,7 @@ void Estimator::optimization() {
                 continue;
             ++feature_index;
             int start = it_per_id.start_frame_;
-            if (start <= relo_frame_local_index) {
+            if (start <= re_local_frame_local_index) {
                 while ((int) match_points[retrive_feature_index].z() < it_per_id.feature_id_) {
                     retrive_feature_index++;
                 }
@@ -626,7 +625,7 @@ void Estimator::optimization() {
                     Vector3d pts_i = it_per_id.feature_per_frames_[0].point_;
 
                     auto *f = new ProjectionFactor(pts_i, pts_j);
-                    problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0],
+                    problem.AddResidualBlock(f, loss_function, para_Pose[start], re_local_Pose, para_Ex_Pose[0],
                                              para_Feature[feature_index]);
                     retrive_feature_index++;
                 }
@@ -635,7 +634,6 @@ void Estimator::optimization() {
     }
 
     ceres::Solver::Options options;
-
     options.linear_solver_type = ceres::DENSE_SCHUR;
     options.trust_region_strategy_type = ceres::DOGLEG;
     options.max_num_iterations = NUM_ITERATIONS;
@@ -646,8 +644,7 @@ void Estimator::optimization() {
     TicToc t_solver;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    LOG_D("Iterations : %d", static_cast<int>(summary.iterations.size()));
-    LOG_D("solver costs: %f", t_solver.toc());
+    LOG_D("Iterations : %d, solver costs: %f", static_cast<int>(summary.iterations.size()), t_solver.toc());
 
     double2vector();
 
@@ -807,7 +804,6 @@ void Estimator::optimization() {
             delete last_marginalization_info_;
             last_marginalization_info_ = marginalization_info;
             last_marginal_param_blocks_ = parameter_blocks;
-
         }
     }
     LOG_D("whole marginalization costs: %f", t_whole_marginalization.toc());
@@ -891,16 +887,16 @@ void Estimator::slideWindowOld() {
     feature_manager.removeBackShiftDepth();
 }
 
-void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
-                             const Vector3d &_relo_t, const Matrix3d &_relo_r) {
+void Estimator::setReLocalFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points,
+                                const Vector3d &_re_local_t, const Matrix3d &_re_local_r) {
     match_points.clear();
     match_points = _match_points;
     for (int i = 0; i < WINDOW_SIZE; i++) {
         if (_frame_stamp == time_stamp_window[i]) {
-            relo_frame_local_index = i;
-            re_localization_info_ = true;
+            re_local_frame_local_index = i;
+            is_re_localization_ = true;
             for (int j = 0; j < SIZE_POSE; j++)
-                relo_Pose[j] = para_Pose[i][j];
+                re_local_Pose[j] = para_Pose[i][j];
         }
     }
 }
