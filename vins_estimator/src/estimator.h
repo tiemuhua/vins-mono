@@ -74,9 +74,6 @@ private:
     MarginalizationFlag marginalization_flag;
     Vector3d g;
 
-    Matrix3d ric[NUM_OF_CAM];
-    Vector3d tic[NUM_OF_CAM];
-
     PosWindow pos_window;
     VecWindow vec_window;
     RotWindow rot_window;
@@ -111,7 +108,7 @@ private:
     Pose para_Pose[WINDOW_SIZE + 1]{};
     SpeedBias para_SpeedBias[WINDOW_SIZE + 1]{};
     Feature para_Feature[NUM_OF_F]{};
-    Pose para_Ex_Pose[NUM_OF_CAM]{};
+    Pose para_Ex_Pose[1]{};
     double para_Td[1][1]{};
 
     MarginalizationInfo *last_marginalization_info_{};

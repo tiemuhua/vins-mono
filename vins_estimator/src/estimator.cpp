@@ -1,16 +1,11 @@
 #include "estimator.h"
 
-Estimator::Estimator() : feature_manager{rot_window} {
+Estimator::Estimator() {
     LOG_I("init begins");
     clearState();
 }
 
 void Estimator::setParameter() {
-    for (int i = 0; i < NUM_OF_CAM; i++) {
-        tic[i] = TIC[i];
-        ric[i] = RIC[i];
-    }
-    feature_manager.setRic(ric);
     ProjectionFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     ProjectionTdFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
     td = TD;
@@ -32,10 +27,8 @@ void Estimator::clearState() {
         pre_integrate_window[i] = nullptr;
     }
 
-    for (int i = 0; i < NUM_OF_CAM; i++) {
-        tic[i] = Vector3d::Zero();
-        ric[i] = Matrix3d::Identity();
-    }
+    TIC = Vector3d::Zero();
+    RIC = Matrix3d::Identity();
 
     for (auto &it: all_image_frame) {
         if (it.second.pre_integration != nullptr) {
@@ -126,8 +119,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             Matrix3d calib_ric;
             if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
                 LOG_W("initial extrinsic rotation calib success");
-                ric[0] = calib_ric;
-                RIC[0] = calib_ric;
+                RIC = calib_ric;
                 ESTIMATE_EXTRINSIC = 1;
             }
         }
@@ -245,7 +237,7 @@ bool Estimator::initialStructure() {
         cv::Mat r, rvec, t, D, tmp_r;
         if ((frame.first) == time_stamp_window[i]) {
             frame.second.is_key_frame = true;
-            frame.second.R = Q[i].toRotationMatrix() * RIC[0].transpose();
+            frame.second.R = Q[i].toRotationMatrix() * RIC.transpose();
             frame.second.T = T[i];
             i++;
             continue;
@@ -291,7 +283,7 @@ bool Estimator::initialStructure() {
         MatrixXd T_pnp;
         cv::cv2eigen(t, T_pnp);
         frame.second.T = R_pnp * (-T_pnp);
-        frame.second.R = R_pnp * RIC[0].transpose();
+        frame.second.R = R_pnp * RIC.transpose();
     }
     if (visualInitialAlign())
         return true;
@@ -327,12 +319,7 @@ bool Estimator::visualInitialAlign() {
     feature_manager.clearDepth(dep);
 
     //triangulate on cam pose , no tic
-    Vector3d TIC_TMP[NUM_OF_CAM];
-    for (auto &i: TIC_TMP)
-        i.setZero();
-    ric[0] = RIC[0];
-    feature_manager.setRic(ric);
-    feature_manager.triangulate(pos_window, &(TIC_TMP[0]), &(RIC[0]));
+    feature_manager.triangulate(pos_window, rot_window, Vector3d::Zero(), RIC);
 
     double s = (x.tail<1>())(0);
     for (int i = 0; i <= WINDOW_SIZE; i++) {
@@ -395,9 +382,7 @@ void Estimator::solveOdometry() {
     if (frame_count < WINDOW_SIZE)
         return;
     if (solver_flag == NON_LINEAR) {
-        TicToc t_tri;
-        feature_manager.triangulate(pos_window, tic, ric);
-        LOG_D("triangulation costs %f", t_tri.toc());
+        feature_manager.triangulate(pos_window, rot_window, TIC, RIC);
         optimization();
     }
 }
@@ -425,16 +410,14 @@ void Estimator::vector2double() {
         para_SpeedBias[i][7] = bg_window[i].y();
         para_SpeedBias[i][8] = bg_window[i].z();
     }
-    for (int i = 0; i < NUM_OF_CAM; i++) {
-        para_Ex_Pose[i][0] = tic[i].x();
-        para_Ex_Pose[i][1] = tic[i].y();
-        para_Ex_Pose[i][2] = tic[i].z();
-        Quaterniond q{ric[i]};
-        para_Ex_Pose[i][3] = q.x();
-        para_Ex_Pose[i][4] = q.y();
-        para_Ex_Pose[i][5] = q.z();
-        para_Ex_Pose[i][6] = q.w();
-    }
+    para_Ex_Pose[0][0] = TIC.x();
+    para_Ex_Pose[0][1] = TIC.y();
+    para_Ex_Pose[0][2] = TIC.z();
+    Quaterniond q{RIC};
+    para_Ex_Pose[0][3] = q.x();
+    para_Ex_Pose[0][4] = q.y();
+    para_Ex_Pose[0][5] = q.z();
+    para_Ex_Pose[0][6] = q.w();
 
     VectorXd dep = feature_manager.getDepthVector();
     for (int i = 0; i < feature_manager.getFeatureCount(); i++)
@@ -489,14 +472,9 @@ void Estimator::double2vector() {
                                 para_SpeedBias[i][8]);
     }
 
-    for (int i = 0; i < NUM_OF_CAM; i++) {
-        tic[i] = Vector3d(para_Ex_Pose[i][0],
-                          para_Ex_Pose[i][1],
-                          para_Ex_Pose[i][2]);
-        ric[i] = Quaterniond(para_Ex_Pose[i][6],
-                             para_Ex_Pose[i][3],
-                             para_Ex_Pose[i][4],
-                             para_Ex_Pose[i][5]).toRotationMatrix();
+    for (auto & i : para_Ex_Pose) {
+        TIC = Vector3d(i[0],i[1],i[2]);
+        RIC = Quaterniond(i[6],i[3],i[4],i[5]).toRotationMatrix();
     }
 
     VectorXd dep = feature_manager.getDepthVector();

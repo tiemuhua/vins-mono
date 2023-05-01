@@ -5,18 +5,6 @@ int FeaturePerId::endFrame() const {
     return start_frame_ + (int )feature_per_frames_.size() - 1;
 }
 
-FeatureManager::FeatureManager(Matrix3d _Rs[])
-        : Rs(_Rs) {
-    for (Matrix3d & i : ric)
-        i.setIdentity();
-}
-
-void FeatureManager::setRic(Matrix3d _ric[]) {
-    for (int i = 0; i < NUM_OF_CAM; i++) {
-        ric[i] = _ric[i];
-    }
-}
-
 void FeatureManager::clearState() {
     features_.clear();
 }
@@ -137,7 +125,8 @@ VectorXd FeatureManager::getDepthVector() {
     return dep_vec;
 }
 
-void FeatureManager::triangulate(PosWindow pos_window, Vector3d tic[], Matrix3d ric[]) {
+void FeatureManager::triangulate(const PosWindow pos_window, const RotWindow rot_window,
+                                 const Vector3d& tic, const Matrix3d &ric) {
     for (FeaturePerId &it_per_id: features_) {
         if (!(it_per_id.feature_per_frames_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
@@ -149,13 +138,13 @@ void FeatureManager::triangulate(PosWindow pos_window, Vector3d tic[], Matrix3d 
         Eigen::MatrixXd svd_A(2 * it_per_id.feature_per_frames_.size(), 4);
 
         int imu_i = it_per_id.start_frame_;
-        Eigen::Vector3d t0 = pos_window[imu_i] + Rs[imu_i] * tic[0];
-        Eigen::Matrix3d R0 = Rs[imu_i] * ric[0];
+        Eigen::Vector3d t0 = pos_window[imu_i] + rot_window[imu_i] * tic[0];
+        Eigen::Matrix3d R0 = rot_window[imu_i] * ric[0];
 
         for (int i = 0; i < it_per_id.feature_per_frames_.size(); ++i) {
             int imu_j = it_per_id.start_frame_ + i;
-            Eigen::Vector3d t1 = pos_window[imu_j] + Rs[imu_j] * tic[0];
-            Eigen::Matrix3d R1 = Rs[imu_j] * ric[0];
+            Eigen::Vector3d t1 = pos_window[imu_j] + rot_window[imu_j] * tic[0];
+            Eigen::Matrix3d R1 = rot_window[imu_j] * ric[0];
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;
             Eigen::Matrix<double, 3, 4> P;

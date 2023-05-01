@@ -53,10 +53,6 @@ public:
 
 class FeatureManager {
 public:
-    explicit FeatureManager(Matrix3d _Rs[]);
-
-    void setRic(Matrix3d _ric[]);
-
     void clearState();
 
     int getFeatureCount();
@@ -74,7 +70,7 @@ public:
 
     VectorXd getDepthVector();
 
-    void triangulate(PosWindow pos_window, Vector3d tic[], Matrix3d ric[]);
+    void triangulate(const PosWindow pos_window, const RotWindow rot_window, const Vector3d& tic, const Matrix3d &ric);
 
     void removeBackShiftDepth();
 
@@ -89,9 +85,6 @@ public:
 
 private:
     static double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
-
-    const Matrix3d *Rs;
-    Matrix3d ric[NUM_OF_CAM];
 };
 
 #endif
