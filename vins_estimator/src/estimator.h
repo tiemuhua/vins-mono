@@ -48,7 +48,7 @@ private:
 
     bool relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l);
 
-    void slideWindow();
+    void slideWindow(bool is_key_frame);
 
     void solveOdometry();
 
@@ -64,13 +64,7 @@ private:
 
     void marginOld();
 
-    enum MarginalizationFlag {
-        MARGIN_OLD = 0,
-        MARGIN_SECOND_NEW = 1
-    };
-
     bool has_initiated_ = false;
-    MarginalizationFlag marginalization_flag;
     Vector3d g;
 
     PosWindow pos_window;

@@ -115,20 +115,15 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         feature_points.emplace_back(std::move(point));
     }
 
-    if (feature_manager_.addFeatureCheckParallax(frame_count, feature_points, td))
-        marginalization_flag = MARGIN_OLD;
-    else
-        marginalization_flag = MARGIN_SECOND_NEW;
+    bool is_key_frame = feature_manager_.addFeatureCheckParallax(frame_count, feature_points, td);
 
-    LOG_D("this frame is--------------------%s", marginalization_flag ? "reject" : "accept");
-    LOG_D("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
+    LOG_D("is key frame:%d", is_key_frame);
     LOG_D("Solving %d", frame_count);
     LOG_D("number of feature: %d", feature_manager_.getFeatureCount());
     time_stamp_window[frame_count] = time_stamp;
 
     map<int, FeaturePoint> feature_id_2_points;
     for (const FeaturePoint& point: feature_points) {
-        // todo 一帧图像里面有多个相同的特征点，相同的feature_id？？？？
         feature_id_2_points[point.feature_id] = point;
     }
 
@@ -163,14 +158,25 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
             initial_timestamp = time_stamp;
         }
         if (!result) {
-            slideWindow();
+            slideWindow(true);
             return;
         }
         has_initiated_ = true;
     }
 
     TicToc t_solve;
-    solveOdometry();
+    feature_manager_.triangulate(pos_window, rot_window, TIC, RIC);
+    vector2double();
+    optimization();
+    double2vector();
+
+    int cnt = std::count(std::begin(last_marginal_param_blocks_),
+                         std::end(last_marginal_param_blocks_), para_Pose[WINDOW_SIZE - 1]);
+    if (is_key_frame) {
+        marginOld();
+    } else if (last_marginal_info_ && cnt) {
+        margin2ndNew();
+    }
     LOG_D("solver costs: %fms", t_solve.toc());
 
     if (failureDetection()) {
@@ -183,7 +189,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
     }
 
     TicToc t_margin;
-    slideWindow();
+    slideWindow(is_key_frame);
     feature_manager_.removeFailures();
     LOG_D("marginalization costs: %fms", t_margin.toc());
     // prepare output of VINS
@@ -244,7 +250,6 @@ bool Estimator::initialStructure() {
     Vector3d T[frame_count + 1];
     if (!GlobalSFM::construct(frame_count + 1, Q, T, l, relative_R, relative_T, sfm_features, sfm_tracked_points)) {
         LOG_D("global SFM failed!");
-        marginalization_flag = MARGIN_OLD;
         return false;
     }
 
@@ -396,8 +401,6 @@ void Estimator::solveOdometry() {
     if (frame_count < WINDOW_SIZE)
         return;
     if (has_initiated_) {
-        feature_manager_.triangulate(pos_window, rot_window, TIC, RIC);
-        optimization();
     }
 }
 
@@ -563,7 +566,6 @@ void Estimator::optimization() {
     }
 
     TicToc t_whole, t_prepare;
-    vector2double();
 
     if (last_marginal_info_) {
         auto *cost_function = new MarginalFactor(last_marginal_info_);
@@ -638,26 +640,10 @@ void Estimator::optimization() {
     options.linear_solver_type = ceres::DENSE_SCHUR;
     options.trust_region_strategy_type = ceres::DOGLEG;
     options.max_num_iterations = NUM_ITERATIONS;
-    if (marginalization_flag == MARGIN_OLD)
-        options.max_solver_time_in_seconds = SOLVER_TIME * 4.0 / 5.0;
-    else
-        options.max_solver_time_in_seconds = SOLVER_TIME;
     TicToc t_solver;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     LOG_D("Iterations : %d, solver costs: %f", static_cast<int>(summary.iterations.size()), t_solver.toc());
-
-    double2vector();
-
-    TicToc t_whole_marginalization;
-
-    int cnt = std::count(std::begin(last_marginal_param_blocks_),
-                         std::end(last_marginal_param_blocks_), para_Pose[WINDOW_SIZE - 1]);
-    if (marginalization_flag == MARGIN_OLD) {
-        marginOld();
-    } else if (last_marginal_info_ && cnt) {
-        margin2ndNew();
-    }
 }
 
 void Estimator::margin2ndNew() {
@@ -771,11 +757,11 @@ void Estimator::marginOld() {
     last_marginal_param_blocks_ = parameter_blocks;
 }
 
-void Estimator::slideWindow() {
+void Estimator::slideWindow(bool is_key_frame) {
     if (frame_count != WINDOW_SIZE) {
         return;
     }
-    if (marginalization_flag == MARGIN_OLD) {
+    if (is_key_frame) {
         double t_0 = time_stamp_window[0];
         for (int i = 0; i < WINDOW_SIZE; i++) {
             rot_window[i].swap(rot_window[i + 1]);
