@@ -95,8 +95,10 @@ private:
     double initial_timestamp_{};
 
     Pose para_Pose[WINDOW_SIZE + 1]{};
-    SpeedBias para_SpeedBias[WINDOW_SIZE + 1]{};
-    Feature para_Feature[NUM_OF_F]{};
+    AccBias para_AccBias[WINDOW_SIZE + 1]{};
+    GyrBias para_GyrBias[WINDOW_SIZE + 1]{};
+    Velocity para_Velocity[WINDOW_SIZE + 1]{};
+    FeatureDepth para_Feature[FEATURE_SIZE]{};
     Pose para_Ex_Pose{};
     Td para_Td{};
 
@@ -113,5 +115,5 @@ private:
     double re_local_frame_stamp{};
     int re_local_frame_local_index{};
     vector<MatchPoint> match_points_;
-    double re_local_Pose[SIZE_POSE]{};
+    Pose re_local_Pose{};
 };

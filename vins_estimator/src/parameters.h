@@ -10,7 +10,7 @@
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
-const int NUM_OF_F = 1000;
+const int FEATURE_SIZE = 1000;
 //#define UNIT_SPHERE_ERROR
 
 typedef Eigen::Vector3d PosWindow[WINDOW_SIZE + 1];
@@ -57,15 +57,11 @@ extern double ROW, COL;
 
 void readParameters();
 
-enum SIZE_PARAMETERIZATION {
-    SIZE_POSE = 7,
-    SIZE_SPEED_BIAS = 9,
-    SIZE_FEATURE = 1
-};
-
-typedef double Pose[SIZE_POSE];
-typedef double SpeedBias[SIZE_SPEED_BIAS];
-typedef double Feature[SIZE_FEATURE];
+typedef double Pose[7];
+typedef double AccBias[3];
+typedef double GyrBias[3];
+typedef double Velocity[3];
+typedef double FeatureDepth[1];
 typedef double Td[1];
 
 enum StateOrder {

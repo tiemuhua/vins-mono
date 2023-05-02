@@ -8,10 +8,14 @@ Estimator::Estimator() {
             continue;
         else if (i == WINDOW_SIZE) {
             margin_2nd_new_addr_shift_[para_Pose[i]] = para_Pose[i - 1];
-            margin_2nd_new_addr_shift_[para_SpeedBias[i]] = para_SpeedBias[i - 1];
+            margin_2nd_new_addr_shift_[para_Velocity[i]] = para_Velocity[i - 1];
+            margin_2nd_new_addr_shift_[para_AccBias[i]] = para_AccBias[i - 1];
+            margin_2nd_new_addr_shift_[para_GyrBias[i]] = para_GyrBias[i - 1];
         } else {
             margin_2nd_new_addr_shift_[para_Pose[i]] = para_Pose[i];
-            margin_2nd_new_addr_shift_[para_SpeedBias[i]] = para_SpeedBias[i];
+            margin_2nd_new_addr_shift_[para_Velocity[i]] = para_Velocity[i];
+            margin_2nd_new_addr_shift_[para_AccBias[i]] = para_AccBias[i];
+            margin_2nd_new_addr_shift_[para_GyrBias[i]] = para_GyrBias[i];
         }
     }
     margin_2nd_new_addr_shift_[para_Ex_Pose] = para_Ex_Pose;
@@ -21,7 +25,9 @@ Estimator::Estimator() {
 
     for (int i = 1; i <= WINDOW_SIZE; i++) {
         margin_old_addr_shift_[para_Pose[i]] = para_Pose[i - 1];
-        margin_old_addr_shift_[para_SpeedBias[i]] = para_SpeedBias[i - 1];
+        margin_old_addr_shift_[para_Velocity[i]] = para_Velocity[i - 1];
+        margin_old_addr_shift_[para_AccBias[i]] = para_AccBias[i - 1];
+        margin_old_addr_shift_[para_GyrBias[i]] = para_GyrBias[i - 1];
     }
     margin_old_addr_shift_[para_Ex_Pose] = para_Ex_Pose;
     if (ESTIMATE_TD) {
@@ -402,37 +408,30 @@ void Estimator::solveOdometry() {
     }
 }
 
+void EigenPose2Double(const Vector3d& t, const Matrix3d& r, Pose pose) {
+    pose[0] = t.x();
+    pose[1] = t.y();
+    pose[2] = t.z();
+    Quaterniond q(r);
+    pose[3] = q.x();
+    pose[4] = q.y();
+    pose[5] = q.z();
+    pose[6] = q.w();
+}
+void EigenVector3d2Double(const Vector3d& t, double arr[3]) {
+    arr[0] = t.x();
+    arr[1] = t.y();
+    arr[2] = t.z();
+}
+
 void Estimator::vector2double() {
     for (int i = 0; i <= WINDOW_SIZE; i++) {
-        para_Pose[i][0] = pos_window[i].x();
-        para_Pose[i][1] = pos_window[i].y();
-        para_Pose[i][2] = pos_window[i].z();
-        Quaterniond q{rot_window[i]};
-        para_Pose[i][3] = q.x();
-        para_Pose[i][4] = q.y();
-        para_Pose[i][5] = q.z();
-        para_Pose[i][6] = q.w();
-
-        para_SpeedBias[i][0] = vec_window[i].x();
-        para_SpeedBias[i][1] = vec_window[i].y();
-        para_SpeedBias[i][2] = vec_window[i].z();
-
-        para_SpeedBias[i][3] = ba_window[i].x();
-        para_SpeedBias[i][4] = ba_window[i].y();
-        para_SpeedBias[i][5] = ba_window[i].z();
-
-        para_SpeedBias[i][6] = bg_window[i].x();
-        para_SpeedBias[i][7] = bg_window[i].y();
-        para_SpeedBias[i][8] = bg_window[i].z();
+        EigenPose2Double(pos_window[i], rot_window[i], para_Pose[i]);
+        EigenVector3d2Double(vec_window[i], para_Velocity[i]);
+        EigenVector3d2Double(ba_window[i], para_AccBias[i]);
+        EigenVector3d2Double(bg_window[i], para_GyrBias[i]);
     }
-    para_Ex_Pose[0] = TIC.x();
-    para_Ex_Pose[1] = TIC.y();
-    para_Ex_Pose[2] = TIC.z();
-    Quaterniond q{RIC};
-    para_Ex_Pose[3] = q.x();
-    para_Ex_Pose[4] = q.y();
-    para_Ex_Pose[5] = q.z();
-    para_Ex_Pose[6] = q.w();
+    EigenPose2Double(TIC, RIC, para_Ex_Pose);
 
     VectorXd dep = feature_manager_.getDepthVector();
     for (int i = 0; i < feature_manager_.getFeatureCount(); i++)
@@ -440,7 +439,12 @@ void Estimator::vector2double() {
     if (ESTIMATE_TD)
         para_Td[0] = td;
 }
-
+Matrix3d Pose2Mat(Pose pose) {
+    return Quaterniond(pose[6],pose[3],pose[4],pose[5]).normalized().toRotationMatrix();
+}
+Vector3d Pose2Vec3(double arr[3]) {
+    return {arr[0], arr[1], arr[2]};
+}
 void Estimator::double2vector() {
     Vector3d origin_R0 = Utility::R2ypr(rot_window[0]);
     Vector3d origin_P0 = pos_window[0];
@@ -450,44 +454,24 @@ void Estimator::double2vector() {
         origin_P0 = last_P0;
         failure_occur = false;
     }
-    Vector3d origin_R00 = Utility::R2ypr(Quaterniond(para_Pose[0][6],
-                                                     para_Pose[0][3],
-                                                     para_Pose[0][4],
-                                                     para_Pose[0][5]).toRotationMatrix());
+    Vector3d origin_R00 = Utility::R2ypr(Pose2Mat(para_Pose[0]));
     double y_diff = origin_R0.x() - origin_R00.x();
 
-    Matrix3d rot_diff = Utility::ypr2R(Vector3d(y_diff, 0, 0));
+    Matrix3d rot_diff = Utility::ypr2R(Vector3d(y_diff, 0, 0)); // todo 假设只会有yaw的移动？？？
     if (abs(abs(origin_R0.y()) - 90) < 1.0 || abs(abs(origin_R00.y()) - 90) < 1.0) {
         LOG_D("euler singular point_!");
-        rot_diff = rot_window[0] * Quaterniond(para_Pose[0][6],
-                                               para_Pose[0][3],
-                                               para_Pose[0][4],
-                                               para_Pose[0][5]).toRotationMatrix().transpose();
+        rot_diff = rot_window[0] * Pose2Mat(para_Pose[0]).transpose();
     }
 
     for (int i = 0; i <= WINDOW_SIZE; i++) {
-
-        rot_window[i] = rot_diff * Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4],
-                                               para_Pose[i][5]).normalized().toRotationMatrix();
-
-        pos_window[i] = rot_diff * Vector3d(para_Pose[i][0] - para_Pose[0][0],
-                                    para_Pose[i][1] - para_Pose[0][1],
-                                    para_Pose[i][2] - para_Pose[0][2]) + origin_P0;
-
-        vec_window[i] = rot_diff * Vector3d(para_SpeedBias[i][0],
-                                            para_SpeedBias[i][1],
-                                            para_SpeedBias[i][2]);
-
-        ba_window[i] = Vector3d(para_SpeedBias[i][3],
-                                para_SpeedBias[i][4],
-                                para_SpeedBias[i][5]);
-
-        bg_window[i] = Vector3d(para_SpeedBias[i][6],
-                                para_SpeedBias[i][7],
-                                para_SpeedBias[i][8]);
+        rot_window[i] = rot_diff * Pose2Mat(para_Pose[i]);
+        pos_window[i] = rot_diff * (Pose2Vec3(para_Pose[i]) - Pose2Vec3(para_Pose[0])) + origin_P0;
+        vec_window[i] = rot_diff * Pose2Vec3(para_Velocity[i]);
+        ba_window[i] = Pose2Vec3(para_AccBias[i]);
+        bg_window[i] = Pose2Vec3(para_GyrBias[i]);
     }
     TIC = Vector3d(para_Ex_Pose[0],para_Ex_Pose[1],para_Ex_Pose[2]);
-    RIC = Quaterniond(para_Ex_Pose[6],para_Ex_Pose[3],para_Ex_Pose[4],para_Ex_Pose[5]).toRotationMatrix();
+    RIC = Pose2Mat(para_Ex_Pose);
 
     VectorXd dep = feature_manager_.getDepthVector();
     for (int i = 0; i < feature_manager_.getFeatureCount(); i++)
@@ -498,8 +482,7 @@ void Estimator::double2vector() {
 
     // relative info between two loop frame
     if (is_re_localization_) {
-        Matrix3d re_local_r = rot_diff *
-                 Quaterniond(re_local_Pose[6], re_local_Pose[3], re_local_Pose[4], re_local_Pose[5]).normalized().toRotationMatrix();
+        Matrix3d re_local_r = rot_diff * Pose2Mat(re_local_Pose);
         is_re_localization_ = false;
     }
 }
@@ -548,11 +531,13 @@ void Estimator::optimization() {
     ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
     for (int i = 0; i < WINDOW_SIZE + 1; i++) {
         ceres::Manifold *manifold = new ceres::SE3Manifold();
-        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, manifold);
-        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEED_BIAS);
+        problem.AddParameterBlock(para_Pose[i], 7, manifold);
+        problem.AddParameterBlock(para_Velocity[i], 3);
+        problem.AddParameterBlock(para_AccBias[i], 3);
+        problem.AddParameterBlock(para_GyrBias[i], 3);
     }
     ceres::Manifold *manifold = new ceres::SE3Manifold();
-    problem.AddParameterBlock(para_Ex_Pose, SIZE_POSE, manifold);
+    problem.AddParameterBlock(para_Ex_Pose, 7, manifold);
     if (!estimate_extrinsic_state == EstimateExtrinsicFix) {
         LOG_D("fix extrinsic param");
         problem.SetParameterBlockConstant(para_Ex_Pose);
@@ -576,7 +561,8 @@ void Estimator::optimization() {
             continue;
         auto *cost_function = new IMUFactor(pre_integrate_window[j]);
         problem.AddResidualBlock(cost_function, nullptr,
-                                 para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
+                                 para_Pose[i], para_Velocity[i], para_AccBias[i], para_GyrBias[i],
+                                 para_Pose[j], para_Velocity[j], para_AccBias[j], para_GyrBias[j]);
     }
     int f_m_cnt = 0;
     int feature_index = -1;
@@ -611,7 +597,7 @@ void Estimator::optimization() {
 
     if (is_re_localization_) {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
-        problem.AddParameterBlock(re_local_Pose, SIZE_POSE, local_parameterization);
+        problem.AddParameterBlock(re_local_Pose, 7, local_parameterization);
         int retrive_feature_index = 0;
         feature_index = -1;
         for (FeaturesOfId &features_of_id: feature_manager_.features_) {
@@ -649,7 +635,6 @@ void Estimator::margin2ndNew() {
     assert(last_marginal_info_);
     vector<int> drop_set;
     for (int i = 0; i < static_cast<int>(last_marginal_param_blocks_.size()); i++) {
-        assert(last_marginal_param_blocks_[i] != para_SpeedBias[WINDOW_SIZE - 1]);
         if (last_marginal_param_blocks_[i] == para_Pose[WINDOW_SIZE - 1]){
             drop_set.push_back(i);
         }
@@ -677,7 +662,7 @@ void Estimator::marginOld() {
         vector<int> drop_set;
         for (int i = 0; i < static_cast<int>(last_marginal_param_blocks_.size()); i++) {
             if (last_marginal_param_blocks_[i] == para_Pose[0] ||
-                last_marginal_param_blocks_[i] == para_SpeedBias[0])
+                last_marginal_param_blocks_[i] == para_Velocity[0]) // todo what it means???
                 drop_set.push_back(i);
         }
         // construct new marginal_factor
@@ -692,10 +677,8 @@ void Estimator::marginOld() {
     if (pre_integrate_window[1]->sum_dt < 10.0) {// todo tiemuhuaguo 1这个硬编码是怎么来的？
         auto *cost_function = new IMUFactor(pre_integrate_window[1]);
         vector<double *> parameter_blocks = {
-                para_Pose[0],
-                para_SpeedBias[0],
-                para_Pose[1],
-                para_SpeedBias[1]
+                para_Pose[0], para_Velocity[0],para_AccBias[0], para_GyrBias[0],
+                para_Pose[1], para_Velocity[1],para_AccBias[1], para_GyrBias[1],
         };
         vector<int> drop_set = {0, 1};
         ResidualBlockInfo residual_block_info(cost_function, nullptr,
@@ -810,7 +793,7 @@ void Estimator::setReLocalFrame(double _frame_stamp, int _frame_index, vector<Ma
         if (_frame_stamp == time_stamp_window[i]) {
             re_local_frame_local_index = i;
             is_re_localization_ = true;
-            for (int j = 0; j < SIZE_POSE; j++)
+            for (int j = 0; j < 7; j++)
                 re_local_Pose[j] = para_Pose[i][j];
         }
     }
