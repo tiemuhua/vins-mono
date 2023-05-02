@@ -51,12 +51,10 @@ void Estimator::clearState() {
     TIC = Vector3d::Zero();
     RIC = Matrix3d::Identity();
 
-    solver_flag = INITIAL;
     first_imu = false,
     sum_of_back = 0;
     sum_of_front = 0;
     frame_count = 0;
-    solver_flag = INITIAL;
     initial_timestamp = 0;
     all_image_frame.clear();
     td = TD;
@@ -153,7 +151,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         }
     }
 
-    if (solver_flag == INITIAL) {
+    if (!has_initiated_) {
         if (frame_count == WINDOW_SIZE) {
             bool result = false;
             if (ESTIMATE_EXTRINSIC != 2 && (time_stamp - initial_timestamp) > 0.1) {
@@ -161,7 +159,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
                 initial_timestamp = time_stamp;
             }
             if (result) {
-                solver_flag = NON_LINEAR;
+                has_initiated_ = true;
                 solveOdometry();
                 slideWindow();
                 feature_manager_.removeFailures();
@@ -402,7 +400,7 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
 void Estimator::solveOdometry() {
     if (frame_count < WINDOW_SIZE)
         return;
-    if (solver_flag == NON_LINEAR) {
+    if (has_initiated_) {
         feature_manager_.triangulate(pos_window, rot_window, TIC, RIC);
         optimization();
     }
@@ -802,8 +800,8 @@ void Estimator::slideWindow() {
         vector<ImageFrame> tmp_all_image_frame(it++, all_image_frame.end());
         all_image_frame = std::move(tmp_all_image_frame);
         sum_of_back++;
-        bool shift_depth = solver_flag == NON_LINEAR;
-        feature_manager_.removeBackShiftDepth();
+        bool shift_depth = has_initiated_;
+        feature_manager_.removeBackShiftDepth(); // todo 只有初始化成功后才remove吗
     } else {
         for (int i = 0; i < (int)pre_integrate_window[WINDOW_SIZE]->dt_buf.size(); ++i) {
             double dt = pre_integrate_window[WINDOW_SIZE]->dt_buf[i];

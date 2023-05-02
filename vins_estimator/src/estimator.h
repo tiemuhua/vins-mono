@@ -64,18 +64,12 @@ private:
 
     void marginOld();
 
-
-    enum SolverFlag {
-        INITIAL,
-        NON_LINEAR
-    };
-
     enum MarginalizationFlag {
         MARGIN_OLD = 0,
         MARGIN_SECOND_NEW = 1
     };
 
-    SolverFlag solver_flag;
+    bool has_initiated_ = false;
     MarginalizationFlag marginalization_flag;
     Vector3d g;
 
