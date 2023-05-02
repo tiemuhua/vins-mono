@@ -401,13 +401,6 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
     return false;
 }
 
-void Estimator::solveOdometry() {
-    if (frame_count < WINDOW_SIZE)
-        return;
-    if (has_initiated_) {
-    }
-}
-
 void EigenPose2Double(const Vector3d& t, const Matrix3d& r, Pose pose) {
     pose[0] = t.x();
     pose[1] = t.y();

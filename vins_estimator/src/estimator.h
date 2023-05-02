@@ -50,8 +50,6 @@ private:
 
     void slideWindow(bool is_key_frame);
 
-    void solveOdometry();
-
     void optimization();
 
     void vector2double();
