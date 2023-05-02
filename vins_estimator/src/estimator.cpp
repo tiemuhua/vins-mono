@@ -151,55 +151,50 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         }
     }
 
-    if (!has_initiated_) {
-        if (frame_count == WINDOW_SIZE) {
-            bool result = false;
-            if (ESTIMATE_EXTRINSIC != 2 && (time_stamp - initial_timestamp) > 0.1) {
-                result = initialStructure();
-                initial_timestamp = time_stamp;
-            }
-            if (result) {
-                has_initiated_ = true;
-                solveOdometry();
-                slideWindow();
-                feature_manager_.removeFailures();
-                LOG_I("Initialization finish!");
-                last_R = rot_window[WINDOW_SIZE];
-                last_P = pos_window[WINDOW_SIZE];
-                last_R0 = rot_window[0];
-                last_P0 = pos_window[0];
-            } else
-                slideWindow();
-        } else
-            frame_count++;
-    } else {
-        TicToc t_solve;
-        solveOdometry();
-        LOG_D("solver costs: %fms", t_solve.toc());
+    if (frame_count < WINDOW_SIZE) {
+        frame_count++;
+        return;
+    }
 
-        if (failureDetection()) {
-            LOG_W("failure detection!");
-            failure_occur = true;
-            clearState();
-            setParameter();
-            LOG_W("system reboot!");
+    if (!has_initiated_) {
+        bool result = false;
+        if (ESTIMATE_EXTRINSIC != 2 && (time_stamp - initial_timestamp) > 0.1) {
+            result = initialStructure();
+            initial_timestamp = time_stamp;
+        }
+        if (!result) {
+            slideWindow();
             return;
         }
-
-        TicToc t_margin;
-        slideWindow();
-        feature_manager_.removeFailures();
-        LOG_D("marginalization costs: %fms", t_margin.toc());
-        // prepare output of VINS
-        key_poses.clear();
-        for (int i = 0; i <= WINDOW_SIZE; i++)
-            key_poses.push_back(pos_window[i]);
-
-        last_R = rot_window[WINDOW_SIZE];
-        last_P = pos_window[WINDOW_SIZE];
-        last_R0 = rot_window[0];
-        last_P0 = pos_window[0];
+        has_initiated_ = true;
     }
+
+    TicToc t_solve;
+    solveOdometry();
+    LOG_D("solver costs: %fms", t_solve.toc());
+
+    if (failureDetection()) {
+        LOG_W("failure detection!");
+        failure_occur = true;
+        clearState();
+        setParameter();
+        LOG_W("system reboot!");
+        return;
+    }
+
+    TicToc t_margin;
+    slideWindow();
+    feature_manager_.removeFailures();
+    LOG_D("marginalization costs: %fms", t_margin.toc());
+    // prepare output of VINS
+    key_poses.clear();
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+        key_poses.push_back(pos_window[i]);
+
+    last_R = rot_window[WINDOW_SIZE];
+    last_P = pos_window[WINDOW_SIZE];
+    last_R0 = rot_window[0];
+    last_P0 = pos_window[0];
 }
 
 bool Estimator::initialStructure() {
