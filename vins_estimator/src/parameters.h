@@ -27,7 +27,12 @@ typedef std::vector<Eigen::Vector3d> GyrBufWindow[WINDOW_SIZE + 1];
 
 extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
-extern int ESTIMATE_EXTRINSIC;
+enum EstimateExtrinsicState{
+    EstimateExtrinsicFix,
+    EstimateExtrinsicInitiating,
+    EstimateExtrinsicInitiated,
+};
+extern EstimateExtrinsicState estimate_extrinsic_state;
 
 extern double ACC_N, ACC_W;
 extern double GYR_N, GYR_W;

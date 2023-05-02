@@ -132,7 +132,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
     all_image_frame.emplace_back(image_frame);
     tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
 
-    if (ESTIMATE_EXTRINSIC == 2) {
+    if (estimate_extrinsic_state == EstimateExtrinsicInitiating) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0) {
             vector<pair<cv::Point2f, cv::Point2f>> correspondences =
@@ -141,7 +141,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
             if (initial_ex_rotation.CalibrationExRotation(correspondences, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
                 LOG_W("initial extrinsic rotation calib success");
                 RIC = calib_ric;
-                ESTIMATE_EXTRINSIC = 1;
+                estimate_extrinsic_state = EstimateExtrinsicInitiated;
             }
         }
     }
@@ -153,7 +153,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
 
     if (!has_initiated_) {
         bool result = false;
-        if (ESTIMATE_EXTRINSIC != 2 && (time_stamp - initial_timestamp) > 0.1) {
+        if (estimate_extrinsic_state != EstimateExtrinsicInitiating && (time_stamp - initial_timestamp) > 0.1) {
             result = initialStructure();
             initial_timestamp = time_stamp;
         }
@@ -555,7 +555,7 @@ void Estimator::optimization() {
     }
     ceres::Manifold *manifold = new ceres::SE3Manifold();
     problem.AddParameterBlock(para_Ex_Pose, SIZE_POSE, manifold);
-    if (!ESTIMATE_EXTRINSIC) {
+    if (!estimate_extrinsic_state == EstimateExtrinsicFix) {
         LOG_D("fix extrinsic param");
         problem.SetParameterBlockConstant(para_Ex_Pose);
     } else {
