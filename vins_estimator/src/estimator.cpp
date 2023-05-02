@@ -55,7 +55,7 @@ void Estimator::clearState() {
     sum_of_back = 0;
     sum_of_front = 0;
     frame_count = 0;
-    initial_timestamp = 0;
+    initial_timestamp_ = 0;
     all_image_frame.clear();
     td = TD;
 
@@ -152,9 +152,9 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
 
     if (!has_initiated_) {
         bool result = false;
-        if (estimate_extrinsic_state != EstimateExtrinsicInitiating && (time_stamp - initial_timestamp) > 0.1) {
+        if (estimate_extrinsic_state != EstimateExtrinsicInitiating && (time_stamp - initial_timestamp_) > 0.1) {
             result = initialStructure();
-            initial_timestamp = time_stamp;
+            initial_timestamp_ = time_stamp;
         }
         if (!result) {
             slideWindow(true);

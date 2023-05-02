@@ -92,7 +92,7 @@ private:
     bool failure_occur{};
 
     vector<Vector3d> key_poses;
-    double initial_timestamp{};
+    double initial_timestamp_{};
 
     Pose para_Pose[WINDOW_SIZE + 1]{};
     SpeedBias para_SpeedBias[WINDOW_SIZE + 1]{};
