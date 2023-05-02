@@ -180,11 +180,10 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
     LOG_D("solver costs: %fms", t_solve.toc());
 
     if (failureDetection()) {
-        LOG_W("failure detection!");
+        LOG_W("failure detection!, system reboot!");
         failure_occur = true;
         clearState();
         setParameter();
-        LOG_W("system reboot!");
         return;
     }
 
