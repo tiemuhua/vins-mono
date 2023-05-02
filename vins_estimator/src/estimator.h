@@ -86,10 +86,6 @@ private:
     BgWindow bg_window;
     TimeStampWindow time_stamp_window{};
     PreIntegrateWindow pre_integrate_window{};
-    // todo tiemuhuaguo pre_integrate里面已经有IntegrationBase了，为什么还要保留DtBufWindow、AccBufWindow、GyrBufWindow
-    DtBufWindow dt_buf_window;
-    AccBufWindow acc_buf_window;
-    GyrBufWindow gyr_buf_window;
 
     double td{};
 

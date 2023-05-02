@@ -110,11 +110,14 @@ public:
     Eigen::Quaterniond DeltaQuat() {
         return pre_quat;
     }
-    Eigen::Vector3d ba_, bg_;
     double sum_dt = 0.0;
     Jacobian jacobian = Jacobian::Identity();
     Covariance covariance = Covariance::Zero();
     Noise noise = Noise::Zero();
+
+    std::vector<double> dt_buf;
+    std::vector<Eigen::Vector3d> acc_buf;
+    std::vector<Eigen::Vector3d> gyr_buf;
 
 private:
     static inline Eigen::Matrix3d AntiSymmetric(const Eigen::Vector3d& vec){
@@ -189,12 +192,9 @@ private:
     }
 
 private:
-
     Eigen::Vector3d pre_pos = Eigen::Vector3d::Zero();
     Eigen::Vector3d pre_vel = Eigen::Vector3d::Zero();
     Eigen::Quaterniond pre_quat = Eigen::Quaterniond::Identity();
 
-    std::vector<double> dt_buf;
-    std::vector<Eigen::Vector3d> acc_buf;
-    std::vector<Eigen::Vector3d> gyr_buf;
+    Eigen::Vector3d ba_, bg_;
 };

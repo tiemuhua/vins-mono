@@ -42,9 +42,6 @@ void Estimator::clearState() {
         vec_window[i].setZero();
         ba_window[i].setZero();
         bg_window[i].setZero();
-        dt_buf_window[i].clear();
-        acc_buf_window[i].clear();
-        gyr_buf_window[i].clear();
 
         if (pre_integrate_window[i] != nullptr)
             delete pre_integrate_window[i];
@@ -91,10 +88,6 @@ void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) 
     if (frame_count != 0) {
         pre_integrate_window[frame_count]->predict(dt, acc, gyr);
         tmp_pre_integration->predict(dt, acc, gyr);
-
-        dt_buf_window[frame_count].push_back(dt);
-        acc_buf_window[frame_count].push_back(acc);
-        gyr_buf_window[frame_count].push_back(gyr);
 
         int j = frame_count;
         Vector3d un_acc_0 = rot_window[j] * (acc_0 - ba_window[j]) - g;
@@ -796,10 +789,6 @@ void Estimator::slideWindow() {
 
             std::swap(pre_integrate_window[i], pre_integrate_window[i + 1]);
 
-            dt_buf_window[i].swap(dt_buf_window[i + 1]);
-            acc_buf_window[i].swap(acc_buf_window[i + 1]);
-            gyr_buf_window[i].swap(gyr_buf_window[i + 1]);
-
             time_stamp_window[i] = time_stamp_window[i + 1];
             pos_window[i].swap(pos_window[i + 1]);
             vec_window[i].swap(vec_window[i + 1]);
@@ -816,16 +805,11 @@ void Estimator::slideWindow() {
         bool shift_depth = solver_flag == NON_LINEAR;
         feature_manager_.removeBackShiftDepth();
     } else {
-        for (unsigned int i = 0; i < dt_buf_window[WINDOW_SIZE].size(); i++) {
-            double tmp_dt = dt_buf_window[WINDOW_SIZE][i];
-            Vector3d tmp_linear_acceleration = acc_buf_window[WINDOW_SIZE][i];
-            Vector3d tmp_angular_velocity = gyr_buf_window[WINDOW_SIZE][i];
-
-            pre_integrate_window[WINDOW_SIZE - 1]->predict(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity);
-
-            dt_buf_window[WINDOW_SIZE - 1].push_back(tmp_dt);
-            acc_buf_window[WINDOW_SIZE - 1].push_back(tmp_linear_acceleration);
-            gyr_buf_window[WINDOW_SIZE - 1].push_back(tmp_angular_velocity);
+        for (int i = 0; i < (int)pre_integrate_window[WINDOW_SIZE]->dt_buf.size(); ++i) {
+            double dt = pre_integrate_window[WINDOW_SIZE]->dt_buf[i];
+            Vector3d acc = pre_integrate_window[WINDOW_SIZE]->acc_buf[i];
+            Vector3d gyr = pre_integrate_window[WINDOW_SIZE]->gyr_buf[i];
+            pre_integrate_window[WINDOW_SIZE - 1]->predict(dt, acc, gyr);
         }
         sum_of_front++;
         feature_manager_.removeFront(frame_count);
@@ -840,10 +824,6 @@ void Estimator::slideWindow() {
 
     delete pre_integrate_window[WINDOW_SIZE];
     pre_integrate_window[WINDOW_SIZE] = new PreIntegration{acc_0, gyr_0, ba_window[WINDOW_SIZE], bg_window[WINDOW_SIZE]};
-
-    dt_buf_window[WINDOW_SIZE].clear();
-    acc_buf_window[WINDOW_SIZE].clear();
-    gyr_buf_window[WINDOW_SIZE].clear();
 }
 
 void Estimator::setReLocalFrame(double _frame_stamp, int _frame_index, vector<MatchPoint> &_match_points,
