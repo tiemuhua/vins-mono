@@ -163,23 +163,18 @@ bool LinearAlignment(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd 
     LOG_D("estimated scale: %f", s);
     g = x.segment<3>(n_state - 4);
     if (fabs(g.norm() - G.norm()) > 1.0 || s < 0) {
+        LOG_E("fabs(g.norm() - G.norm()) > 1.0 || s < 0");
         return false;
     }
 
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
     (x.tail<1>())(0) = s;
-    if (s < 0.0)
-        return false;
-    else
-        return true;
+    LOG_E("s:%lf", s);
+    return s > 0.0;
 }
 
 bool VisualIMUAlignment(vector<ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x) {
     solveGyroscopeBias(all_image_frame, Bgs);
-
-    if (LinearAlignment(all_image_frame, g, x))
-        return true;
-    else
-        return false;
+    return LinearAlignment(all_image_frame, g, x);
 }

@@ -309,22 +309,13 @@ bool Estimator::initialStructure() {
         frame.T = R_pnp * (-T_pnp);
         frame.R = R_pnp * RIC.transpose();
     }
-    if (visualInitialAlign())
-        return true;
-    else {
-        LOG_I("misaligned visual structure with IMU");
-        return false;
-    }
-
+    return visualInitialAlign();
 }
 
 bool Estimator::visualInitialAlign() {
     TicToc t_g;
     VectorXd x;
-    //solve scale
-    bool result = VisualIMUAlignment(all_image_frame, bg_window, g, x);
-    if (!result) {
-        LOG_D("solve g failed!");
+    if (!VisualIMUAlignment(all_image_frame, bg_window, g, x)) {
         return false;
     }
 
