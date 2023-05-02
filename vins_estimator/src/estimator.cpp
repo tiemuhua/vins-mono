@@ -117,9 +117,8 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
 
     bool is_key_frame = feature_manager_.addFeatureCheckParallax(frame_count, feature_points, td);
 
-    LOG_D("is key frame:%d", is_key_frame);
-    LOG_D("Solving %d", frame_count);
-    LOG_D("number of feature: %d", feature_manager_.getFeatureCount());
+    LOG_D("is key frame:%d, Solving %d, number of feature: %d",
+          is_key_frame, frame_count, feature_manager_.getFeatureCount());
     time_stamp_window[frame_count] = time_stamp;
 
     map<int, FeaturePoint> feature_id_2_points;
