@@ -1,10 +1,11 @@
 #include "projection_factor.h"
-
+#include "log.h"
 Eigen::Matrix2d ProjectionFactor::sqrt_info;
 double ProjectionFactor::sum_t;
 
-ProjectionFactor::ProjectionFactor(const Eigen::Vector3d &_pts_i, const Eigen::Vector3d &_pts_j) : pts_i(_pts_i),
-                                                                                                   pts_j(_pts_j) {
+ProjectionFactor::ProjectionFactor(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j) {
+    pts_i = Eigen::Vector3d(_pts_i.x, _pts_i.y, 1.0);
+    pts_j = Eigen::Vector3d(_pts_j.x, _pts_j.y, 1.0);
 #ifdef UNIT_SPHERE_ERROR
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();
@@ -47,73 +48,56 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
 
     residual = sqrt_info * residual;
 
-    if (jacobians) {
-        Eigen::Matrix3d Ri = Qi.toRotationMatrix();
-        Eigen::Matrix3d Rj = Qj.toRotationMatrix();
-        Eigen::Matrix3d ric = qic.toRotationMatrix();
-        Eigen::Matrix<double, 2, 3> reduce(2, 3);
-#ifdef UNIT_SPHERE_ERROR
-        double norm = pts_camera_j.norm();
-        Eigen::Matrix3d norm_jaco;
-        double x1, x2, x3;
-        x1 = pts_camera_j(0);
-        x2 = pts_camera_j(1);
-        x3 = pts_camera_j(2);
-        norm_jaco << 1.0 / norm - x1 * x1 / pow(norm, 3), - x1 * x2 / pow(norm, 3),            - x1 * x3 / pow(norm, 3),
-                     - x1 * x2 / pow(norm, 3),            1.0 / norm - x2 * x2 / pow(norm, 3), - x2 * x3 / pow(norm, 3),
-                     - x1 * x3 / pow(norm, 3),            - x2 * x3 / pow(norm, 3),            1.0 / norm - x3 * x3 / pow(norm, 3);
-        reduce = tangent_base * norm_jaco;
-#else
-        reduce << 1. / dep_j, 0, -pts_camera_j(0) / (dep_j * dep_j),
-                0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
-#endif
-        reduce = sqrt_info * reduce;
-
-        if (jacobians[0]) {
-            Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
-
-            Eigen::Matrix<double, 3, 6> jaco_i;
-            jaco_i.leftCols<3>() = ric.transpose() * Rj.transpose();
-            jaco_i.rightCols<3>() = ric.transpose() * Rj.transpose() * Ri * -Utility::skewSymmetric(pts_imu_i);
-
-            jacobian_pose_i.leftCols<6>() = reduce * jaco_i;
-            jacobian_pose_i.rightCols<1>().setZero();
-        }
-
-        if (jacobians[1]) {
-            Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_j(jacobians[1]);
-
-            Eigen::Matrix<double, 3, 6> jaco_j;
-            jaco_j.leftCols<3>() = ric.transpose() * -Rj.transpose();
-            jaco_j.rightCols<3>() = ric.transpose() * Utility::skewSymmetric(pts_imu_j);
-
-            jacobian_pose_j.leftCols<6>() = reduce * jaco_j;
-            jacobian_pose_j.rightCols<1>().setZero();
-        }
-        if (jacobians[2]) {
-            Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_ex_pose(jacobians[2]);
-            Eigen::Matrix<double, 3, 6> jaco_ex;
-            jaco_ex.leftCols<3>() = ric.transpose() * (Rj.transpose() * Ri - Eigen::Matrix3d::Identity());
-            Eigen::Matrix3d tmp_r = ric.transpose() * Rj.transpose() * Ri * ric;
-            jaco_ex.rightCols<3>() =
-                    -tmp_r * Utility::skewSymmetric(pts_camera_i) +
-                    Utility::skewSymmetric(tmp_r * pts_camera_i) +
-                    Utility::skewSymmetric(ric.transpose() * (Rj.transpose() * (Ri * tic + Pi - Pj) - tic));
-            jacobian_ex_pose.leftCols<6>() = reduce * jaco_ex;
-            jacobian_ex_pose.rightCols<1>().setZero();
-        }
-        if (jacobians[3]) {
-            Eigen::Map<Eigen::Vector2d> jacobian_feature(jacobians[3]);
-#if 1
-            jacobian_feature =
-                    reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i * -1.0 / (inv_dep_i * inv_dep_i);
-#else
-            jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i;
-#endif
-        }
+    assert(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3]);
+    if (!(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3])) {
+        LOG_E("!jacobian");
+        return false;
     }
-    sum_t += tic_toc.toc();
 
+    Eigen::Matrix3d Ri = Qi.toRotationMatrix();
+    Eigen::Matrix3d Rj = Qj.toRotationMatrix();
+    Eigen::Matrix3d ric = qic.toRotationMatrix();
+    Eigen::Matrix<double, 2, 3> reduce(2, 3);
+#ifdef UNIT_SPHERE_ERROR
+    double norm = pts_camera_j.norm();
+    double norm3 = pow(norm, 3);
+    Eigen::Matrix3d norm_jacobian = Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
+    reduce = tangent_base * norm_jacobian;
+#else
+    reduce << 1. / dep_j, 0, -pts_camera_j(0) / (dep_j * dep_j),
+    0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
+#endif
+    reduce = sqrt_info * reduce;
+
+    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
+    Eigen::Matrix<double, 3, 6> jaco_i;
+    jaco_i.leftCols<3>() = ric.transpose() * Rj.transpose();
+    jaco_i.rightCols<3>() = ric.transpose() * Rj.transpose() * Ri * -Utility::skewSymmetric(pts_imu_i);
+    jacobian_pose_i.leftCols<6>() = reduce * jaco_i;
+    jacobian_pose_i.rightCols<1>().setZero();
+
+    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_j(jacobians[1]);
+    Eigen::Matrix<double, 3, 6> jaco_j;
+    jaco_j.leftCols<3>() = ric.transpose() * -Rj.transpose();
+    jaco_j.rightCols<3>() = ric.transpose() * Utility::skewSymmetric(pts_imu_j);
+    jacobian_pose_j.leftCols<6>() = reduce * jaco_j;
+    jacobian_pose_j.rightCols<1>().setZero();
+
+    Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_ex_pose(jacobians[2]);
+    Eigen::Matrix<double, 3, 6> jaco_ex;
+    jaco_ex.leftCols<3>() = ric.transpose() * (Rj.transpose() * Ri - Eigen::Matrix3d::Identity());
+    Eigen::Matrix3d tmp_r = ric.transpose() * Rj.transpose() * Ri * ric;
+    jaco_ex.rightCols<3>() =
+            -tmp_r * Utility::skewSymmetric(pts_camera_i) +
+            Utility::skewSymmetric(tmp_r * pts_camera_i) +
+            Utility::skewSymmetric(ric.transpose() * (Rj.transpose() * (Ri * tic + Pi - Pj) - tic));
+    jacobian_ex_pose.leftCols<6>() = reduce * jaco_ex;
+    jacobian_ex_pose.rightCols<1>().setZero();
+
+    Eigen::Map<Eigen::Vector2d> jacobian_feature(jacobians[3]);
+    jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i * -1.0 / (inv_dep_i * inv_dep_i);
+
+    sum_t += tic_toc.toc();
     return true;
 }
 

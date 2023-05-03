@@ -10,7 +10,7 @@ class ProjectionFactor : public ceres::SizedCostFunction<2, 7, 7, 7, 1>
 {
   public:
     ProjectionFactor(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j);
-    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const;
+    bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
     void check(double **parameters);
 
     Eigen::Vector3d pts_i, pts_j;
