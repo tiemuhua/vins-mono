@@ -541,7 +541,7 @@ void Estimator::optimization() {
 
     for (int i = 0; i < WINDOW_SIZE; i++) {
         int j = i + 1;
-        if (pre_integrate_window[j]->sum_dt > 10.0)
+        if (pre_integrate_window[j]->sum_dt > 10.0)// todo why???
             continue;
         auto *cost_function = new IMUFactor(pre_integrate_window[j]);
         problem.AddResidualBlock(cost_function, nullptr,
@@ -559,22 +559,21 @@ void Estimator::optimization() {
         int start_frame = features_of_id.start_frame_;
         const FeaturePoint & point0 = features_of_id.feature_points_[0];
         for (int i = 1; i < features_of_id.feature_points_.size(); ++i) {
-            FeaturePoint &point = features_of_id.feature_points_[start_frame + i];
+            FeaturePoint &point = features_of_id.feature_points_[i];
             if (ESTIMATE_TD) {
                 auto *cost_function = new ProjectionTdFactor(point0, point);
                 problem.AddResidualBlock(cost_function, loss_function,
-                                         para_Pose[start_frame], para_Pose[i], para_Ex_Pose, para_Feature[feature_index], para_Td);
+                                         para_Pose[start_frame], para_Pose[start_frame + i], para_Ex_Pose, para_Feature[feature_index], para_Td);
             } else {
                 auto *cost_function = new ProjectionFactor(point0.unified_point, point.unified_point);
                 problem.AddResidualBlock(cost_function, loss_function,
-                                         para_Pose[start_frame], para_Pose[i], para_Ex_Pose, para_Feature[feature_index]);
+                                         para_Pose[start_frame], para_Pose[start_frame + i], para_Ex_Pose, para_Feature[feature_index]);
             }
             f_m_cnt++;
         }
     }
 
-    LOG_D("visual measurement count: %d", f_m_cnt);
-    LOG_D("prepare for ceres: %f", t_prepare.toc());
+    LOG_D("visual measurement count: %d, prepare for ceres: %f", f_m_cnt, t_prepare.toc());
 
     if (is_re_localization_) {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
@@ -658,8 +657,8 @@ void Estimator::marginOld() {
     if (pre_integrate_window[1]->sum_dt < 10.0) {// todo tiemuhuaguo 1这个硬编码是怎么来的？
         auto *cost_function = new IMUFactor(pre_integrate_window[1]);
         vector<double *> parameter_blocks = {
-                para_Pose[0], para_Velocity[0],para_AccBias[0], para_GyrBias[0],
-                para_Pose[1], para_Velocity[1],para_AccBias[1], para_GyrBias[1],
+                para_Pose[0], para_Velocity[0], para_AccBias[0], para_GyrBias[0],
+                para_Pose[1], para_Velocity[1], para_AccBias[1], para_GyrBias[1],
         };
         vector<int> drop_set = {0, 1};
         ResidualBlockInfo residual_block_info(cost_function, nullptr,
