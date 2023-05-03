@@ -561,10 +561,7 @@ void Estimator::optimization() {
         for (int i = 1; i < features_of_id.feature_points_.size(); ++i) {
             FeaturePoint &point = features_of_id.feature_points_[start_frame + i];
             if (ESTIMATE_TD) {
-                auto *cost_function = new ProjectionTdFactor(point0.unified_point, point.unified_point,
-                                                             point0.point_velocity, point.point_velocity,
-                                                             point0.cur_td, point.cur_td,
-                                                             point0.point.y, point.point.y);
+                auto *cost_function = new ProjectionTdFactor(point0, point);
                 problem.AddResidualBlock(cost_function, loss_function,
                                          para_Pose[start_frame], para_Pose[i], para_Ex_Pose, para_Feature[feature_index], para_Td);
             } else {
@@ -686,10 +683,7 @@ void Estimator::marginOld() {
             const FeaturePoint &point = features_of_id.feature_points_[i];
             vector<int> drop_set = {0, 3};
             if (ESTIMATE_TD) {
-                auto *cost_function = new ProjectionTdFactor(point0.unified_point,point.unified_point,
-                                                             point0.point_velocity,point.point_velocity,
-                                                             point0.cur_td,point.cur_td,
-                                                             point0.point.y,point.point.y);
+                auto *cost_function = new ProjectionTdFactor(point0, point);
                 vector<double *> parameter_blocks = {
                         para_Pose[0],
                         para_Pose[i],

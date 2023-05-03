@@ -3,20 +3,14 @@
 Eigen::Matrix2d ProjectionTdFactor::sqrt_info;
 double ProjectionTdFactor::sum_t;
 
-ProjectionTdFactor::ProjectionTdFactor(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j,
-                                       const cv::Point2f &_velocity_i, const cv::Point2f &_velocity_j,
-                                       const double _td_i, const double _td_j, const double _row_i, const double _row_j)
-                                       : td_i(_td_i), td_j(_td_j) {
-    pts_i = Eigen::Vector3d(_pts_i.x, _pts_i.y, 1.0);
-    pts_j = Eigen::Vector3d(_pts_j.x, _pts_j.y, 1.0);
-    velocity_i.x() = _velocity_i.x;
-    velocity_i.y() = _velocity_i.y;
-    velocity_i.z() = 0;
-    velocity_j.x() = _velocity_j.x;
-    velocity_j.y() = _velocity_j.y;
-    velocity_j.z() = 0;
-    row_i = _row_i - ROW / 2;
-    row_j = _row_j - ROW / 2;
+ProjectionTdFactor::ProjectionTdFactor(const FeaturePoint& p1, const FeaturePoint& p2)
+                                       : td_i(p1.cur_td), td_j(p2.cur_td) {
+    pts_i = Eigen::Vector3d(p1.unified_point.x, p1.unified_point.y, 1.0);
+    pts_j = Eigen::Vector3d(p2.unified_point.x, p2.unified_point.y, 1.0);
+    velocity_i = Eigen::Vector3d(p1.point_velocity.x, p1.point_velocity.y, 0.0);
+    velocity_j = Eigen::Vector3d(p2.point_velocity.x, p2.point_velocity.y, 0.0);
+    row_i = p1.point.y - ROW / 2;
+    row_j = p2.point.y - ROW / 2;
 
 #ifdef UNIT_SPHERE_ERROR
     Eigen::Vector3d b1, b2;

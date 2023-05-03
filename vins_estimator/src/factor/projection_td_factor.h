@@ -5,13 +5,12 @@
 #include "../utility/utility.h"
 #include "../utility/tic_toc.h"
 #include "../parameters.h"
+#include "../feature_manager.h"
 
 class ProjectionTdFactor : public ceres::SizedCostFunction<2, 7, 7, 7, 1, 1>
 {
   public:
-    ProjectionTdFactor(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j,
-    				   const cv::Point2f &_velocity_i, const cv::Point2f &_velocity_j,
-    				   double _td_i, double _td_j, double _row_i, double _row_j);
+    ProjectionTdFactor(const FeaturePoint& p1, const FeaturePoint& p2);
     bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
     void check(double **parameters);
 
