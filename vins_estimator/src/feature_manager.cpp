@@ -91,7 +91,7 @@ void FeatureManager::removeFailures() {
     for (auto it = features_.begin(), it_next = features_.begin();
          it != features_.end(); it = it_next) {
         it_next++;
-        if (it->solve_flag_ == 2)
+        if (it->solve_flag_ == FeaturesOfId::FeatureSolveFail)
             features_.erase(it);
     }
 }
@@ -210,11 +210,11 @@ void FeatureManager::removeFront(int frame_count) {
         auto it = it_next;
         it_next++;
 
-        if (it->start_frame_ == frame_count) {
+        if (it->start_frame_ == WINDOW_SIZE) {
             it->start_frame_--;
             continue;
         }
-        if (it->endFrame() < frame_count - 1) {
+        if (it->endFrame() < WINDOW_SIZE - 1) {
             continue;
         }
         int j = WINDOW_SIZE - 1 - it->start_frame_;
