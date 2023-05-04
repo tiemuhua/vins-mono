@@ -96,12 +96,12 @@ void FeatureManager::removeFailures() {
     }
 }
 
-void FeatureManager::clearDepth(const VectorXd &x) {
+void FeatureManager::clearDepth() {
     int feature_index = -1;
     for (FeaturesOfId &it_per_id: features_) {
         if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
             continue;
-        it_per_id.estimated_depth = 1.0 / x(++feature_index);
+        it_per_id.estimated_depth = -1.0;
     }
 }
 
@@ -148,10 +148,10 @@ void FeatureManager::triangulate(const PosWindow pos_window, const RotWindow rot
         Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
         double svd_method = svd_V[2] / svd_V[3];
 
-        it_per_id.estimated_depth = svd_method;
-
-        if (it_per_id.estimated_depth < 0.1) {
+        if (svd_method < 0.1) {
             it_per_id.estimated_depth = INIT_DEPTH;
+        } else {
+            it_per_id.estimated_depth = svd_method;
         }
     }
 }
@@ -175,37 +175,17 @@ void FeatureManager::removeBackShiftDepth() {
             continue;
         }
         const cv::Point2f &unified_point = it->feature_points_[0].unified_point;
-        Eigen::Vector3d uv_i = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0);
         it->feature_points_.erase(it->feature_points_.begin());
         if (it->feature_points_.size() < 2) {
             features_.erase(it);
             continue;
         }
-        Eigen::Vector3d pts_i = uv_i * it->estimated_depth;
-        double dep_j = pts_i(2);
-        if (dep_j > 0)
-            it->estimated_depth = dep_j;
-        else
+        if (it->estimated_depth < 0)
             it->estimated_depth = INIT_DEPTH;
     }
 }
 
-void FeatureManager::removeBack() {
-    for (auto it_next = features_.begin(); it_next != features_.end();) {
-        auto it = it_next;
-        it_next++;
-
-        if (it->start_frame_ != 0)
-            it->start_frame_--;
-        else {
-            it->feature_points_.erase(it->feature_points_.begin());
-            if (it->feature_points_.empty())
-                features_.erase(it);
-        }
-    }
-}
-
-void FeatureManager::removeFront(int frame_count) {
+void FeatureManager::removeFront() {
     for (auto it_next = features_.begin(); it_next != features_.end();) {
         auto it = it_next;
         it_next++;

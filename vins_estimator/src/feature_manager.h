@@ -59,7 +59,7 @@ public:
 
     void removeFailures();
 
-    void clearDepth(const VectorXd &x);
+    void clearDepth();
 
     VectorXd getDepthVector();
 
@@ -67,9 +67,7 @@ public:
 
     void removeBackShiftDepth();
 
-    void removeBack();
-
-    void removeFront(int frame_count);
+    void removeFront();
 
     void removeOutlier();
 

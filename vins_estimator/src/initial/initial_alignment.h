@@ -5,6 +5,7 @@
 #include "../factor/imu_factor.h"
 #include "../utility/utility.h"
 #include <map>
+#include <utility>
 #include "../feature_manager.h"
 
 using namespace Eigen;
@@ -14,14 +15,14 @@ class ImageFrame {
 public:
     ImageFrame() = delete;
 
-    ImageFrame(const map<int, FeaturePoint> &_points, double _t):
-        feature_id_2_point{_points},
-        t{_t}{};
+    ImageFrame(std::vector<FeaturePoint> _points, double _t):
+            points{std::move(_points)},
+            t{_t}{};
     ~ImageFrame() {
         delete pre_integration;
         pre_integration = nullptr;
     }
-    map<int, FeaturePoint> feature_id_2_point;
+    std::vector<FeaturePoint> points;
     double t{};
     Matrix3d R;
     Vector3d T;
@@ -29,4 +30,4 @@ public:
     bool is_key_frame = false;
 };
 
-bool VisualIMUAlignment(vector<ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x);
+bool VisualIMUAlignment(const vector<ImageFrame> &all_image_frame, BgWindow Bgs, Vector3d &g, VectorXd &x);

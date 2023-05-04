@@ -1,7 +1,7 @@
 #include "initial_alignment.h"
 #include "log.h"
 
-void solveGyroscopeBias(vector<ImageFrame> &all_image_frame, Vector3d *Bgs) {
+void solveGyroscopeBias(const vector<ImageFrame> &all_image_frame, BgWindow Bgs) {
     Matrix3d A = Matrix3d::Zero();
     Vector3d b = Vector3d::Zero();
     for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
@@ -36,7 +36,7 @@ typedef Matrix<double, 6, 1> Vector6d;
 typedef Matrix<double, 9, 1> Vector9d;
 typedef Matrix<double, 3, 2> Matrix_3_2;
 
-Matrix_3_2 TangentBasis(Vector3d &g0) {
+Matrix_3_2 TangentBasis(const Vector3d &g0) {
     Vector3d a = g0.normalized();
     Vector3d tmp(0, 0, 1);
     if (a == tmp)
@@ -49,7 +49,7 @@ Matrix_3_2 TangentBasis(Vector3d &g0) {
     return bc;
 }
 
-void RefineGravity(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
+void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
     Vector3d g0 = g.normalized() * G.norm();
     Vector3d lx, ly;
     int n_state = (int )all_image_frame.size() * 3 + 2 + 1;
@@ -102,7 +102,7 @@ void RefineGravity(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x
     g = g0;
 }
 
-bool LinearAlignment(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
+bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
     int n_state = (int )all_image_frame.size() * 3 + 3 + 1;
 
     MatrixXd A = MatrixXd::Zero(n_state, n_state);
@@ -120,11 +120,11 @@ bool LinearAlignment(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd 
         Matrix3d R_j = frame_j->R;
 
         tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
-        tmp_A.block<3, 3>(0, 6) = R_i_inv * dt * dt / 2 * Matrix3d::Identity();
+        tmp_A.block<3, 3>(0, 6) = R_i_inv * dt * dt / 2;
         tmp_A.block<3, 1>(0, 9) = R_i_inv * (frame_j->T - frame_i->T) / 100.0;
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = R_i_inv * R_j;
-        tmp_A.block<3, 3>(3, 6) = R_i_inv * dt * Matrix3d::Identity();
+        tmp_A.block<3, 3>(3, 6) = R_i_inv * dt;
         tmp_b.block<3, 1>(0, 0) = frame_j->pre_integration->DeltaPos() + R_i_inv * R_j * TIC - TIC;
         tmp_b.block<3, 1>(3, 0) = frame_j->pre_integration->DeltaVel();
 
@@ -158,7 +158,7 @@ bool LinearAlignment(vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd 
     return s > 0.0;
 }
 
-bool VisualIMUAlignment(vector<ImageFrame> &all_image_frame, Vector3d *Bgs, Vector3d &g, VectorXd &x) {
+bool VisualIMUAlignment(const vector<ImageFrame> &all_image_frame, BgWindow Bgs, Vector3d &g, VectorXd &x) {
     solveGyroscopeBias(all_image_frame, Bgs);
     return LinearAlignment(all_image_frame, g, x);
 }

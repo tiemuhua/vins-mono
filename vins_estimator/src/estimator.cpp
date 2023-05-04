@@ -108,7 +108,6 @@ void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) 
 
 void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
                              const double &time_stamp) {
-    LOG_D("new image coming ------------------------------------------");
     LOG_D("Adding feature points %lu", image.feature_ids.size());
     std::vector<FeaturePoint> feature_points;
     for (int i = 0; i < image.feature_ids.size(); ++i) {
@@ -127,12 +126,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
           is_key_frame, frame_count, feature_manager_.getFeatureCount());
     time_stamp_window[frame_count] = time_stamp;
 
-    map<int, FeaturePoint> feature_id_2_points;
-    for (const FeaturePoint& point: feature_points) {
-        feature_id_2_points[point.feature_id] = point;
-    }
-
-    ImageFrame image_frame(feature_id_2_points, time_stamp);
+    ImageFrame image_frame(std::move(feature_points), time_stamp);
     image_frame.pre_integration = tmp_pre_integration;
     all_image_frame.emplace_back(image_frame);
     tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
@@ -281,13 +275,13 @@ bool Estimator::initialStructure() {
         frame.is_key_frame = false;
         vector<cv::Point3f> pts_3_vector;
         vector<cv::Point2f> pts_2_vector;
-        for (auto &id_pts: frame.feature_id_2_point) {
-            int feature_id = id_pts.first;
+        for (const FeaturePoint &point:frame.points) {
+            int feature_id = point.feature_id;
             auto it = sfm_tracked_points.find(feature_id);
             Vector3d world_pts = it->second;
             if (it != sfm_tracked_points.end()) {
                 pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                pts_2_vector.emplace_back(id_pts.second.unified_point);
+                pts_2_vector.emplace_back(point.unified_point);
             }
         }
         cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
@@ -328,10 +322,7 @@ bool Estimator::visualInitialAlign() {
         all_image_frame[i].is_key_frame = true;
     }
 
-    VectorXd dep = feature_manager_.getDepthVector();
-    for (int i = 0; i < dep.size(); i++)
-        dep[i] = -1;
-    feature_manager_.clearDepth(dep);
+    feature_manager_.clearDepth();
 
     //triangulate on cam pose , no tic
     feature_manager_.triangulate(pos_window, rot_window, Vector3d::Zero(), RIC);
@@ -343,15 +334,16 @@ bool Estimator::visualInitialAlign() {
     for (int i = frame_count; i >= 0; i--)
         pos_window[i] = s * pos_window[i] - rot_window[i] * TIC[0] - (s * pos_window[0] - rot_window[0] * TIC[0]);
     int kv = -1;
-    for (const auto &frame:all_image_frame) {
+    for (const ImageFrame &frame:all_image_frame) {
         if (frame.is_key_frame) {
             kv++;
             vec_window[kv] = frame.R * x.segment<3>(kv * 3);
         }
     }
     for (FeaturesOfId &features_of_id: feature_manager_.features_) {
-        if (!(features_of_id.feature_points_.size() >= 2 && features_of_id.start_frame_ < WINDOW_SIZE - 2))
+        if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
             continue;
+        }
         features_of_id.estimated_depth *= s;
     }
 
@@ -534,11 +526,13 @@ void Estimator::optimization() {
 
     TicToc t_whole, t_prepare;
 
+    /*************** 1:边缘化 **************************/
     if (last_marginal_info_) {
         auto *cost_function = new MarginalFactor(last_marginal_info_);
         problem.AddResidualBlock(cost_function, nullptr,last_marginal_param_blocks_);
     }
 
+    /*************** 2:IMU **************************/
     for (int i = 0; i < WINDOW_SIZE; i++) {
         int j = i + 1;
         if (pre_integrate_window[j]->sum_dt > 10.0)// todo why???
@@ -548,6 +542,8 @@ void Estimator::optimization() {
                                  para_Pose[i], para_Velocity[i], para_AccBias[i], para_GyrBias[i],
                                  para_Pose[j], para_Velocity[j], para_AccBias[j], para_GyrBias[j]);
     }
+
+    /*************** 3:特征点 **************************/
     int f_m_cnt = 0;
     int feature_index = -1;
     for (FeaturesOfId &features_of_id: feature_manager_.features_) {
@@ -575,6 +571,7 @@ void Estimator::optimization() {
 
     LOG_D("visual measurement count: %d, prepare for ceres: %f", f_m_cnt, t_prepare.toc());
 
+    /*************** 4:回环 **************************/
     if (is_re_localization_) {
         ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
         problem.AddParameterBlock(re_local_Pose, 7, local_parameterization);
@@ -716,16 +713,12 @@ void Estimator::marginOld() {
 }
 
 void Estimator::slideWindow(bool is_key_frame) {
-    if (frame_count != WINDOW_SIZE) {
-        return;
-    }
+    assert(frame_count == WINDOW_SIZE);
     if (is_key_frame) {
         double t_0 = time_stamp_window[0];
         for (int i = 0; i < WINDOW_SIZE; i++) {
             rot_window[i].swap(rot_window[i + 1]);
-
             std::swap(pre_integrate_window[i], pre_integrate_window[i + 1]);
-
             time_stamp_window[i] = time_stamp_window[i + 1];
             pos_window[i].swap(pos_window[i + 1]);
             vec_window[i].swap(vec_window[i + 1]);
@@ -749,7 +742,7 @@ void Estimator::slideWindow(bool is_key_frame) {
             pre_integrate_window[WINDOW_SIZE - 1]->predict(dt, acc, gyr);
         }
         sum_of_front++;
-        feature_manager_.removeFront(frame_count);
+        feature_manager_.removeFront();
     }
 
     time_stamp_window[WINDOW_SIZE] = time_stamp_window[WINDOW_SIZE - 1];
