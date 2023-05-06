@@ -52,10 +52,7 @@ bool InitialEXRotation::CalibrationExRotation(const vector<pair<cv::Point2f, cv:
     Matrix<double, 4, 1> x = svd.matrixV().col(3);
     Quaterniond estimated_R(x);
     ric = estimated_R.toRotationMatrix().inverse();
-    //cout << svd.singularValues().transpose() << endl;
-    //cout << ric << endl;
-    Vector3d ric_cov;
-    ric_cov = svd.singularValues().tail<3>();
+    Vector3d ric_cov = svd.singularValues().tail<3>();
     if (frame_count >= WINDOW_SIZE && ric_cov(1) > 0.25) {
         calib_ric_result = ric;
         return true;

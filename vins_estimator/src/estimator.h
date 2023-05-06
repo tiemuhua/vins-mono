@@ -96,7 +96,7 @@ private:
     AccBias para_AccBias[WINDOW_SIZE + 1]{};
     GyrBias para_GyrBias[WINDOW_SIZE + 1]{};
     Velocity para_Velocity[WINDOW_SIZE + 1]{};
-    FeatureDepth para_Feature[FEATURE_SIZE]{};
+    FeatureDepth para_FeatureInvDepth[FEATURE_SIZE]{};
     Pose para_Ex_Pose{};
     Td para_Td{};
 

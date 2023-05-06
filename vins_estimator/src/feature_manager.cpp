@@ -73,7 +73,7 @@ vector<pair<cv::Point2f, cv::Point2f>> FeatureManager::getCorresponding(int fram
     return corres;
 }
 
-void FeatureManager::setDepth(const VectorXd &x) {
+void FeatureManager::setInvDepth(const VectorXd &x) {
     int feature_index = -1;
     for (auto &it_per_id: features_) {
         if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
@@ -105,7 +105,7 @@ void FeatureManager::clearDepth() {
     }
 }
 
-VectorXd FeatureManager::getDepthVector() {
+VectorXd FeatureManager::getInvDepthVector() {
     VectorXd dep_vec(getFeatureCount());
     int feature_index = -1;
     for (FeaturesOfId &it_per_id: features_) {

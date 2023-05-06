@@ -138,7 +138,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
                     feature_manager_.getCorresponding(frame_count - 1, frame_count);
             Matrix3d calib_ric;
             if (initial_ex_rotation.CalibrationExRotation(correspondences, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
-                LOG_W("initial extrinsic rotation calib success");
+                LOG_I("initial extrinsic rotation calib success");
                 RIC = calib_ric;
                 estimate_extrinsic_state = EstimateExtrinsicInitiated;
             }
@@ -163,7 +163,6 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         has_initiated_ = true;
     }
 
-    TicToc t_solve;
     feature_manager_.triangulate(pos_window, rot_window, TIC, RIC);
     vector2double();
     optimization();
@@ -176,7 +175,6 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
     } else if (last_marginal_info_ && cnt) {
         margin2ndNew();
     }
-    LOG_D("solver costs: %fms", t_solve.toc());
 
     if (failureDetection()) {
         LOG_W("failure detection!, system reboot!");
@@ -186,10 +184,8 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         return;
     }
 
-    TicToc t_margin;
     slideWindow(is_key_frame);
     feature_manager_.removeFailures();
-    LOG_D("marginalization costs: %fms", t_margin.toc());
     // prepare output of VINS
     key_poses.clear();
     for (int i = 0; i <= WINDOW_SIZE; i++)
@@ -409,12 +405,13 @@ void Estimator::vector2double() {
     }
     EigenPose2Double(TIC, RIC, para_Ex_Pose);
 
-    VectorXd dep = feature_manager_.getDepthVector();
-    for (int i = 0; i < feature_manager_.getFeatureCount(); i++)
-        para_Feature[i][0] = dep(i);
+    VectorXd inv_depth = feature_manager_.getInvDepthVector();
+    for (int i = 0; i < inv_depth.size(); i++)
+        para_FeatureInvDepth[i][0] = inv_depth(i);
     if (ESTIMATE_TD)
         para_Td[0] = td;
 }
+
 Matrix3d Pose2Mat(Pose pose) {
     return Quaterniond(pose[6],pose[3],pose[4],pose[5]).normalized().toRotationMatrix();
 }
@@ -449,10 +446,10 @@ void Estimator::double2vector() {
     TIC = Vector3d(para_Ex_Pose[0],para_Ex_Pose[1],para_Ex_Pose[2]);
     RIC = Pose2Mat(para_Ex_Pose);
 
-    VectorXd dep = feature_manager_.getDepthVector();
-    for (int i = 0; i < feature_manager_.getFeatureCount(); i++)
-        dep(i) = para_Feature[i][0];
-    feature_manager_.setDepth(dep);
+    VectorXd inv_dep(feature_manager_.getFeatureCount());
+    for (int i = 0; i < inv_dep.size(); i++)
+        inv_dep(i) = para_FeatureInvDepth[i][0];
+    feature_manager_.setInvDepth(inv_dep);
     if (ESTIMATE_TD)
         td = para_Td[0];
 
@@ -559,11 +556,11 @@ void Estimator::optimization() {
             if (ESTIMATE_TD) {
                 auto *cost_function = new ProjectionTdFactor(point0, point);
                 problem.AddResidualBlock(cost_function, loss_function,
-                                         para_Pose[start_frame], para_Pose[start_frame + i], para_Ex_Pose, para_Feature[feature_index], para_Td);
+                                         para_Pose[start_frame], para_Pose[start_frame + i], para_Ex_Pose, para_FeatureInvDepth[feature_index], para_Td);
             } else {
                 auto *cost_function = new ProjectionFactor(point0.unified_point, point.unified_point);
                 problem.AddResidualBlock(cost_function, loss_function,
-                                         para_Pose[start_frame], para_Pose[start_frame + i], para_Ex_Pose, para_Feature[feature_index]);
+                                         para_Pose[start_frame], para_Pose[start_frame + i], para_Ex_Pose, para_FeatureInvDepth[feature_index]);
             }
             f_m_cnt++;
         }
@@ -590,7 +587,7 @@ void Estimator::optimization() {
                     auto *cost_function = new ProjectionFactor(match_points_[retrive_feature_index].point,
                                                                features_of_id.feature_points_[0].unified_point);
                     problem.AddResidualBlock(cost_function, loss_function,
-                                             para_Pose[start], re_local_Pose, para_Ex_Pose, para_Feature[feature_index]);
+                                             para_Pose[start], re_local_Pose, para_Ex_Pose, para_FeatureInvDepth[feature_index]);
                     retrive_feature_index++;
                 }
             }
@@ -684,7 +681,7 @@ void Estimator::marginOld() {
                         para_Pose[0],
                         para_Pose[i],
                         para_Ex_Pose,
-                        para_Feature[feature_index],
+                        para_FeatureInvDepth[feature_index],
                         para_Td
                 };
                 ResidualBlockInfo residual_block_info(cost_function, loss_function, parameter_blocks, drop_set);
@@ -695,7 +692,7 @@ void Estimator::marginOld() {
                         para_Pose[0],
                         para_Pose[i],
                         para_Ex_Pose,
-                        para_Feature[feature_index],
+                        para_FeatureInvDepth[feature_index],
                 };
                 ResidualBlockInfo residual_block_info(cost_function, loss_function, parameter_blocks, drop_set);
                 marginal_info->addResidualBlockInfo(residual_block_info);

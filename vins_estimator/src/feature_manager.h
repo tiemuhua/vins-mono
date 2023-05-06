@@ -55,13 +55,13 @@ public:
 
     vector<pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r);
 
-    void setDepth(const VectorXd &x);
+    void setInvDepth(const VectorXd &x);
 
     void removeFailures();
 
     void clearDepth();
 
-    VectorXd getDepthVector();
+    VectorXd getInvDepthVector();
 
     void triangulate(const PosWindow pos_window, const RotWindow rot_window, const Vector3d& tic, const Matrix3d &ric);
 
