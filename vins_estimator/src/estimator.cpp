@@ -60,7 +60,7 @@ void Estimator::clearState() {
     first_imu = false,
     sum_of_back = 0;
     sum_of_front = 0;
-    frame_count = 0;
+    frame_count_ = 0;
     initial_timestamp_ = 0;
     all_image_frame.clear();
     td = TD;
@@ -86,14 +86,14 @@ void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) 
         gyr_0 = gyr;
     }
 
-    if (!pre_integrate_window[frame_count]) {
-        pre_integrate_window[frame_count] = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
+    if (!pre_integrate_window[frame_count_]) {
+        pre_integrate_window[frame_count_] = new PreIntegration{acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]};
     }
-    if (frame_count != 0) {
-        pre_integrate_window[frame_count]->predict(dt, acc, gyr);
+    if (frame_count_ != 0) {
+        pre_integrate_window[frame_count_]->predict(dt, acc, gyr);
         tmp_pre_integration->predict(dt, acc, gyr);
 
-        int j = frame_count;
+        int j = frame_count_;
         Vector3d un_acc_0 = rot_window[j] * (acc_0 - ba_window[j]) - g;
         Vector3d un_gyr = 0.5 * (gyr_0 + gyr) - bg_window[j];
         rot_window[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
@@ -120,24 +120,24 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         feature_points.emplace_back(std::move(point));
     }
 
-    bool is_key_frame = feature_manager_.addFeatureCheckParallax(frame_count, feature_points, td);
+    bool is_key_frame = feature_manager_.addFeatureCheckParallax(frame_count_, feature_points, td);
 
     LOG_D("is key frame:%d, Solving %d, number of feature: %d",
-          is_key_frame, frame_count, feature_manager_.getFeatureCount());
-    time_stamp_window[frame_count] = time_stamp;
+          is_key_frame, frame_count_, feature_manager_.getFeatureCount());
+    time_stamp_window[frame_count_] = time_stamp;
 
     ImageFrame image_frame(std::move(feature_points), time_stamp);
     image_frame.pre_integration = tmp_pre_integration;
     all_image_frame.emplace_back(image_frame);
-    tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count], bg_window[frame_count]};
+    tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]};
 
     if (estimate_extrinsic_state == EstimateExtrinsicInitiating) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
-        if (frame_count != 0) {
+        if (frame_count_ != 0) {
             vector<pair<cv::Point2f, cv::Point2f>> correspondences =
-                    feature_manager_.getCorresponding(frame_count - 1, frame_count);
+                    feature_manager_.getCorresponding(frame_count_ - 1, frame_count_);
             Matrix3d calib_ric;
-            if (initial_ex_rotation.CalibrationExRotation(correspondences, pre_integrate_window[frame_count]->DeltaQuat(), calib_ric)) {
+            if (initial_ex_rotation.CalibrationExRotation(correspondences, pre_integrate_window[frame_count_]->DeltaQuat(), calib_ric)) {
                 LOG_I("initial extrinsic rotation calib success");
                 RIC = calib_ric;
                 estimate_extrinsic_state = EstimateExtrinsicInitiated;
@@ -145,8 +145,8 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         }
     }
 
-    if (frame_count < WINDOW_SIZE) {
-        frame_count++;
+    if (frame_count_ < WINDOW_SIZE) {
+        frame_count_++;
         return;
     }
 
@@ -240,9 +240,9 @@ bool Estimator::initialStructure() {
         LOG_I("Not enough features or parallax; Move device around");
         return false;
     }
-    Quaterniond Q[frame_count + 1];
-    Vector3d T[frame_count + 1];
-    if (!GlobalSFM::construct(frame_count + 1, Q, T, l, relative_R, relative_T, sfm_features, sfm_tracked_points)) {
+    Quaterniond Q[frame_count_ + 1];
+    Vector3d T[frame_count_ + 1];
+    if (!GlobalSFM::construct(frame_count_ + 1, Q, T, l, relative_R, relative_T, sfm_features, sfm_tracked_points)) {
         LOG_D("global SFM failed!");
         return false;
     }
@@ -310,7 +310,7 @@ bool Estimator::visualInitialAlign() {
     }
 
     // change state
-    for (int i = 0; i <= frame_count; i++) {
+    for (int i = 0; i <= frame_count_; i++) {
         Matrix3d Ri = all_image_frame[i].R;
         Vector3d Pi = all_image_frame[i].T;
         pos_window[i] = Pi;
@@ -327,7 +327,7 @@ bool Estimator::visualInitialAlign() {
     for (int i = 0; i <= WINDOW_SIZE; i++) {
         pre_integrate_window[i]->rePrediction(Vector3d::Zero(), bg_window[i]);
     }
-    for (int i = frame_count; i >= 0; i--)
+    for (int i = frame_count_; i >= 0; i--)
         pos_window[i] = s * pos_window[i] - rot_window[i] * TIC[0] - (s * pos_window[0] - rot_window[0] * TIC[0]);
     int kv = -1;
     for (const ImageFrame &frame:all_image_frame) {
@@ -348,7 +348,7 @@ bool Estimator::visualInitialAlign() {
     R0 = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
     g = R0 * g;
     Matrix3d rot_diff = R0;
-    for (int i = 0; i <= frame_count; i++) {
+    for (int i = 0; i <= frame_count_; i++) {
         pos_window[i] = rot_diff * pos_window[i];
         rot_window[i] = rot_diff * rot_window[i];
         vec_window[i] = rot_diff * vec_window[i];
@@ -710,7 +710,7 @@ void Estimator::marginOld() {
 }
 
 void Estimator::slideWindow(bool is_key_frame) {
-    assert(frame_count == WINDOW_SIZE);
+    assert(frame_count_ == WINDOW_SIZE);
     if (is_key_frame) {
         double t_0 = time_stamp_window[0];
         for (int i = 0; i < WINDOW_SIZE; i++) {

@@ -80,7 +80,7 @@ private:
 
     Vector3d acc_0, gyr_0;
 
-    int frame_count{};
+    int frame_count_{};
     int sum_of_back{}, sum_of_front{};
 
     FeatureManager feature_manager_;
