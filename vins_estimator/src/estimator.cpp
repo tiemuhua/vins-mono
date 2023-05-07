@@ -328,7 +328,7 @@ bool Estimator::visualInitialAlign() {
         pre_integrate_window[i]->rePrediction(Vector3d::Zero(), bg_window[i]);
     }
     for (int i = frame_count_; i >= 0; i--)
-        pos_window[i] = s * pos_window[i] - rot_window[i] * TIC[0] - (s * pos_window[0] - rot_window[0] * TIC[0]);
+        pos_window[i] = s * pos_window[i] - rot_window[i] * TIC - (s * pos_window[0] - rot_window[0] * TIC);
     int kv = -1;
     for (const ImageFrame &frame:all_image_frame) {
         if (frame.is_key_frame) {
