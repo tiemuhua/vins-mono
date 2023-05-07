@@ -101,13 +101,13 @@ public:
         residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
         return residuals;
     }
-    Eigen::Vector3d DeltaPos() {
+    Eigen::Vector3d DeltaPos() const {
         return pre_pos;
     }
-    Eigen::Vector3d DeltaVel() {
+    Eigen::Vector3d DeltaVel() const {
         return pre_vel;
     }
-    Eigen::Quaterniond DeltaQuat() {
+    Eigen::Quaterniond DeltaQuat() const {
         return pre_quat;
     }
     double sum_dt = 0.0;

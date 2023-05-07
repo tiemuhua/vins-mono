@@ -15,18 +15,15 @@ class ImageFrame {
 public:
     ImageFrame() = delete;
 
-    ImageFrame(std::vector<FeaturePoint> _points, double _t):
+    ImageFrame(std::vector<FeaturePoint> _points, double _t, PreIntegration pre_integrate_):
             points{std::move(_points)},
-            t{_t}{};
-    ~ImageFrame() {
-        delete pre_integration;
-        pre_integration = nullptr;
-    }
+            t{_t},
+            pre_integrate_(std::move(pre_integrate_)){};
     std::vector<FeaturePoint> points;
     double t{};
     Matrix3d R;
     Vector3d T;
-    PreIntegration *pre_integration{};
+    PreIntegration pre_integrate_;
     bool is_key_frame = false;
 };
 

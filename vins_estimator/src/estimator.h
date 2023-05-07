@@ -106,7 +106,6 @@ private:
     std::unordered_map<double*, double *> margin_2nd_new_addr_shift_;
 
     vector<ImageFrame> all_image_frame;
-    PreIntegration *tmp_pre_integration{};
 
     //re-localization variable
     bool is_re_localization_{};

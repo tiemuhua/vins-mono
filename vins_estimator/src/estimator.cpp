@@ -65,11 +65,7 @@ void Estimator::clearState() {
     all_image_frame.clear();
     td = TD;
 
-
-    delete tmp_pre_integration;
     delete last_marginal_info_;
-
-    tmp_pre_integration = nullptr;
     last_marginal_info_ = nullptr;
     last_marginal_param_blocks_.clear();
 
@@ -80,30 +76,13 @@ void Estimator::clearState() {
 }
 
 void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) {
-    if (!first_imu) {
-        first_imu = true;
-        acc_0 = acc;
-        gyr_0 = gyr;
-    }
-
-    if (!pre_integrate_window[frame_count_]) {
-        pre_integrate_window[frame_count_] = new PreIntegration{acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]};
-    }
-    if (frame_count_ != 0) {
-        pre_integrate_window[frame_count_]->predict(dt, acc, gyr);
-        tmp_pre_integration->predict(dt, acc, gyr);
-
-        int j = frame_count_;
-        Vector3d un_acc_0 = rot_window[j] * (acc_0 - ba_window[j]) - g;
-        Vector3d un_gyr = 0.5 * (gyr_0 + gyr) - bg_window[j];
-        rot_window[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
-        Vector3d un_acc_1 = rot_window[j] * (acc - ba_window[j]) - g;
-        Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
-        pos_window[j] += dt * vec_window[j] + 0.5 * dt * dt * un_acc;
-        vec_window[j] += dt * un_acc;
-    }
+    first_imu = true;
     acc_0 = acc;
     gyr_0 = gyr;
+    if (all_image_frame.empty()) {
+        return;
+    }
+    all_image_frame.back().pre_integrate_.predict(dt, acc, gyr);
 }
 
 void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
@@ -126,10 +105,9 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
           is_key_frame, frame_count_, feature_manager_.getFeatureCount());
     time_stamp_window[frame_count_] = time_stamp;
 
-    ImageFrame image_frame(std::move(feature_points), time_stamp);
-    image_frame.pre_integration = tmp_pre_integration;
+    PreIntegration pre_int(acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]);
+    ImageFrame image_frame(std::move(feature_points), time_stamp, std::move(pre_int));
     all_image_frame.emplace_back(image_frame);
-    tmp_pre_integration = new PreIntegration{acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]};
 
     if (estimate_extrinsic_state == EstimateExtrinsicInitiating) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
@@ -203,15 +181,15 @@ bool Estimator::initialStructure() {
     Vector3d sum_acc;
     // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
     for (const ImageFrame &frame: all_image_frame) {
-        double dt = frame.pre_integration->sum_dt;
-        Vector3d tmp_acc = frame.pre_integration->DeltaVel() / dt;
+        double dt = frame.pre_integrate_.sum_dt;
+        Vector3d tmp_acc = frame.pre_integrate_.DeltaVel() / dt;
         sum_acc += tmp_acc;
     }
     Vector3d avg_acc = sum_acc / (double )all_image_frame.size();
     double var = 0;
     for (const ImageFrame &frame:all_image_frame) {
-        double dt = frame.pre_integration->sum_dt;
-        Vector3d tmp_acc = frame.pre_integration->DeltaVel() / dt;
+        double dt = frame.pre_integrate_.sum_dt;
+        Vector3d tmp_acc = frame.pre_integrate_.DeltaVel() / dt;
         var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
     }
     var = sqrt(var / (double )all_image_frame.size());
@@ -312,7 +290,7 @@ bool Estimator::visualInitialAlign() {
 
     for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
         auto frame_j = next(frame_i);
-        frame_j->pre_integration->rePrediction(Vector3d::Zero(), delta_bg);
+        frame_j->pre_integrate_.rePrediction(Vector3d::Zero(), delta_bg);
     }
 
     if (!LinearAlignment(all_image_frame, g)) {
