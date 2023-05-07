@@ -30,4 +30,6 @@ public:
     bool is_key_frame = false;
 };
 
-bool VisualIMUAlignment(const vector<ImageFrame> &all_image_frame, BgWindow Bgs, Vector3d &g, VectorXd &x);
+Vector3d solveGyroscopeBias(const vector<ImageFrame> &all_image_frame);
+bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g);
+void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, double &s, VecWindow vel_window);

@@ -1,7 +1,7 @@
 #include "initial_alignment.h"
 #include "log.h"
 
-void solveGyroscopeBias(const vector<ImageFrame> &all_image_frame, BgWindow Bgs) {
+Vector3d solveGyroscopeBias(const vector<ImageFrame> &all_image_frame) {
     Matrix3d A = Matrix3d::Zero();
     Vector3d b = Vector3d::Zero();
     for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
@@ -17,14 +17,7 @@ void solveGyroscopeBias(const vector<ImageFrame> &all_image_frame, BgWindow Bgs)
         b += tmp_A.transpose() * tmp_b;
     }
     Vector3d delta_bg = A.ldlt().solve(b);
-
-    for (int i = 0; i <= WINDOW_SIZE; i++)
-        Bgs[i] += delta_bg;
-
-    for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
-        auto frame_j = next(frame_i);
-        frame_j->pre_integration->rePrediction(Vector3d::Zero(), Bgs[0]);
-    }
+    return delta_bg;
 }
 
 typedef Matrix<double, 6, 10> Matrix_6_10;
@@ -49,16 +42,16 @@ Matrix_3_2 TangentBasis(const Vector3d &g0) {
     return bc;
 }
 
-void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
-    Vector3d g0 = g.normalized() * G.norm();
-    Vector3d lx, ly;
+void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, double &s, VecWindow vel_window) {
+    g = g.normalized() * G.norm();
     int n_state = (int )all_image_frame.size() * 3 + 2 + 1;
 
     MatrixXd A = MatrixXd::Zero(n_state, n_state);
     VectorXd b = VectorXd::Zero(n_state);
+    VectorXd x = VectorXd::Zero(n_state);
 
     for (int iter = 0; iter < 4; iter++) {
-        Matrix_3_2 tangent_basis = TangentBasis(g0);
+        Matrix_3_2 tangent_basis = TangentBasis(g);
         int i = 0;
         for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++) {
             auto frame_j = next(frame_i);
@@ -74,12 +67,12 @@ void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, Vecto
             tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
             tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
             tmp_A.block<3, 1>(0, 8) = rot_i_inv * (frame_j->T - frame_i->T) / 100.0;
-            tmp_b.block<3, 1>(0, 0) = delta_pos_j + rot_i_inv * frame_j->R * TIC - TIC - rot_i_inv * dt2 / 2 * g0;
+            tmp_b.block<3, 1>(0, 0) = delta_pos_j + rot_i_inv * frame_j->R * TIC - TIC - rot_i_inv * dt2 / 2 * g;
 
             tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
             tmp_A.block<3, 3>(3, 3) = rot_i_inv * frame_j->R;
             tmp_A.block<3, 2>(3, 6) = rot_i_inv * dt * tangent_basis;
-            tmp_b.block<3, 1>(3, 0) = delta_vel_j - rot_i_inv * dt * Matrix3d::Identity() * g0;
+            tmp_b.block<3, 1>(3, 0) = delta_vel_j - rot_i_inv * dt * Matrix3d::Identity() * g;
 
             Matrix9d r_A = tmp_A.transpose() * tmp_A;
             Vector9d r_b = tmp_A.transpose() * tmp_b;
@@ -97,12 +90,15 @@ void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, Vecto
         b = b * 1000.0;
         x = A.ldlt().solve(b);
         Vector2d dg = x.segment<2>(n_state - 3);
-        g0 = (g0 + tangent_basis * dg).normalized() * G.norm();
+        g = (g + tangent_basis * dg).normalized() * G.norm();
     }
-    g = g0;
+    s = (x.tail<1>())(0) / 100.0;
+    for (int i = 0; i < all_image_frame.size(); ++i) {
+        vel_window[i] = all_image_frame[i].R * x.segment<3>(i * 3);
+    }
 }
 
-bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
+bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g) {
     int n_state = (int )all_image_frame.size() * 3 + 3 + 1;
 
     MatrixXd A = MatrixXd::Zero(n_state, n_state);
@@ -142,23 +138,17 @@ bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g, Vec
     }
     A = A * 1000.0;
     b = b * 1000.0;
-    x = A.ldlt().solve(b);
+    VectorXd x = A.ldlt().solve(b);
     double s = x(n_state - 1) / 100.0;
-    LOG_D("estimated scale: %f", s);
+    LOG_I("estimated scale: %f", s);
     g = x.segment<3>(n_state - 4);
-    if (fabs(g.norm() - G.norm()) > 1.0 || s < 0) {
+    if (fabs(g.norm() - G.norm()) > 1.0 || s < 1e-4) {
         LOG_E("fabs(g.norm() - G.norm()) > 1.0 || s < 0");
         return false;
     }
-
-    RefineGravity(all_image_frame, g, x);
-    s = (x.tail<1>())(0) / 100.0;
-    (x.tail<1>())(0) = s;
-    LOG_E("s:%lf", s);
-    return s > 0.0;
+    return true;
 }
 
 bool VisualIMUAlignment(const vector<ImageFrame> &all_image_frame, BgWindow Bgs, Vector3d &g, VectorXd &x) {
-    solveGyroscopeBias(all_image_frame, Bgs);
-    return LinearAlignment(all_image_frame, g, x);
+
 }

@@ -305,7 +305,22 @@ bool Estimator::initialStructure() {
 bool Estimator::visualInitialAlign() {
     TicToc t_g;
     VectorXd x;
-    if (!VisualIMUAlignment(all_image_frame, bg_window, g, x)) {
+
+    Vector3d delta_bg = solveGyroscopeBias(all_image_frame);
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+        bg_window[i] += delta_bg;
+
+    for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
+        auto frame_j = next(frame_i);
+        frame_j->pre_integration->rePrediction(Vector3d::Zero(), delta_bg);
+    }
+
+    if (!LinearAlignment(all_image_frame, g)) {
+        return false;
+    }
+    double s;
+    RefineGravity(all_image_frame, g, s, vec_window);
+    if (s < 1e-4) {
         return false;
     }
 
@@ -323,7 +338,6 @@ bool Estimator::visualInitialAlign() {
     //triangulate on cam pose , no tic
     feature_manager_.triangulate(pos_window, rot_window, Vector3d::Zero(), RIC);
 
-    double s = (x.tail<1>())(0);
     for (int i = 0; i <= WINDOW_SIZE; i++) {
         pre_integrate_window[i]->rePrediction(Vector3d::Zero(), bg_window[i]);
     }
@@ -345,9 +359,8 @@ bool Estimator::visualInitialAlign() {
 
     Matrix3d R0 = Utility::g2R(g);
     double yaw = Utility::R2ypr(R0 * rot_window[0]).x();
-    R0 = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
-    g = R0 * g;
-    Matrix3d rot_diff = R0;
+    Matrix3d rot_diff = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
+    g = rot_diff * g;
     for (int i = 0; i <= frame_count_; i++) {
         pos_window[i] = rot_diff * pos_window[i];
         rot_window[i] = rot_diff * rot_window[i];
