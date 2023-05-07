@@ -11,8 +11,8 @@ Vector3d solveGyroscopeBias(const vector<ImageFrame> &all_image_frame) {
         VectorXd tmp_b(3);
         tmp_b.setZero();
         Eigen::Quaterniond q_ij(frame_i->R.transpose() * frame_j->R);
-        tmp_A = frame_j->pre_integration->jacobian.template block<3, 3>(O_R, O_BG);
-        tmp_b = 2 * (frame_j->pre_integration->DeltaQuat().inverse() * q_ij).vec();
+        tmp_A = frame_j->pre_integrate_.jacobian.template block<3, 3>(O_R, O_BG);
+        tmp_b = 2 * (frame_j->pre_integrate_.DeltaQuat().inverse() * q_ij).vec();
         A += tmp_A.transpose() * tmp_A;
         b += tmp_A.transpose() * tmp_b;
     }
@@ -60,10 +60,10 @@ void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, doubl
             Vector6d tmp_b = Vector6d::Zero();
 
             Matrix3d rot_i_inv = frame_i->R.transpose();
-            double dt = frame_j->pre_integration->sum_dt;
+            double dt = frame_j->pre_integrate_.sum_dt;
             double dt2 = dt * dt;
-            Vector3d delta_pos_j = frame_j->pre_integration->DeltaPos();
-            Vector3d delta_vel_j = frame_j->pre_integration->DeltaVel();
+            Vector3d delta_pos_j = frame_j->pre_integrate_.DeltaPos();
+            Vector3d delta_vel_j = frame_j->pre_integrate_.DeltaVel();
             tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
             tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
             tmp_A.block<3, 1>(0, 8) = rot_i_inv * (frame_j->T - frame_i->T) / 100.0;
@@ -111,7 +111,7 @@ bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g) {
         Matrix_6_10 tmp_A = Matrix_6_10::Zero();
         Vector6d tmp_b =  Vector6d::Zero();
 
-        double dt = frame_j->pre_integration->sum_dt;
+        double dt = frame_j->pre_integrate_.sum_dt;
         Matrix3d R_i_inv = frame_i->R.transpose();
         Matrix3d R_j = frame_j->R;
 
@@ -121,8 +121,8 @@ bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g) {
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = R_i_inv * R_j;
         tmp_A.block<3, 3>(3, 6) = R_i_inv * dt;
-        tmp_b.block<3, 1>(0, 0) = frame_j->pre_integration->DeltaPos() + R_i_inv * R_j * TIC - TIC;
-        tmp_b.block<3, 1>(3, 0) = frame_j->pre_integration->DeltaVel();
+        tmp_b.block<3, 1>(0, 0) = frame_j->pre_integrate_.DeltaPos() + R_i_inv * R_j * TIC - TIC;
+        tmp_b.block<3, 1>(3, 0) = frame_j->pre_integrate_.DeltaVel();
 
         Matrix10d r_A = tmp_A.transpose() * tmp_A;
         Vector10d r_b = tmp_A.transpose() * tmp_b;
