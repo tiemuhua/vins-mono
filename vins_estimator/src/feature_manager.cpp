@@ -116,7 +116,7 @@ VectorXd FeatureManager::getInvDepthVector() {
     return dep_vec;
 }
 
-void FeatureManager::triangulate(const PosWindow pos_window, const RotWindow rot_window,
+void FeatureManager::triangulate(const PosWindow& pos_window, const RotWindow& rot_window,
                                  const Vector3d& tic, const Matrix3d &ric) {
     for (FeaturesOfId &it_per_id: features_) {
         if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))

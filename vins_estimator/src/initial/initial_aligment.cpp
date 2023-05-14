@@ -42,35 +42,43 @@ Matrix_3_2 TangentBasis(const Vector3d &g0) {
     return bc;
 }
 
-void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, double &s, VecWindow vel_window) {
+/**
+ * @param all_image_frame 所有图片
+ * @param g 标定后的重力加速度
+ * @param s 尺度
+ * @param vel todo坐标系下的速度，长度为todo
+ * */
+void RefineGravity(const vector<ImageFrame> &all_image_frame,
+                   Vector3d &g, double &s, std::vector<Vector3d> &vel) {
     g = g.normalized() * G.norm();
     int n_state = (int )all_image_frame.size() * 3 + 2 + 1;
 
     MatrixXd A = MatrixXd::Zero(n_state, n_state);
     VectorXd b = VectorXd::Zero(n_state);
     VectorXd x = VectorXd::Zero(n_state);
+    vel.resize(all_image_frame.size());
 
     for (int iter = 0; iter < 4; iter++) {
         Matrix_3_2 tangent_basis = TangentBasis(g);
-        int i = 0;
-        for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++) {
-            auto frame_j = next(frame_i);
+        for (int i = 0; i < (int) all_image_frame.size() - 1; ++i) {
+            const ImageFrame& frame_i = all_image_frame[i];
+            const ImageFrame& frame_j = all_image_frame[i + 1];
 
             Matrix_6_9 tmp_A = Matrix_6_9::Zero();
             Vector6d tmp_b = Vector6d::Zero();
 
-            Matrix3d rot_i_inv = frame_i->R.transpose();
-            double dt = frame_j->pre_integrate_.sum_dt;
+            Matrix3d rot_i_inv = frame_i.R.transpose();
+            double dt = frame_j.pre_integrate_.sum_dt;
             double dt2 = dt * dt;
-            Vector3d delta_pos_j = frame_j->pre_integrate_.DeltaPos();
-            Vector3d delta_vel_j = frame_j->pre_integrate_.DeltaVel();
+            Vector3d delta_pos_j = frame_j.pre_integrate_.DeltaPos();
+            Vector3d delta_vel_j = frame_j.pre_integrate_.DeltaVel();
             tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
             tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
-            tmp_A.block<3, 1>(0, 8) = rot_i_inv * (frame_j->T - frame_i->T) / 100.0;
-            tmp_b.block<3, 1>(0, 0) = delta_pos_j + rot_i_inv * frame_j->R * TIC - TIC - rot_i_inv * dt2 / 2 * g;
+            tmp_A.block<3, 1>(0, 8) = rot_i_inv * (frame_j.T - frame_i.T) / 100.0;
+            tmp_b.block<3, 1>(0, 0) = delta_pos_j + rot_i_inv * frame_j.R * TIC - TIC - rot_i_inv * dt2 / 2 * g;
 
             tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
-            tmp_A.block<3, 3>(3, 3) = rot_i_inv * frame_j->R;
+            tmp_A.block<3, 3>(3, 3) = rot_i_inv * frame_j.R;
             tmp_A.block<3, 2>(3, 6) = rot_i_inv * dt * tangent_basis;
             tmp_b.block<3, 1>(3, 0) = delta_vel_j - rot_i_inv * dt * Matrix3d::Identity() * g;
 
@@ -94,7 +102,7 @@ void RefineGravity(const vector<ImageFrame> &all_image_frame, Vector3d &g, doubl
     }
     s = (x.tail<1>())(0) / 100.0;
     for (int i = 0; i < all_image_frame.size(); ++i) {
-        vel_window[i] = all_image_frame[i].R * x.segment<3>(i * 3);
+        vel[i] = all_image_frame[i].R * x.segment<3>(i * 3);
     }
 }
 
@@ -104,25 +112,26 @@ bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g) {
     MatrixXd A = MatrixXd::Zero(n_state, n_state);
     VectorXd b = VectorXd::Zero(n_state);
 
-    int i = 0;
-    for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++) {
-        auto frame_j = next(frame_i);
+    for (int i = 0; i < (int) all_image_frame.size() - 1; ++i) {
+        const ImageFrame& frame_i = all_image_frame[i];
+        const ImageFrame& frame_j = all_image_frame[i + 1];
 
         Matrix_6_10 tmp_A = Matrix_6_10::Zero();
         Vector6d tmp_b =  Vector6d::Zero();
 
-        double dt = frame_j->pre_integrate_.sum_dt;
-        Matrix3d R_i_inv = frame_i->R.transpose();
-        Matrix3d R_j = frame_j->R;
+        // todo tiemuhuaguo frame_i的预积分才有意义，这里的公式需要重新推导
+        double dt = frame_j.pre_integrate_.sum_dt;
+        Matrix3d R_i_inv = frame_i.R.transpose();
+        Matrix3d R_j = frame_j.R;
 
         tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
         tmp_A.block<3, 3>(0, 6) = R_i_inv * dt * dt / 2;
-        tmp_A.block<3, 1>(0, 9) = R_i_inv * (frame_j->T - frame_i->T) / 100.0;
+        tmp_A.block<3, 1>(0, 9) = R_i_inv * (frame_j.T - frame_i.T) / 100.0;
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = R_i_inv * R_j;
         tmp_A.block<3, 3>(3, 6) = R_i_inv * dt;
-        tmp_b.block<3, 1>(0, 0) = frame_j->pre_integrate_.DeltaPos() + R_i_inv * R_j * TIC - TIC;
-        tmp_b.block<3, 1>(3, 0) = frame_j->pre_integrate_.DeltaVel();
+        tmp_b.block<3, 1>(0, 0) = frame_j.pre_integrate_.DeltaPos() + R_i_inv * R_j * TIC - TIC;
+        tmp_b.block<3, 1>(3, 0) = frame_j.pre_integrate_.DeltaVel();
 
         Matrix10d r_A = tmp_A.transpose() * tmp_A;
         Vector10d r_b = tmp_A.transpose() * tmp_b;
@@ -149,6 +158,65 @@ bool LinearAlignment(const vector<ImageFrame> &all_image_frame, Vector3d &g) {
     return true;
 }
 
-bool VisualIMUAlignment(const vector<ImageFrame> &all_image_frame, BgWindow Bgs, Vector3d &g, VectorXd &x) {
+bool visualInitialAlign(vector<ImageFrame> &all_image_frame_, Eigen::Vector3d& gravity_,
+                        int frame_count_, BgWindow &bg_window, PosWindow& pos_window, RotWindow &rot_window,
+                        VelWindow &vel_window, PreIntegrateWindow &pre_integrate_window,
+                        FeatureManager &feature_manager_) {
+    int frame_size = (int) all_image_frame_.size();
 
+    // todo solveGyroscopeBias求出来的是bg的值还是bg的变化值？
+    Vector3d delta_bg = solveGyroscopeBias(all_image_frame_);
+    for (int i = 0; i <= WINDOW_SIZE; i++)
+        bg_window[i] += delta_bg;
+
+    for (int i = 0; i < frame_size - 1; ++i) {
+        all_image_frame_[i].pre_integrate_.rePrediction(Vector3d::Zero(), delta_bg);
+    }
+
+    if (!LinearAlignment(all_image_frame_, gravity_)) {
+        return false;
+    }
+    double s;
+    std::vector<Eigen::Vector3d> velocities;
+    RefineGravity(all_image_frame_, gravity_, s, velocities);
+    if (s < 1e-4) {
+        return false;
+    }
+
+    Matrix3d R0 = std::find(all_image_frame_.begin(),
+                            all_image_frame_.end(),
+                            [](const ImageFrame& it){
+                                return it.is_key_frame_;
+                            })->R;
+    Matrix3d rot = Utility::g2R(gravity_);
+    Matrix3d rot_diff = Utility::R2ypr(rot * R0).inverse() * rot;
+    gravity_ = rot_diff * gravity_;
+    for (int frame_id = 0, key_frame_id = 0; frame_id < frame_size; frame_id++) {
+        if (!all_image_frame_[frame_id].is_key_frame_) {
+            continue;
+        }
+        pos_window[key_frame_id] = rot_diff * all_image_frame_[frame_id].R;
+        rot_window[key_frame_id] = rot_diff * all_image_frame_[frame_id].T;
+        vel_window[key_frame_id] = rot_diff * velocities[frame_id];
+        key_frame_id++;
+    }
+    for (int i = frame_count_; i >= 0; i--) {
+        pos_window[i] = s * pos_window[i] - rot_window[i] * TIC - (s * pos_window[0] - rot_window[0] * TIC);
+    }
+
+    for (int i = 0; i <= WINDOW_SIZE; i++) {
+        pre_integrate_window[i]->rePrediction(Vector3d::Zero(), bg_window[i]);
+    }
+
+    //triangulate on cam pose , no tic
+    feature_manager_.clearDepth();
+    feature_manager_.triangulate(pos_window, rot_window, Vector3d::Zero(), RIC);
+    for (FeaturesOfId &features_of_id: feature_manager_.features_) {
+        if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
+            continue;
+        }
+        features_of_id.estimated_depth *= s;
+    }
+
+    return true;
 }

@@ -63,7 +63,7 @@ public:
 
     VectorXd getInvDepthVector();
 
-    void triangulate(const PosWindow pos_window, const RotWindow rot_window, const Vector3d& tic, const Matrix3d &ric);
+    void triangulate(const PosWindow& pos_window, const RotWindow& rot_window, const Vector3d& tic, const Matrix3d &ric);
 
     void removeBackShiftDepth();
 

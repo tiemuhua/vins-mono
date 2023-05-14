@@ -45,7 +45,7 @@ void Estimator::clearState() {
     for (int i = 0; i < WINDOW_SIZE + 1; i++) {
         rot_window[i].setIdentity();
         pos_window[i].setZero();
-        vec_window[i].setZero();
+        vel_window[i].setZero();
         ba_window[i].setZero();
         bg_window[i].setZero();
 
@@ -62,7 +62,7 @@ void Estimator::clearState() {
     sum_of_front = 0;
     frame_count_ = 0;
     initial_timestamp_ = 0;
-    all_image_frame.clear();
+    all_image_frame_.clear();
     td = TD;
 
     delete last_marginal_info_;
@@ -79,10 +79,10 @@ void Estimator::processIMU(double dt, const Vector3d &acc, const Vector3d &gyr) 
     first_imu = true;
     acc_0 = acc;
     gyr_0 = gyr;
-    if (all_image_frame.empty()) {
+    if (all_image_frame_.empty()) {
         return;
     }
-    all_image_frame.back().pre_integrate_.predict(dt, acc, gyr);
+    all_image_frame_.back().pre_integrate_.predict(dt, acc, gyr);
 }
 
 void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
@@ -106,8 +106,11 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
     time_stamp_window[frame_count_] = time_stamp;
 
     PreIntegration pre_int(acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]);
-    ImageFrame image_frame(std::move(feature_points), time_stamp, std::move(pre_int));
-    all_image_frame.emplace_back(image_frame);
+    ImageFrame image_frame(std::move(feature_points),
+                           time_stamp,
+                           std::move(pre_int),
+                           is_key_frame);
+    all_image_frame_.emplace_back(std::move(image_frame));
 
     if (estimate_extrinsic_state == EstimateExtrinsicInitiating) {
         LOG_I("calibrating extrinsic param, rotation movement is needed");
@@ -132,6 +135,11 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         bool result = false;
         if (estimate_extrinsic_state != EstimateExtrinsicInitiating && (time_stamp - initial_timestamp_) > 0.1) {
             result = initialStructure();
+            if (result) {
+                result = visualInitialAlign(all_image_frame_, gravity_, frame_count_,
+                                            bg_window, pos_window, rot_window,vel_window, pre_integrate_window,
+                                            feature_manager_);
+            }
             initial_timestamp_ = time_stamp;
         }
         if (!result) {
@@ -180,19 +188,19 @@ bool Estimator::initialStructure() {
     //check imu observability
     Vector3d sum_acc;
     // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
-    for (const ImageFrame &frame: all_image_frame) {
+    for (const ImageFrame &frame: all_image_frame_) {
         double dt = frame.pre_integrate_.sum_dt;
         Vector3d tmp_acc = frame.pre_integrate_.DeltaVel() / dt;
         sum_acc += tmp_acc;
     }
-    Vector3d avg_acc = sum_acc / (double )all_image_frame.size();
+    Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
     double var = 0;
-    for (const ImageFrame &frame:all_image_frame) {
+    for (const ImageFrame &frame:all_image_frame_) {
         double dt = frame.pre_integrate_.sum_dt;
         Vector3d tmp_acc = frame.pre_integrate_.DeltaVel() / dt;
         var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
     }
-    var = sqrt(var / (double )all_image_frame.size());
+    var = sqrt(var / (double )all_image_frame_.size());
     if (var < 0.25) {
         LOG_E("IMU excitation not enough!");
         return false;
@@ -227,11 +235,11 @@ bool Estimator::initialStructure() {
 
     //solve pnp for all frame
     int i = 0;
-    for (ImageFrame &frame:all_image_frame) {
+    for (ImageFrame &frame:all_image_frame_) {
         // provide initial guess
         cv::Mat r, rvec, t, D, tmp_r;
         if (frame.t == time_stamp_window[i]) {
-            frame.is_key_frame = true;
+            frame.is_key_frame_ = true;
             frame.R = Q[i].toRotationMatrix() * RIC.transpose();
             frame.T = T[i];
             i++;
@@ -246,14 +254,14 @@ bool Estimator::initialStructure() {
         cv::Rodrigues(tmp_r, rvec);
         cv::eigen2cv(P_initial, t);
 
-        frame.is_key_frame = false;
+        frame.is_key_frame_ = false;
         vector<cv::Point3f> pts_3_vector;
         vector<cv::Point2f> pts_2_vector;
         for (const FeaturePoint &point:frame.points) {
             int feature_id = point.feature_id;
-            auto it = sfm_tracked_points.find(feature_id);
-            Vector3d world_pts = it->second;
+            const auto it = sfm_tracked_points.find(feature_id);
             if (it != sfm_tracked_points.end()) {
+                Vector3d world_pts = it->second;
                 pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
                 pts_2_vector.emplace_back(point.unified_point);
             }
@@ -277,74 +285,6 @@ bool Estimator::initialStructure() {
         frame.T = R_pnp * (-T_pnp);
         frame.R = R_pnp * RIC.transpose();
     }
-    return visualInitialAlign();
-}
-
-bool Estimator::visualInitialAlign() {
-    TicToc t_g;
-    VectorXd x;
-
-    Vector3d delta_bg = solveGyroscopeBias(all_image_frame);
-    for (int i = 0; i <= WINDOW_SIZE; i++)
-        bg_window[i] += delta_bg;
-
-    for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
-        auto frame_j = next(frame_i);
-        frame_j->pre_integrate_.rePrediction(Vector3d::Zero(), delta_bg);
-    }
-
-    if (!LinearAlignment(all_image_frame, g)) {
-        return false;
-    }
-    double s;
-    RefineGravity(all_image_frame, g, s, vec_window);
-    if (s < 1e-4) {
-        return false;
-    }
-
-    // change state
-    for (int i = 0; i <= frame_count_; i++) {
-        Matrix3d Ri = all_image_frame[i].R;
-        Vector3d Pi = all_image_frame[i].T;
-        pos_window[i] = Pi;
-        rot_window[i] = Ri;
-        all_image_frame[i].is_key_frame = true;
-    }
-
-    feature_manager_.clearDepth();
-
-    //triangulate on cam pose , no tic
-    feature_manager_.triangulate(pos_window, rot_window, Vector3d::Zero(), RIC);
-
-    for (int i = 0; i <= WINDOW_SIZE; i++) {
-        pre_integrate_window[i]->rePrediction(Vector3d::Zero(), bg_window[i]);
-    }
-    for (int i = frame_count_; i >= 0; i--)
-        pos_window[i] = s * pos_window[i] - rot_window[i] * TIC - (s * pos_window[0] - rot_window[0] * TIC);
-    int kv = -1;
-    for (const ImageFrame &frame:all_image_frame) {
-        if (frame.is_key_frame) {
-            kv++;
-            vec_window[kv] = frame.R * x.segment<3>(kv * 3);
-        }
-    }
-    for (FeaturesOfId &features_of_id: feature_manager_.features_) {
-        if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
-            continue;
-        }
-        features_of_id.estimated_depth *= s;
-    }
-
-    Matrix3d R0 = Utility::g2R(g);
-    double yaw = Utility::R2ypr(R0 * rot_window[0]).x();
-    Matrix3d rot_diff = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
-    g = rot_diff * g;
-    for (int i = 0; i <= frame_count_; i++) {
-        pos_window[i] = rot_diff * pos_window[i];
-        rot_window[i] = rot_diff * rot_window[i];
-        vec_window[i] = rot_diff * vec_window[i];
-    }
-
     return true;
 }
 
@@ -390,7 +330,7 @@ void EigenVector3d2Double(const Vector3d& t, double arr[3]) {
 void Estimator::vector2double() {
     for (int i = 0; i <= WINDOW_SIZE; i++) {
         EigenPose2Double(pos_window[i], rot_window[i], para_Pose[i]);
-        EigenVector3d2Double(vec_window[i], para_Velocity[i]);
+        EigenVector3d2Double(vel_window[i], para_Velocity[i]);
         EigenVector3d2Double(ba_window[i], para_AccBias[i]);
         EigenVector3d2Double(bg_window[i], para_GyrBias[i]);
     }
@@ -430,7 +370,7 @@ void Estimator::double2vector() {
     for (int i = 0; i <= WINDOW_SIZE; i++) {
         rot_window[i] = rot_diff * Pose2Mat(para_Pose[i]);
         pos_window[i] = rot_diff * (Pose2Vec3(para_Pose[i]) - Pose2Vec3(para_Pose[0])) + origin_P0;
-        vec_window[i] = rot_diff * Pose2Vec3(para_Velocity[i]);
+        vel_window[i] = rot_diff * Pose2Vec3(para_Velocity[i]);
         ba_window[i] = Pose2Vec3(para_AccBias[i]);
         bg_window[i] = Pose2Vec3(para_GyrBias[i]);
     }
@@ -709,16 +649,16 @@ void Estimator::slideWindow(bool is_key_frame) {
             std::swap(pre_integrate_window[i], pre_integrate_window[i + 1]);
             time_stamp_window[i] = time_stamp_window[i + 1];
             pos_window[i].swap(pos_window[i + 1]);
-            vec_window[i].swap(vec_window[i + 1]);
+            vel_window[i].swap(vel_window[i + 1]);
             ba_window[i].swap(ba_window[i + 1]);
             bg_window[i].swap(bg_window[i + 1]);
         }
 
-        auto it = std::find(all_image_frame.begin(), all_image_frame.end(), [t_0](const ImageFrame&it)->bool {
+        auto it = std::find(all_image_frame_.begin(), all_image_frame_.end(), [t_0](const ImageFrame&it)->bool {
             return it.t == t_0;
         });
-        vector<ImageFrame> tmp_all_image_frame(it++, all_image_frame.end());
-        all_image_frame = std::move(tmp_all_image_frame);
+        vector<ImageFrame> tmp_all_image_frame(it++, all_image_frame_.end());
+        all_image_frame_ = std::move(tmp_all_image_frame);
         sum_of_back++;
         bool shift_depth = has_initiated_;
         feature_manager_.removeBackShiftDepth(); // todo 只有初始化成功后才remove吗
@@ -735,7 +675,7 @@ void Estimator::slideWindow(bool is_key_frame) {
 
     time_stamp_window[WINDOW_SIZE] = time_stamp_window[WINDOW_SIZE - 1];
     pos_window[WINDOW_SIZE] = pos_window[WINDOW_SIZE - 1];
-    vec_window[WINDOW_SIZE] = vec_window[WINDOW_SIZE - 1];
+    vel_window[WINDOW_SIZE] = vel_window[WINDOW_SIZE - 1];
     rot_window[WINDOW_SIZE] = rot_window[WINDOW_SIZE - 1];
     ba_window[WINDOW_SIZE] = ba_window[WINDOW_SIZE - 1];
     bg_window[WINDOW_SIZE] = bg_window[WINDOW_SIZE - 1];

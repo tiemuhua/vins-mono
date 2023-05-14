@@ -67,6 +67,7 @@ public:
     }
 
     static Eigen::Vector3d R2ypr(const Eigen::Matrix3d &R) {
+//        return R.eulerAngles(0,1,2); todo tiemuhua 优先使用已有的eigen函数
         Eigen::Vector3d n = R.col(0);
         Eigen::Vector3d o = R.col(1);
         Eigen::Vector3d a = R.col(2);

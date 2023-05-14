@@ -44,8 +44,6 @@ private:
 
     bool initialStructure();
 
-    bool visualInitialAlign();
-
     bool relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l);
 
     void slideWindow(bool is_key_frame);
@@ -63,10 +61,10 @@ private:
     void marginOld();
 
     bool has_initiated_ = false;
-    Vector3d g;
+    Vector3d gravity_;
 
     PosWindow pos_window;
-    VecWindow vec_window;
+    VelWindow vel_window;
     RotWindow rot_window;
     BaWindow ba_window;
     BgWindow bg_window;
@@ -105,7 +103,7 @@ private:
     std::unordered_map<double*, double *> margin_old_addr_shift_;
     std::unordered_map<double*, double *> margin_2nd_new_addr_shift_;
 
-    vector<ImageFrame> all_image_frame;
+    vector<ImageFrame> all_image_frame_;
 
     //re-localization variable
     bool is_re_localization_{};

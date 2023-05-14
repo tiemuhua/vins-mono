@@ -8,22 +8,19 @@
 #include <fstream>
 
 const double FOCAL_LENGTH = 460.0;
-const int WINDOW_SIZE = 10;
-const int NUM_OF_CAM = 1;
+constexpr int WINDOW_SIZE = 10;
 const int FEATURE_SIZE = 1000;
 #define UNIT_SPHERE_ERROR
 
-typedef Eigen::Vector3d PosWindow[WINDOW_SIZE + 1];
-typedef Eigen::Vector3d VecWindow[WINDOW_SIZE + 1];
-typedef Eigen::Matrix3d RotWindow[WINDOW_SIZE + 1];
-typedef Eigen::Vector3d BaWindow[WINDOW_SIZE + 1];
-typedef Eigen::Vector3d BgWindow[WINDOW_SIZE + 1];
 class PreIntegration;
-typedef PreIntegration* PreIntegrateWindow[WINDOW_SIZE + 1];
-typedef double TimeStampWindow[WINDOW_SIZE + 1];
-typedef std::vector<double> DtBufWindow[WINDOW_SIZE + 1];
-typedef std::vector<Eigen::Vector3d> AccBufWindow[WINDOW_SIZE + 1];
-typedef std::vector<Eigen::Vector3d> GyrBufWindow[WINDOW_SIZE + 1];
+typedef std::array<PreIntegration*, WINDOW_SIZE + 1> PreIntegrateWindow;
+typedef std::array<double, WINDOW_SIZE + 1> TimeStampWindow;
+typedef std::array<Eigen::Vector3d, WINDOW_SIZE + 1> BaWindow;
+typedef std::array<Eigen::Vector3d, WINDOW_SIZE + 1> BgWindow;
+typedef std::array<Eigen::Vector3d, WINDOW_SIZE + 1> PosWindow;
+typedef std::array<Eigen::Vector3d, WINDOW_SIZE + 1> VelWindow;
+typedef std::array<Eigen::Matrix3d, WINDOW_SIZE + 1> RotWindow;
+typedef std::array<Eigen::Matrix3d, WINDOW_SIZE + 1> RotWindow;
 
 extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
