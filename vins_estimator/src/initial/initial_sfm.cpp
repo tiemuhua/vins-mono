@@ -1,18 +1,15 @@
 #include "initial_sfm.h"
 
-void triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 3, 4> &Pose1,
-                      cv::Point2f &point0, cv::Point2f &point1, Vector3d &point_3d) {
+Vector3d triangulatePoint(const Eigen::Matrix<double, 3, 4> &Pose0, const Eigen::Matrix<double, 3, 4> &Pose1,
+                          const cv::Point2f &point0, const cv::Point2f &point1) {
     Matrix4d design_matrix = Matrix4d::Zero();
     design_matrix.row(0) = point0.x * Pose0.row(2) - Pose0.row(0);
     design_matrix.row(1) = point0.y * Pose0.row(2) - Pose0.row(1);
     design_matrix.row(2) = point1.x * Pose1.row(2) - Pose1.row(0);
     design_matrix.row(3) = point1.y * Pose1.row(2) - Pose1.row(1);
-    Vector4d triangulated_point;
-    triangulated_point =
+    Vector4d triangulated_point =
             design_matrix.jacobiSvd(Eigen::ComputeFullV).matrixV().rightCols<1>();
-    point_3d(0) = triangulated_point(0) / triangulated_point(3);
-    point_3d(1) = triangulated_point(1) / triangulated_point(3);
-    point_3d(2) = triangulated_point(2) / triangulated_point(3);
+    return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
 }
 
 
@@ -79,8 +76,7 @@ void triangulateTwoFrames(int frame0, Eigen::Matrix<double, 3, 4> &Pose0,
             }
         }
         if (has_0 && has_1) {
-            Vector3d point_3d;
-            triangulatePoint(Pose0, Pose1, point0, point1, point_3d);
+            Vector3d point_3d = triangulatePoint(Pose0, Pose1, point0, point1);
             sfm.state = true;
             sfm.position[0] = point_3d(0);
             sfm.position[1] = point_3d(1);
@@ -175,8 +171,7 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
             cv::Point2f point0 = sfm.observation[0].second;
             int frame_1 = sfm.observation.back().first;
             cv::Point2f point1 = sfm.observation.back().second;
-            Vector3d point_3d;
-            triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1, point_3d);
+            Vector3d point_3d = triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1);
             sfm.state = true;
             sfm.position[0] = point_3d(0);
             sfm.position[1] = point_3d(1);
