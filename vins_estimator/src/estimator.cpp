@@ -104,7 +104,7 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
           is_key_frame, frame_count_, feature_manager_.getFeatureCount());
     time_stamp_window[frame_count_] = time_stamp;
 
-    PreIntegration pre_int(acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]);
+    PreIntegration pre_int(time_stamp, acc_0, gyr_0, ba_window[frame_count_], bg_window[frame_count_]);
     ImageFrame image_frame(std::move(feature_points),
                            time_stamp,
                            std::move(pre_int),

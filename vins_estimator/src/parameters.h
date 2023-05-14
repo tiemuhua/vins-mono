@@ -60,18 +60,3 @@ typedef double GyrBias[3];
 typedef double Velocity[3];
 typedef double FeatureDepth[1];
 typedef double Td[1];
-
-enum StateOrder {
-    O_P = 0,
-    O_R = 3,
-    O_V = 6,
-    O_BA = 9,
-    O_BG = 12
-};
-
-enum NoiseOrder {
-    O_AN = 0,
-    O_GN = 3,
-    O_AW = 6,
-    O_GW = 9
-};

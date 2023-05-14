@@ -14,5 +14,3 @@ public:
     static bool solveRelativeRT(const vector<pair<cv::Point2f , cv::Point2f>> &correspondences,
                                 Matrix3d &Rotation, Vector3d &Translation);
 };
-
-
