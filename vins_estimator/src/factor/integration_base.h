@@ -14,13 +14,13 @@ public:
 
     PreIntegration() = delete;
 
-    PreIntegration(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr,
+    PreIntegration(const double time_stamp, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr,
                    Eigen::Vector3d _ba, Eigen::Vector3d _bg):
             ba_{std::move(_ba)},
             bg_{std::move(_bg)} {
         acc_buf.emplace_back(acc);
         gyr_buf.emplace_back(gyr);
-        dt_buf.emplace_back(0);
+        time_stamp_buf.emplace_back(time_stamp);
 
         noise.block<3, 3>(0, 0) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(3, 3) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
@@ -30,19 +30,19 @@ public:
         noise.block<3, 3>(15, 15) = (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
     }
 
-    void predict(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr) {
+    void predict(double time_stamp, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr) {
         Eigen::Vector3d cur_pos = Eigen::Vector3d::Zero();
         Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
         Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
 
-        midPointIntegration(dt, acc_buf.back(), gyr_buf.back(), acc, gyr,
+        midPointIntegration(time_stamp_buf.back(), acc_buf.back(), gyr_buf.back(),
+                            time_stamp, acc, gyr,
                             pre_pos, pre_quat, pre_vel, ba_, bg_,
                             cur_pos, cur_quat, cur_vel, jacobian, covariance, noise);
 
-        dt_buf.push_back(dt);
+        time_stamp_buf.push_back(time_stamp);
         acc_buf.push_back(acc);
         gyr_buf.push_back(gyr);
-        sum_dt += dt;
 
         pre_pos = cur_pos;
         pre_quat = cur_quat;
@@ -62,8 +62,9 @@ public:
         Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
         Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
 
-        for (int i = 1; i < static_cast<int>(dt_buf.size()); i++) {
-            midPointIntegration(dt_buf[i], acc_buf[i-1], gyr_buf[i-1], acc_buf[i], gyr_buf[i],
+        for (int i = 1; i < static_cast<int>(time_stamp_buf.size()); i++) {
+            midPointIntegration(time_stamp_buf[i-1], acc_buf[i-1], gyr_buf[i-1],
+                                time_stamp_buf[i], acc_buf[i], gyr_buf[i],
                                 pre_pos, pre_quat, pre_vel, ba_, bg_,
                                 cur_pos, cur_quat, cur_vel, jacobian, covariance, noise);
             pre_pos = cur_pos;
@@ -93,6 +94,7 @@ public:
         Eigen::Vector3d corrected_pos = pre_pos + dp_dba * dba + dp_dbg * dbg;
 
         Eigen::Matrix<double, 15, 1> residuals;
+        sum_dt = time_stamp_buf.back() - time_stamp_buf.front();
         residuals.block<3, 1>(O_P, 0) =
                 Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_pos;
         residuals.block<3, 1>(O_R, 0) = 2 * (corrected_quat.inverse() * (Qi.inverse() * Qj)).vec();
@@ -101,13 +103,13 @@ public:
         residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
         return residuals;
     }
-    Eigen::Vector3d DeltaPos() const {
+    [[nodiscard]] Eigen::Vector3d DeltaPos() const {
         return pre_pos;
     }
-    Eigen::Vector3d DeltaVel() const {
+    [[nodiscard]] Eigen::Vector3d DeltaVel() const {
         return pre_vel;
     }
-    Eigen::Quaterniond DeltaQuat() const {
+    [[nodiscard]] Eigen::Quaterniond DeltaQuat() const {
         return pre_quat;
     }
     double sum_dt = 0.0;
@@ -115,7 +117,7 @@ public:
     Covariance covariance = Covariance::Zero();
     Noise noise = Noise::Zero();
 
-    std::vector<double> dt_buf;
+    std::vector<double> time_stamp_buf;
     std::vector<Eigen::Vector3d> acc_buf;
     std::vector<Eigen::Vector3d> gyr_buf;
 
@@ -128,12 +130,13 @@ private:
         return mat;
     }
 
-    static void midPointIntegration(double dt, const Eigen::Vector3d &pre_acc, const Eigen::Vector3d &pre_gyr,
-                                    const Eigen::Vector3d &cur_acc, const Eigen::Vector3d &cur_gyr,
+    static void midPointIntegration(double pre_time_stamp, const Eigen::Vector3d &pre_acc, const Eigen::Vector3d &pre_gyr,
+                                    double cur_time_stamp, const Eigen::Vector3d &cur_acc, const Eigen::Vector3d &cur_gyr,
                                     const Eigen::Vector3d &pre_pos, const Eigen::Quaterniond &pre_quat, const Eigen::Vector3d &pre_vel,
                                     const Eigen::Vector3d &ba, const Eigen::Vector3d &bg,
                                     Eigen::Vector3d &cur_pos, Eigen::Quaterniond &cur_quat, Eigen::Vector3d &cur_vel,
                                     Jacobian &jacobian, Covariance &covariance, Noise &noise) {
+        double dt = cur_time_stamp - pre_time_stamp;
         const double dt2 = dt * dt;
         const double dt3 = dt2 * dt;
 
