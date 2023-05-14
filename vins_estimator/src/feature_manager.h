@@ -20,7 +20,6 @@ struct FeaturePoint {
     cv::Point2f unified_point;
     cv::Point2f point_velocity;
     int feature_id;
-    double cur_td;
 };
 
 class FeaturesOfId {

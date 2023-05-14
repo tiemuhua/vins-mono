@@ -95,7 +95,6 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
         point.point = image.points[i];
         point.point_velocity = image.points_velocity[i];
         point.feature_id = image.feature_ids[i];
-        point.cur_td = td;
         feature_points.emplace_back(std::move(point));
     }
 

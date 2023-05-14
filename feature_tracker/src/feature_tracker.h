@@ -28,7 +28,7 @@ void reduceVector(vector<int> &v, vector<uchar> status);
 class FeatureTracker
 {
   public:
-    FeatureTracker(const string &calib_file);
+    explicit FeatureTracker(const string &calib_file);
 
     struct FeaturesPerImage {
         std::vector<cv::Point2f> points;
