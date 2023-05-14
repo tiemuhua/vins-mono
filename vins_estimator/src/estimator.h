@@ -82,7 +82,7 @@ private:
     int sum_of_back{}, sum_of_front{};
 
     FeatureManager feature_manager_;
-    InitialEXRotation initial_ex_rotation;
+    RotationExtrinsicEstimator initial_ex_rotation;
 
     bool first_imu{};
     bool failure_occur{};

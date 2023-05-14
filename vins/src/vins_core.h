@@ -8,11 +8,13 @@
 #include <vector>
 #include <mutex>
 #include "Eigen/Eigen"
-#include "initial/initial_alignment.h"
+
 #include "feature_tracker/src/feature_tracker.h"
+#include "vins_define_internal.h"
+#include "rotation_extrinsic_estimator.h"
+#include "feature_manager.h"
 
 namespace vins{
-    typedef const Eigen::Vector3d & ConstVec3dRef;
     class VinsCore {
     public:
         void handleImage(const FeatureTracker::FeaturesPerImage& image_features, double time_stamp);
@@ -24,13 +26,25 @@ namespace vins{
             kVinsStateInitial,              // 初始化
             kVinsStateNormal,               // 正常优化
         } vins_state_ = kVinsStateEstimateExtrinsic;
-        EVinsState _handleEstimateExtrinsic(const FeatureTracker::FeaturesPerImage& image_features);
-        EVinsState _handleInitial(const FeatureTracker::FeaturesPerImage& image_features);
-        EVinsState _handleNormal(const FeatureTracker::FeaturesPerImage& image_features);
+        EVinsState _handleEstimateExtrinsic();
+        EVinsState _handleInitial();
+        EVinsState _handleNormal();
 
     private:
-        std::mutex emplace_image_frame_mutex_;
-        std::vector<ImageFrame> all_image_frames_;
+        std::mutex read_imu_buf_mutex_;
+        std::queue<Eigen::Vector3d> acc_buf_;
+        std::queue<Eigen::Vector3d> gyr_buf_;
+        std::queue<double> time_stamp_buf_;
+
+        double last_init_time_stamp_ = 0.0;
+
+        std::vector<ImageFrame> all_frames_;
+
+        RotationExtrinsicEstimator rotation_extrinsic_estimator_;
+        FeatureManager feature_manager_;
+
+        Eigen::Matrix3d ric_;
+        Eigen::Vector3d tic_;
     };
 }
 

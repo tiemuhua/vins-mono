@@ -17,7 +17,7 @@ namespace vins {
         return cnt;
     }
 
-    bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points, double td) {
+    bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), getFeatureCount());
         double parallax_sum = 0;
         int parallax_num = 0;

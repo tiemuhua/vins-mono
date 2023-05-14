@@ -117,7 +117,9 @@ void Estimator::processImage(const FeatureTracker::FeaturesPerImage &image,
             vector<pair<cv::Point2f, cv::Point2f>> correspondences =
                     feature_manager_.getCorresponding(frame_count_ - 1, frame_count_);
             Matrix3d calib_ric;
-            if (initial_ex_rotation.CalibrationExRotation(correspondences, pre_integrate_window[frame_count_]->DeltaQuat(), calib_ric)) {
+            if (initial_ex_rotation.calibrateRotationExtrinsic(correspondences,
+                                                               pre_integrate_window[frame_count_]->DeltaQuat(),
+                                                               calib_ric)) {
                 LOG_I("initial extrinsic rotation calib success");
                 RIC = calib_ric;
                 estimate_extrinsic_state = EstimateExtrinsicInitiated;
