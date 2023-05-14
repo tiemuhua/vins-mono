@@ -1,12 +1,12 @@
 #include "initial_sfm.h"
 
 void triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 3, 4> &Pose1,
-                      Vector2d &point0, Vector2d &point1, Vector3d &point_3d) {
+                      cv::Point2f &point0, cv::Point2f &point1, Vector3d &point_3d) {
     Matrix4d design_matrix = Matrix4d::Zero();
-    design_matrix.row(0) = point0[0] * Pose0.row(2) - Pose0.row(0);
-    design_matrix.row(1) = point0[1] * Pose0.row(2) - Pose0.row(1);
-    design_matrix.row(2) = point1[0] * Pose1.row(2) - Pose1.row(0);
-    design_matrix.row(3) = point1[1] * Pose1.row(2) - Pose1.row(1);
+    design_matrix.row(0) = point0.x * Pose0.row(2) - Pose0.row(0);
+    design_matrix.row(1) = point0.y * Pose0.row(2) - Pose0.row(1);
+    design_matrix.row(2) = point1.x * Pose1.row(2) - Pose1.row(0);
+    design_matrix.row(3) = point1.y * Pose1.row(2) - Pose1.row(1);
     Vector4d triangulated_point;
     triangulated_point =
             design_matrix.jacobiSvd(Eigen::ComputeFullV).matrixV().rightCols<1>();
@@ -23,11 +23,10 @@ bool solveFrameByPnP(Matrix3d &R_initial, Vector3d &P_initial, int i,
     for (const SFMFeature & sfm : sfm_features) {
         if (!sfm.state)
             continue;
-        Vector2d point2d;
         for (int k = 0; k < (int) sfm.observation.size(); k++) {
             if (sfm.observation[k].first == i) {
-                Vector2d img_pts = sfm.observation[k].second;
-                pts_2_vector.emplace_back(img_pts(0), img_pts(1));
+                cv::Point2f img_pts = sfm.observation[k].second;
+                pts_2_vector.emplace_back(img_pts);
                 pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
                 break;
             }
@@ -67,8 +66,8 @@ void triangulateTwoFrames(int frame0, Eigen::Matrix<double, 3, 4> &Pose0,
         if (sfm.state)
             continue;
         bool has_0 = false, has_1 = false;
-        Vector2d point0;
-        Vector2d point1;
+        cv::Point2f point0;
+        cv::Point2f point1;
         for (auto & k : sfm.observation) {
             if (k.first == frame0) {
                 point0 = k.second;
@@ -172,11 +171,10 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
         if (sfm.state)
             continue;
         if (sfm.observation.size() >= 2) {
-            Vector2d point0, point1;
             int frame_0 = sfm.observation[0].first;
-            point0 = sfm.observation[0].second;
+            cv::Point2f point0 = sfm.observation[0].second;
             int frame_1 = sfm.observation.back().first;
-            point1 = sfm.observation.back().second;
+            cv::Point2f point1 = sfm.observation.back().second;
             Vector3d point_3d;
             triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1, point_3d);
             sfm.state = true;
@@ -213,8 +211,8 @@ bool GlobalSFM::construct(int frame_num, Quaterniond *q, Vector3d *T, int l,
             continue;
         for (int j = 0; j < int(sfm.observation.size()); j++) {
             ceres::CostFunction *cost_function = ReProjectionError3D::Create(
-                    sfm.observation[j].second.x(),
-                    sfm.observation[j].second.y());
+                    sfm.observation[j].second.x,
+                    sfm.observation[j].second.y);
 
             problem.AddResidualBlock(cost_function, nullptr, c_rotation[l], c_translation[l],
                                      sfm.position);
