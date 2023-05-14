@@ -4,6 +4,7 @@ project(vins_estimator)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 add_library(vins_estimator
+    src/vins_core.cpp
     src/parameters.cpp
     src/estimator.cpp
     src/feature_manager.cpp
