@@ -5,61 +5,51 @@
 namespace vins {
     using namespace Eigen;
     using namespace std;
-    RotationExtrinsicEstimator::RotationExtrinsicEstimator() {
-        frame_count = 0;
-        Rc.emplace_back(Matrix3d::Identity());
-        Rc_g.emplace_back(Matrix3d::Identity());
-        Rimu.emplace_back(Matrix3d::Identity());
-        ric = Matrix3d::Identity();
-    }
 
     bool RotationExtrinsicEstimator::calibrateRotationExtrinsic(const PointCorrespondences & correspondences,
                                                                 ConstQuatRef delta_q_imu,
                                                                 Matrix3d &calib_ric_result) {
-        frame_count++;
-        Rc.emplace_back(solveRelativeR(correspondences));
-        Rimu.emplace_back(delta_q_imu.toRotationMatrix());
-        Rc_g.emplace_back(ric.inverse() * delta_q_imu * ric);
+        rot_visual_que_.emplace_back(solveRelativeR(correspondences));
+        rot_imu_que_.emplace_back(delta_q_imu.toRotationMatrix());
+        rot_imu_in_world_frame_que_.emplace_back(ric_.inverse() * delta_q_imu * ric_);
 
-        Eigen::MatrixXd A(frame_count * 4, 4);
-        A.setZero();
-        int sum_ok = 0;
-        for (int i = 1; i <= frame_count; i++) {
-            Quaterniond r1(Rc[i]);
-            Quaterniond r2(Rc_g[i]);
+        int frame_count = rot_visual_que_.size();
 
-            double angular_distance = 180 / M_PI * r1.angularDistance(r2);
-            LOG_D("%d %f", i, angular_distance);
+        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(frame_count * 4, 4);
+        for (int i = 0; i < frame_count; i++) {
+            Quaterniond rot_visual(rot_visual_que_[i]);
+            Quaterniond rot_imu_in_world_frame(rot_imu_in_world_frame_que_[i]);
+            Quaterniond rot_imu(rot_imu_que_[i]);
 
-            double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
-            ++sum_ok;
             Matrix4d L, R;
 
-            double w = Quaterniond(Rc[i]).w();
-            Vector3d q = Quaterniond(Rc[i]).vec();
+            double w = rot_visual.w();
+            Vector3d q = rot_visual.vec();
             L.block<3, 3>(0, 0) = w * Matrix3d::Identity() + utils::skewSymmetric(q);
             L.block<3, 1>(0, 3) = q;
             L.block<1, 3>(3, 0) = -q.transpose();
             L(3, 3) = w;
 
-            Quaterniond R_ij(Rimu[i]);
-            w = R_ij.w();
-            q = R_ij.vec();
+            w = rot_imu.w();
+            q = rot_imu.vec();
             R.block<3, 3>(0, 0) = w * Matrix3d::Identity() - utils::skewSymmetric(q);
             R.block<3, 1>(0, 3) = q;
             R.block<1, 3>(3, 0) = -q.transpose();
             R(3, 3) = w;
 
+            double angular_distance = 180 / M_PI * rot_visual.angularDistance(rot_imu_in_world_frame);
+            LOG_D("%d %f", i, angular_distance);
+            double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
             A.block<4, 4>((i - 1) * 4, 0) = huber * (L - R);
         }
 
         JacobiSVD<MatrixXd> svd(A, ComputeFullU | ComputeFullV);
         Matrix<double, 4, 1> x = svd.matrixV().col(3);
         Quaterniond estimated_R(x);
-        ric = estimated_R.toRotationMatrix().inverse();
+        ric_ = estimated_R.toRotationMatrix().inverse();
         Vector3d ric_cov = svd.singularValues().tail<3>();
-        if (frame_count >= WINDOW_SIZE && ric_cov(1) > 0.25) {
-            calib_ric_result = ric;
+        if (frame_count >= window_size_ && ric_cov(1) > 0.25) {
+            calib_ric_result = ric_;
             return true;
         } else
             return false;

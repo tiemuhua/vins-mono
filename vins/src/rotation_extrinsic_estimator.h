@@ -10,7 +10,9 @@ namespace vins {
     typedef std::vector<PointCorrespondence> PointCorrespondences;
     class RotationExtrinsicEstimator {
     public:
-        RotationExtrinsicEstimator();
+        RotationExtrinsicEstimator(int window_size){
+            window_size_ = window_size;
+        }
 
         bool calibrateRotationExtrinsic(const PointCorrespondences& correspondences, ConstQuatRef delta_q_imu,
                                         Eigen::Matrix3d &calib_ric_result);
@@ -26,12 +28,11 @@ namespace vins {
                                cv::Mat_<double> &R1, cv::Mat_<double> &R2,
                                cv::Mat_<double> &t1, cv::Mat_<double> &t2);
 
-        int frame_count;
-
-        std::vector<Eigen::Matrix3d> Rc;
-        std::vector<Eigen::Matrix3d> Rimu;
-        std::vector<Eigen::Matrix3d> Rc_g;
-        Eigen::Matrix3d ric;
+        std::vector<Eigen::Matrix3d> rot_visual_que_;
+        std::vector<Eigen::Matrix3d> rot_imu_que_;
+        std::vector<Eigen::Matrix3d> rot_imu_in_world_frame_que_;
+        Eigen::Matrix3d ric_ = Matrix3d::Identity();
+        int window_size_ = 10;
     };
 }
 
