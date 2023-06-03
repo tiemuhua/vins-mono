@@ -1,6 +1,5 @@
 #include "feature_manager.h"
 #include "log.h"
-#include "motion_estimator.h"
 
 namespace vins {
     void FeatureManager::clearState() {
