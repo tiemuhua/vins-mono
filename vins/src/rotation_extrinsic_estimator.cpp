@@ -102,7 +102,7 @@ namespace vins {
             if (p_3d_l(2) > 0 && p_3d_r(2) > 0)
                 front_count++;
         }
-        LOG_D("MotionEstimator: %f", 1.0 * front_count / point_cloud.cols);
+        LOG_D("testTriangulation: %f", 1.0 * front_count / point_cloud.cols);
         return 1.0 * front_count / point_cloud.cols;
     }
 
