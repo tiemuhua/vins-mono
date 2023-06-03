@@ -2,15 +2,15 @@
 
 #include <vector>
 
-using namespace std;
-
 #include <opencv2/opencv.hpp>
 #include <eigen3/Eigen/Dense>
 
-using namespace Eigen;
+#include "vins_define_internal.h"
 
-class MotionEstimator {
-public:
-    static bool solveRelativeRT(const vector<pair<cv::Point2f , cv::Point2f>> &correspondences,
-                                Matrix3d &Rotation, Vector3d &Translation);
-};
+namespace vins{
+    class MotionEstimator {
+    public:
+        static bool solveRelativeRT(const Correspondences &correspondences,
+                                    Eigen::Matrix3d &Rotation, Eigen::Vector3d &Translation);
+    };
+}

@@ -6,13 +6,7 @@
 #include <vector>
 #include <numeric>
 
-using namespace std;
-
 #include <eigen3/Eigen/Dense>
-
-using namespace Eigen;
-
-#include "feature_tracker/src/feature_tracker.h"
 
 #include "vins_define_internal.h"
 

@@ -3,13 +3,17 @@
 //
 
 #include "visual_initiator.h"
-#include "log.h"
-#include <Eigen/Eigen>
+
 #include <vector>
-#include "feature_manager.h"
+
+#include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
+
+#include "log.h"
 #include "utils.h"
+
+#include "feature_manager.h"
 #include "ceres/ceres.h"
 #include "motion_estimator.h"
 

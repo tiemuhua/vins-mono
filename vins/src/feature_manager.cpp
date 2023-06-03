@@ -2,6 +2,8 @@
 #include "log.h"
 
 namespace vins {
+    using namespace std;
+    using namespace Eigen;
     void FeatureManager::clearState() {
         features_.clear();
     }

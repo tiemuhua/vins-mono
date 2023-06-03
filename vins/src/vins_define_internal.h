@@ -49,6 +49,8 @@ namespace vins {
         }
     };
 
+    typedef std::vector<std::pair<cv::Point2f , cv::Point2f>> Correspondences;
+
     class ImageFrame {
     public:
         ImageFrame() = delete;
