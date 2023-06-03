@@ -57,9 +57,9 @@ namespace vins {
         }
     }
 
-    vector<pair<cv::Point2f, cv::Point2f>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r) {
+    vector<pair<cv::Point2f, cv::Point2f>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r) const {
         vector<pair<cv::Point2f , cv::Point2f>> corres;
-        for (FeaturesOfId &it: features_) {
+        for (const FeaturesOfId &it: features_) {
             if (it.start_frame_ <= frame_count_l && it.endFrame() >= frame_count_r) {
                 int idx_l = frame_count_l - it.start_frame_;
                 int idx_r = frame_count_r - it.start_frame_;
@@ -70,31 +70,6 @@ namespace vins {
         }
         return corres;
     }
-
-    bool FeatureManager::relativePose(const int last_key_frame_id,
-                                      Matrix3d &relative_R, Vector3d &relative_T, int &l) {
-        // find previous frame which contains enough correspondence and parallax with the newest frame
-        for (int i = 0; i < WINDOW_SIZE; i++) {
-            vector<pair<cv::Point2f , cv::Point2f>> correspondences = getCorresponding(i, last_key_frame_id);
-            if (correspondences.size() <= 20) {
-                continue;
-            }
-            double sum_parallax = 0;
-            for (auto &correspond: correspondences) {
-                double parallax = norm(correspond.first - correspond.second);
-                sum_parallax += parallax;
-            }
-            double average_parallax = 1.0 * sum_parallax / int(correspondences.size());
-            if (average_parallax * 460 > 30 && MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T)) {
-                l = i;
-                LOG_D("average_parallax %f choose l %d and newest frame to triangulate the whole structure",
-                      average_parallax * 460, l);
-                return true;
-            }
-        }
-        return false;
-    }
-
 
     void FeatureManager::setInvDepth(const VectorXd &x) {
         int feature_index = -1;

@@ -27,8 +27,8 @@ namespace vins{
             kVinsStateNormal,               // 正常优化
         } vins_state_ = kVinsStateEstimateExtrinsic;
         EVinsState _handleEstimateExtrinsic();
-        EVinsState _handleInitial();
-        EVinsState _handleNormal();
+        EVinsState _handleInitial(double time_stamp);
+        EVinsState _handleNormal(double time_stamp);
 
     private:
         std::mutex read_imu_buf_mutex_;

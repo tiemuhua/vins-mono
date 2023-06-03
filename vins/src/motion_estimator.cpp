@@ -174,7 +174,7 @@ namespace cv {
     }
 }
 
-
+// todo tiemuhuaguo 坐标系搞混了，应该是在l坐标系中r相对于l的旋转和位移
 bool MotionEstimator::solveRelativeRT(const vector<pair<cv::Point2f , cv::Point2f>> &correspondences,
                                       Matrix3d &Rotation, Vector3d &Translation) {
     if (correspondences.size() < 15) {
@@ -191,16 +191,11 @@ bool MotionEstimator::solveRelativeRT(const vector<pair<cv::Point2f , cv::Point2
     cv::Mat rot, trans;
     int inlier_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, rot, trans, mask);
 
-    Eigen::Matrix3d R;
-    Eigen::Vector3d T;
     for (int i = 0; i < 3; i++) {
-        T(i) = trans.at<double>(i, 0);
+        Translation(i) = trans.at<double>(i, 0);
         for (int j = 0; j < 3; j++)
-            R(i, j) = rot.at<double>(i, j);
+            Rotation(i, j) = rot.at<double>(i, j);
     }
-
-    Rotation = R.transpose();
-    Translation = -R.transpose() * T;
     if (inlier_cnt > 12)
         return true;
     else

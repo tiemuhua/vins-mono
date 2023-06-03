@@ -141,6 +141,35 @@ namespace vins {
                 return angle_degrees +
                        two_pi * std::floor((-angle_degrees + T(180)) / two_pi);
         };
+
+        inline void quat2array(const Eigen::Quaterniond &q, double *arr) {
+            arr[0] = q.w();
+            arr[1] = q.x();
+            arr[2] = q.y();
+            arr[3] = q.z();
+        }
+
+        inline Eigen::Quaterniond array2quat(const double *arr) {
+            Eigen::Quaterniond q;
+            q.w() = arr[0];
+            q.x() = arr[1];
+            q.y() = arr[2];
+            q.z() = arr[3];
+        }
+
+        inline void vec3d2array(const Eigen::Vector3d &vec, double *arr) {
+            arr[0] = vec(0);
+            arr[1] = vec(1);
+            arr[2] = vec(2);
+        }
+
+        inline Eigen::Vector3d array2vec3d(const double *arr) {
+            return {arr[0], arr[1], arr[2]};
+        }
+
+        inline cv::Point3f eigenVec2CVVec(const Eigen::Vector3d &vec) {
+            return cv::Point3f(vec(0), vec(1), vec(2));
+        }
     };
 }
 

@@ -85,13 +85,13 @@ namespace vins {
 
     double RotationExtrinsicEstimator::testTriangulation(const std::vector<cv::Point2f> &l, const std::vector<cv::Point2f> &r,
                                                          cv::Mat_<double> R, cv::Mat_<double> t) {
+        static const cv::Matx34f P = cv::Matx34f(1, 0, 0, 0,
+                                                 0, 1, 0, 0,
+                                                 0, 0, 1, 0);
+        const cv::Matx34f P1 = cv::Matx34f(R(0, 0), R(0, 1), R(0, 2), t(0),
+                                           R(1, 0), R(1, 1), R(1, 2), t(1),
+                                           R(2, 0), R(2, 1), R(2, 2), t(2));
         cv::Mat point_cloud;
-        cv::Matx34f P = cv::Matx34f(1, 0, 0, 0,
-                                    0, 1, 0, 0,
-                                    0, 0, 1, 0);
-        cv::Matx34f P1 = cv::Matx34f(R(0, 0), R(0, 1), R(0, 2), t(0),
-                                     R(1, 0), R(1, 1), R(1, 2), t(1),
-                                     R(2, 0), R(2, 1), R(2, 2), t(2));
         cv::triangulatePoints(P, P1, l, r, point_cloud);
         int front_count = 0;
         for (int i = 0; i < point_cloud.cols; i++) {

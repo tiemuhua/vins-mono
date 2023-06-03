@@ -25,10 +25,7 @@ namespace vins {
 
         bool addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points);
 
-        vector<pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r);
-
-        // todo tiemuhua 换个靠谱点的函数名
-        bool relativePose(const int last_key_frame_id, Matrix3d &relative_R, Vector3d &relative_T, int &l);
+        [[nodiscard]] vector<pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r) const;
 
         void setInvDepth(const VectorXd &x);
 

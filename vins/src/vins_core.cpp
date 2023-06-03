@@ -77,7 +77,7 @@ namespace vins{
             return kVinsStateInitial;
         }
         last_init_time_stamp_ = time_stamp;
-        bool succ =
+        bool succ = ()
     }
 
     VinsCore::EVinsState VinsCore::_handleNormal(const FeatureTracker::FeaturesPerImage& image_features){
