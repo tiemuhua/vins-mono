@@ -9,12 +9,13 @@
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
 
 #include "log.h"
 #include "utils.h"
 
 #include "feature_manager.h"
-#include "ceres/ceres.h"
 #include "motion_estimator.h"
 
 namespace vins {
@@ -274,9 +275,12 @@ namespace vins {
             // triangulate point based on to solve pnp result
             triangulateTwoFrames(frame_id, Pose[frame_id], key_frame_num - 1, Pose[key_frame_num - 1], sfm_features);
         }
+
         //3: triangulate l <-> [l+1, frame_num -2]
-        for (int frame_id = big_parallax_frame_id + 1; frame_id < key_frame_num - 1; frame_id++)
+        for (int frame_id = big_parallax_frame_id + 1; frame_id < key_frame_num - 1; frame_id++) {
             triangulateTwoFrames(big_parallax_frame_id, Pose[big_parallax_frame_id], frame_id, Pose[frame_id], sfm_features);
+        }
+
         // 4: solve pnp for frame [0, l-1]
         //    triangulate [0, l-1] <-> l
         for (int frame_id = big_parallax_frame_id - 1; frame_id >= 0; frame_id--) {
@@ -293,6 +297,7 @@ namespace vins {
             //triangulate
             triangulateTwoFrames(frame_id, Pose[frame_id], big_parallax_frame_id, Pose[big_parallax_frame_id], sfm_features);
         }
+
         //5: triangulate all others points
         for (SFMFeature& sfm: sfm_features) {
             if (sfm.state || sfm.frame_id_2_unified_point_.size() < 2) {
@@ -312,7 +317,6 @@ namespace vins {
         double c_rotation[key_frame_num][4];
         double c_translation[key_frame_num][3];
         for (int i = 0; i < key_frame_num; i++) {
-            //double array for ceres
             utils::quat2array(Quaterniond(Pose[i].block<3, 3>(0, 0)), c_rotation[i]);
             utils::vec3d2array(Pose[i].block<3, 1>(0, 3), c_translation[i]);
             problem.AddParameterBlock(c_rotation[i], 4, local_parameterization);
@@ -355,6 +359,5 @@ namespace vins {
                 sfm_tracked_points[sfm.id] = sfm.position;
         }
         return true;
-
     }
 }
