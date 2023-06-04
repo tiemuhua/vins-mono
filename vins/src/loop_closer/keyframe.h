@@ -23,13 +23,19 @@ namespace vins{
     class KeyFrame
     {
     public:
+        struct LoopInfo{
+            Eigen::Vector3d relative_t;
+            Eigen::Quaterniond relative_q;
+            double relative_yaw;
+        };
+
         KeyFrame(double _time_stamp, int _index, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
                  vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
                  vector<double> &_point_id, int _sequence);
         KeyFrame(double _time_stamp, int _index, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i,
                  cv::Mat &_image, int _loop_index, Eigen::Matrix<double, 8, 1 > &_loop_info,
                  vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm, vector<DVision::BRIEF::bitset> &_brief_descriptors);
-        bool findConnection(KeyFrame* old_kf);
+        bool findConnection(KeyFrame *old_kf, int old_kf_id);
         void computeWindowBRIEFPoint();
         void computeBRIEFPoint();
         //void extractBrief();
@@ -63,8 +69,6 @@ namespace vins{
 
 
         double time_stamp;
-        int index;
-        int local_index;
         Eigen::Vector3d vio_T_w_i;
         Eigen::Matrix3d vio_R_w_i;
         Eigen::Vector3d T_w_i;
@@ -86,7 +90,7 @@ namespace vins{
         int sequence;
 
         bool has_loop;
-        int loop_index;
-        Eigen::Matrix<double, 8, 1 > loop_info;
+        int loop_peer_id_;
+        LoopInfo loop_info_;
     };
 }

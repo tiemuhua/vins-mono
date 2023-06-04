@@ -21,7 +21,6 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
                    vector<cv::Point2f> &_point_2d_norm,
                    vector<double> &_point_id, int _sequence) {
     time_stamp = _time_stamp;
-    index = _index;
     vio_T_w_i = _vio_T_w_i;
     vio_R_w_i = _vio_R_w_i;
     T_w_i = vio_T_w_i;
@@ -35,7 +34,7 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
     point_2d_norm = _point_2d_norm;
     point_id = _point_id;
     has_loop = false;
-    loop_index = -1;
+    loop_peer_id_ = -1;
     has_fast_point = false;
     loop_info << 0, 0, 0, 0, 0, 0, 0, 0;
     sequence = _sequence;
@@ -52,7 +51,6 @@ KeyFrame::KeyFrame(double _time_stamp, int _index,
                    vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm,
                    vector<BRIEF::bitset> &_brief_descriptors) {
     time_stamp = _time_stamp;
-    index = _index;
     vio_T_w_i = _T_w_i;
     vio_R_w_i = _R_w_i;
     T_w_i = _T_w_i;
@@ -61,7 +59,7 @@ KeyFrame::KeyFrame(double _time_stamp, int _index,
         has_loop = true;
     else
         has_loop = false;
-    loop_index = _loop_index;
+    loop_peer_id_ = _loop_index;
     loop_info = _loop_info;
     has_fast_point = false;
     sequence = 0;
@@ -165,7 +163,8 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
 
     cv::Mat inliers;
 
-    solvePnPRansac(matched_3d, matched_2d_old_norm, K, D, rvec, t, true, 100, 10.0 / 460.0, 0.99, inliers);
+    solvePnPRansac(matched_3d, matched_2d_old_norm, K, D, rvec, t,
+                   true, 100, 10.0 / 460.0, 0.99, inliers);
 
     for (int i = 0; i < (int) matched_2d_old_norm.size(); i++)
         status.push_back(0);
@@ -187,8 +186,7 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
     PnP_T_old = T_w_c_old - PnP_R_old * tic;
 }
 
-
-bool KeyFrame::findConnection(KeyFrame *old_kf) {
+bool KeyFrame::findConnection(KeyFrame *old_kf, int old_kf_id) {
     vector<cv::Point2f> matched_2d_cur, matched_2d_old;
     vector<cv::Point2f> matched_2d_cur_norm, matched_2d_old_norm;
     vector<cv::Point3f> matched_3d;
@@ -209,37 +207,34 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
     reduceVector(matched_3d, status);
     reduceVector(matched_id, status);
 
-    status.clear();
-    Eigen::Vector3d PnP_T_old;
-    Eigen::Matrix3d PnP_R_old;
-    Eigen::Vector3d relative_t;
-    Quaterniond relative_q;
-    double relative_yaw;
-    if ((int) matched_2d_cur.size() > MIN_LOOP_NUM) {
-        status.clear();
-        PnPRANSAC(matched_2d_old_norm, matched_3d, status, PnP_T_old, PnP_R_old);
-        reduceVector(matched_2d_cur, status);
-        reduceVector(matched_2d_old, status);
-        reduceVector(matched_2d_cur_norm, status);
-        reduceVector(matched_2d_old_norm, status);
-        reduceVector(matched_3d, status);
-        reduceVector(matched_id, status);
+    if (matched_2d_cur.size() < MIN_LOOP_NUM) {
+        return false;
     }
 
-    if ((int) matched_2d_cur.size() > MIN_LOOP_NUM) {
-        relative_t = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
-        relative_q = PnP_R_old.transpose() * origin_vio_R;
-        relative_yaw = utils::normalizeAngle180(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
-        if (abs(relative_yaw) < 30.0 && relative_t.norm() < 20.0) {
-            has_loop = true;
-            loop_index = old_kf->index;
-            loop_info << relative_t.x(), relative_t.y(), relative_t.z(),
-                    relative_q.w(), relative_q.x(), relative_q.y(), relative_q.z(),
-                    relative_yaw;
-            return true;
-        }
+    Eigen::Vector3d PnP_T_old;
+    Eigen::Matrix3d PnP_R_old;
+    status.clear();
+    PnPRANSAC(matched_2d_old_norm, matched_3d, status, PnP_T_old, PnP_R_old);
+    reduceVector(matched_2d_cur, status);
+    reduceVector(matched_2d_old, status);
+    reduceVector(matched_2d_cur_norm, status);
+    reduceVector(matched_2d_old_norm, status);
+    reduceVector(matched_3d, status);
+    reduceVector(matched_id, status);
+
+    if (matched_2d_cur.size() < MIN_LOOP_NUM) {
+        return false;
     }
-    return false;
+
+    loop_info_.relative_t = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
+    loop_info_.relative_q = PnP_R_old.transpose() * origin_vio_R;
+    loop_info_.relative_yaw = utils::normalizeAngle180(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
+    if (abs(loop_info_.relative_yaw) < 30.0 && loop_info_.relative_t.norm() < 20.0) {
+        has_loop = true;
+        loop_peer_id_ = old_kf_id;
+        return true;
+    }
+    return false
 }
 
 inline int KeyFrame::HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
