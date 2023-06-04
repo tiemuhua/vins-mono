@@ -25,11 +25,11 @@
 
 namespace vins{
 
-    class PoseGraph {
+    class LoopCloser {
     public:
-        PoseGraph();
+        LoopCloser();
 
-        ~PoseGraph();
+        ~LoopCloser();
 
         void addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop);
 
@@ -39,12 +39,12 @@ namespace vins{
 
         KeyFrame *getKeyFrame(int index);
 
-        Vector3d t_drift;
+        Eigen::Vector3d t_drift;
         double yaw_drift;
-        Matrix3d r_drift;
+        Eigen::Matrix3d r_drift;
         // world frame( base sequence or first sequence)<----> cur sequence frame
-        Vector3d w_t_vio;
-        Matrix3d w_r_vio;
+        Eigen::Vector3d w_t_vio;
+        Eigen::Matrix3d w_r_vio;
 
 
     private:
