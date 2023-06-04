@@ -6,6 +6,93 @@ using namespace DVision;
 using namespace DBoW2;
 using namespace Eigen;
 
+class AngleManifold {
+public:
+
+    template<typename T>
+    bool operator()(const T *theta_radians, const T *delta_theta_radians,
+                    T *theta_radians_plus_delta) const {
+        *theta_radians_plus_delta =
+                utils::normalizeAngle180(*theta_radians + *delta_theta_radians);
+
+        return true;
+    }
+
+    template <typename T>
+    bool Plus(const T *x, const T *delta, T *x_plus_delta) const {
+        *x_plus_delta = utils::normalizeAngle180(*x + *delta);
+        return true;
+    }
+
+    template <typename T>
+    bool Minus(const T *x, const T *delta, T *x_plus_delta) const {
+        *x_plus_delta = utils::normalizeAngle180(*x - *delta);
+        return true;
+    }
+
+    static ceres::Manifold *Create() {
+        return (new ceres::AutoDiffManifold<AngleManifold, 1, 1>);
+    }
+};
+
+struct FourDOFError {
+    FourDOFError(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
+            : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
+
+    template<typename T>
+    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
+        Vector3d t_w_ij;
+        utils::arrayMinus(tj, ti, t_w_ij, 3);
+        Matrix3d w_R_i = utils::ypr2rot({yaw_i[0], pitch_i, roll_i});
+        Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
+        utils::arrayMinus(t_i_ij.data(), t_, residuals, 3);
+        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - relative_yaw);
+
+        return true;
+    }
+
+    static ceres::CostFunction *Create(const Vector3d &t,
+                                       const double relative_yaw, const double pitch_i, const double roll_i) {
+        return (new ceres::AutoDiffCostFunction<FourDOFError, 4, 1, 3, 1, 3>(
+                new FourDOFError(t, relative_yaw, pitch_i, roll_i)));
+    }
+
+    Vector3d t_;
+    double relative_yaw, pitch_i, roll_i;
+
+};
+
+struct FourDOFWeightError {
+    FourDOFWeightError(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
+            : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {
+        weight = 1;
+    }
+
+    template<typename T>
+    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
+        Vector3d t_w_ij;
+        utils::arrayMinus(tj, ti, t_w_ij, 3);
+        Matrix3d w_R_i = utils::ypr2rot({yaw_i[0], pitch_i, roll_i});
+        Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
+        utils::arrayMinus(t_i_ij.data(), t_, residuals, 3);
+        utils::arrayMultiply(residuals, residuals, weight, 3);
+        residuals[3] = utils::normalizeAngle180((yaw_j[0] - yaw_i[0] - T(relative_yaw))) * T(weight) / T(10.0);
+        return true;
+    }
+
+    static ceres::CostFunction *Create(const Vector3d &t,
+                                       const double relative_yaw, const double pitch_i, const double roll_i) {
+        return (new ceres::AutoDiffCostFunction<
+                FourDOFWeightError, 4, 1, 3, 1, 3>(
+                new FourDOFWeightError(t, relative_yaw, pitch_i, roll_i)));
+    }
+
+    Vector3d t_;
+    double relative_yaw, pitch_i, roll_i;
+    double weight;
+
+};
+
 LoopCloser::LoopCloser() {
     t_optimization = std::thread(&LoopCloser::optimize4DoF, this);
     earliest_loop_index = -1;
@@ -228,7 +315,7 @@ void LoopCloser::optimize4DoF() {
                     relative_t = q_array[i - j].inverse() * relative_t;
                     double relative_yaw = euler_array[i][0] - euler_array[i - j][0];
                     ceres::CostFunction *cost_function =
-                            FourDOFError::Create(relative_t.x(), relative_t.y(), relative_t.z(),
+                            FourDOFError::Create(relative_t,
                                                  relative_yaw, euler_connected.y(), euler_connected.z());
                     problem.AddResidualBlock(cost_function, nullptr,
                                              euler_array[i - j], t_array[i - j],
@@ -244,8 +331,7 @@ void LoopCloser::optimize4DoF() {
                 Vector3d relative_t = (*it)->getLoopRelativeT();
                 double relative_yaw = (*it)->getLoopRelativeYaw();
                 ceres::CostFunction *cost_function =
-                        FourDOFWeightError::Create(relative_t.x(), relative_t.y(), relative_t.z(),
-                                                   relative_yaw, euler_connected.y(), euler_connected.z());
+                        FourDOFWeightError::Create(relative_t, relative_yaw, euler_connected.y(), euler_connected.z());
                 problem.AddResidualBlock(cost_function, loss_function,
                                          euler_array[connected_index], t_array[connected_index],
                                          euler_array[i], t_array[i]);
@@ -298,6 +384,8 @@ void LoopCloser::optimize4DoF() {
         m_keyframelist.unlock();
     }
 }
+
+extern int FAST_RELOCALIZATION;
 
 void LoopCloser::updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1> &_loop_info) {
     KeyFrame *kf = getKeyFrame(index);
