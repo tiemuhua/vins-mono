@@ -39,13 +39,12 @@ struct FourDOFError {
     FourDOFError(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
             : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
 
-    template<typename T>
-    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
+    bool operator()(const double *const yaw_i, const double *ti, const double *yaw_j, const double *tj, double *residuals) const {
         Vector3d t_w_ij;
-        utils::arrayMinus(tj, ti, t_w_ij, 3);
+        utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
         Matrix3d w_R_i = utils::ypr2rot({yaw_i[0], pitch_i, roll_i});
         Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
-        utils::arrayMinus(t_i_ij.data(), t_, residuals, 3);
+        utils::arrayMinus(t_i_ij.data(), t_.data(), residuals, 3);
         residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - relative_yaw);
 
         return true;
@@ -68,15 +67,14 @@ struct FourDOFWeightError {
         weight = 1;
     }
 
-    template<typename T>
-    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
+    bool operator()(const double *const yaw_i, const double *ti, const double *yaw_j, const double *tj, double *residuals) const {
         Vector3d t_w_ij;
-        utils::arrayMinus(tj, ti, t_w_ij, 3);
+        utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
         Matrix3d w_R_i = utils::ypr2rot({yaw_i[0], pitch_i, roll_i});
         Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
-        utils::arrayMinus(t_i_ij.data(), t_, residuals, 3);
+        utils::arrayMinus(t_i_ij.data(), t_.data(), residuals, 3);
         utils::arrayMultiply(residuals, residuals, weight, 3);
-        residuals[3] = utils::normalizeAngle180((yaw_j[0] - yaw_i[0] - T(relative_yaw))) * T(weight) / T(10.0);
+        residuals[3] = utils::normalizeAngle180((yaw_j[0] - yaw_i[0] - relative_yaw)) * weight / 10.0;
         return true;
     }
 
