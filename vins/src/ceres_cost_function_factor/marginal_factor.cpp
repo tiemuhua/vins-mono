@@ -2,6 +2,8 @@
 #include "../vins_utils.h"
 #include "marginal_factor.h"
 
+using namespace vins;
+
 void ResidualBlockInfo::Evaluate() {
     residuals_.resize(cost_function_->num_residuals());
 

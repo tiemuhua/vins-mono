@@ -4,7 +4,7 @@
 
 #ifndef VINS_UTILS_H
 #define VINS_UTILS_H
-
+#include <cmath>
 #include <Eigen/Eigen>
 
 namespace vins {
@@ -17,6 +17,52 @@ namespace vins {
     typedef Eigen::Quaterniond & QuatRef;
 
     namespace utils {
+        /**
+         * C数组的向量运算 todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
+         * */
+        inline void arrayMinus(const double * first, const double * second, double * target, int length) {
+            Eigen::Map<const Eigen::VectorXd> first_vec(first, length);
+            Eigen::Map<const Eigen::VectorXd> second_vec(second, length);
+            Eigen::Map<const Eigen::VectorXd> target_vec(target, length);
+            target_vec = first_vec - second_vec;
+        }
+        inline void arrayPlus(const double * first, const double * second, double * target, int length) {
+            for (int i = 0; i < length; ++i) {
+                target[i] = first[i] + second[i];
+            }
+        }
+        inline void arrayMultiply(const double* first, double * target, const double k, int length) {
+            for (int i = 0; i < length; ++i) {
+                target[i] = first[i] * k;
+            }
+        }
+
+        /**
+         * 角度运算
+         * */
+        template<typename T>
+        T normalizeAngle180(const T &angle_degrees) {
+            if (angle_degrees > T(180.0))
+                return angle_degrees - T(360.0);
+            else if (angle_degrees < T(-180.0))
+                return angle_degrees + T(360.0);
+            else
+                return angle_degrees;
+        };
+        template<typename T>
+        T normalizeAnglePi(const T &angle_degrees) {
+            constexpr T pi = 3.1415926575;
+            if (angle_degrees > pi)
+                return angle_degrees - 2*pi;
+            else if (angle_degrees < -pi)
+                return angle_degrees + 2*pi;
+            else
+                return angle_degrees;
+        };
+
+        /**
+         * 矩阵运算
+         * */
         inline Eigen::Matrix3d AntiSymmetric(ConstVec3dRef vec){
             Eigen::Matrix3d mat;
             mat << 0, -vec(2), vec(1),
@@ -50,10 +96,6 @@ namespace vins {
 
         template<typename Derived>
         static Eigen::Quaternion<typename Derived::Scalar> positify(const Eigen::QuaternionBase<Derived> &q) {
-            //printf("a: %f %f %f %f", q.w(), q.x(), q.y(), q.z());
-            //Eigen::Quaternion<typename Derived::Scalar> p(-q.w(), -q.x(), -q.y(), -q.z());
-            //printf("b: %f %f %f %f", p.w(), p.x(), p.y(), p.z());
-            //return q.template w() >= (typename Derived::Scalar)(0.0) ? q : Eigen::Quaternion<typename Derived::Scalar>(-q.w(), -q.x(), -q.y(), -q.z());
             return q;
         }
 
@@ -90,32 +132,6 @@ namespace vins {
                     Eigen::AngleAxisd(ypr.x(), Eigen::Vector3d::UnitX()).toRotationMatrix();
         }
 
-        template<typename Derived>
-        static Eigen::Matrix<typename Derived::Scalar, 3, 3> ypr2R(const Eigen::MatrixBase<Derived> &ypr) {
-            typedef typename Derived::Scalar Scalar_t;
-
-            Scalar_t y = ypr(0) / 180.0 * M_PI;
-            Scalar_t p = ypr(1) / 180.0 * M_PI;
-            Scalar_t r = ypr(2) / 180.0 * M_PI;
-
-            Eigen::Matrix<Scalar_t, 3, 3> Rz;
-            Rz << cos(y), -sin(y), 0,
-                    sin(y), cos(y), 0,
-                    0, 0, 1;
-
-            Eigen::Matrix<Scalar_t, 3, 3> Ry;
-            Ry << cos(p), 0., sin(p),
-                    0., 1., 0.,
-                    -sin(p), 0., cos(p);
-
-            Eigen::Matrix<Scalar_t, 3, 3> Rx;
-            Rx << 1., 0., 0.,
-                    0., cos(r), -sin(r),
-                    0., sin(r), cos(r);
-
-            return Rz * Ry * Rx;
-        }
-
         template<size_t N>
         struct uint_ {
         };
@@ -130,17 +146,6 @@ namespace vins {
         void unroller(const Lambda &f, const IterT &iter, uint_<0>) {
             f(iter);
         }
-
-        template<typename T>
-        static T normalizeAngle(const T &angle_degrees) {
-            T two_pi(2.0 * 180);
-            if (angle_degrees > 0)
-                return angle_degrees -
-                       two_pi * std::floor((angle_degrees + T(180)) / two_pi);
-            else
-                return angle_degrees +
-                       two_pi * std::floor((-angle_degrees + T(180)) / two_pi);
-        };
 
         inline void quat2array(const Eigen::Quaterniond &q, double *arr) {
             arr[0] = q.w();
