@@ -99,9 +99,6 @@ LoopCloser::LoopCloser() {
     r_drift = Eigen::Matrix3d::Identity();
     w_t_vio = Eigen::Vector3d(0, 0, 0);
     w_r_vio = Eigen::Matrix3d::Identity();
-    global_index = 0;
-    sequence_cnt = 0;
-    sequence_loop.push_back(false);
 }
 
 LoopCloser::~LoopCloser() {
@@ -117,17 +114,6 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
     //shift to base frame
     Vector3d vio_P_cur;
     Matrix3d vio_R_cur;
-    if (sequence_cnt != cur_kf->sequence) {
-        sequence_cnt++;
-        sequence_loop.push_back(false);
-        w_t_vio = Eigen::Vector3d(0, 0, 0);
-        w_r_vio = Eigen::Matrix3d::Identity();
-        m_drift.lock();
-        t_drift = Eigen::Vector3d(0, 0, 0);
-        r_drift = Eigen::Matrix3d::Identity();
-        m_drift.unlock();
-    }
-
     cur_kf->getVioPose(vio_P_cur, vio_R_cur);
     vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
     vio_R_cur = w_r_vio * vio_R_cur;
@@ -159,23 +145,6 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
             Matrix3d shift_r = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
             Vector3d shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
 
-            // shift vio pose of whole sequence to the world frame
-            if (old_kf->sequence != cur_kf->sequence && sequence_loop[cur_kf->sequence] == 0) {
-                w_r_vio = shift_r;
-                w_t_vio = shift_t;
-                vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
-                vio_R_cur = w_r_vio * vio_R_cur;
-                cur_kf->updateVioPose(vio_P_cur, vio_R_cur);
-                for (KeyFrame* key_frame: keyframelist_) {
-                    if (key_frame->sequence == cur_kf->sequence) {
-                        key_frame->getVioPose(vio_P_cur, vio_R_cur);
-                        Vector3d vio_P_cur = w_r_vio * vio_P_cur + w_t_vio;
-                        Matrix3d vio_R_cur = w_r_vio * vio_R_cur;
-                        key_frame->updateVioPose(vio_P_cur, vio_R_cur);
-                    }
-                }
-                sequence_loop[cur_kf->sequence] = true;
-            }
             m_optimize_buf.lock();
             optimize_buf.push(keyframelist_.size());
             m_optimize_buf.unlock();
@@ -245,7 +214,6 @@ void LoopCloser::optimize4DoF() {
         Vector3d t_array[max_length];
         Matrix3d r_array[max_length];
         Vector3d euler_array[max_length];
-        double sequence_array[max_length];
 
         ceres::Problem problem;
         ceres::Solver::Options options;
@@ -259,20 +227,17 @@ void LoopCloser::optimize4DoF() {
             KeyFrame* kf = keyframelist_[frame_id];
             kf->getVioPose(t_array[frame_id], r_array[frame_id]);
             euler_array[frame_id] = utils::rot2ypr(r_array[frame_id]);
-            sequence_array[frame_id] = kf->sequence;
 
             problem.AddParameterBlock(euler_array[frame_id].data(), 1, angle_manifold);
             problem.AddParameterBlock(t_array[frame_id].data(), 3);
 
-            if (frame_id == first_looped_index || kf->sequence == 0) {
-                problem.SetParameterBlockConstant(euler_array[frame_id].data());
-                problem.SetParameterBlockConstant(t_array[frame_id].data());
-            }
+            problem.SetParameterBlockConstant(euler_array[frame_id].data());
+            problem.SetParameterBlockConstant(t_array[frame_id].data());
 
             //add edge
             for (int j = 1; j < 5; j++) {
                 int cur_frame_id = frame_id - j;
-                if (cur_frame_id < 0 || sequence_array[frame_id] != sequence_array[frame_id - j]) {
+                if (cur_frame_id < 0) {
                     continue;
                 }
                 Vector3d euler_connected = euler_array[cur_frame_id];

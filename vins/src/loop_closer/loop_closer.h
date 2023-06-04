@@ -62,9 +62,6 @@ namespace vins{
         std::thread t_optimization;
         std::queue<int> optimize_buf;
 
-        int global_index;
-        int sequence_cnt;
-        vector<bool> sequence_loop;
         map<int, cv::Mat> image_pool;
         int earliest_loop_index;
 
