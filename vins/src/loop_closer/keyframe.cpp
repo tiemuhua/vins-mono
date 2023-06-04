@@ -16,7 +16,7 @@ static void reduceVector(vector<Derived> &v, vector<uchar> status) {
 }
 
 // create keyframe online
-KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, cv::Mat &_image,
+KeyFrame::KeyFrame(double _time_stamp, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, cv::Mat &_image,
                    vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv,
                    vector<cv::Point2f> &_point_2d_norm,
                    vector<double> &_point_id, int _sequence) {
@@ -28,7 +28,6 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
     origin_vio_T = vio_T_w_i;
     origin_vio_R = vio_R_w_i;
     image = _image.clone();
-    cv::resize(image, thumbnail, cv::Size(80, 60));
     point_3d = _point_3d;
     point_2d_uv = _point_2d_uv;
     point_2d_norm = _point_2d_norm;
@@ -36,7 +35,6 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
     has_loop = false;
     loop_peer_id_ = -1;
     has_fast_point = false;
-    loop_info << 0, 0, 0, 0, 0, 0, 0, 0;
     sequence = _sequence;
     computeWindowBRIEFPoint();
     computeBRIEFPoint();
@@ -44,10 +42,10 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
 }
 
 // load previous keyframe
-KeyFrame::KeyFrame(double _time_stamp, int _index,
+KeyFrame::KeyFrame(double _time_stamp,
                    Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i,
                    Vector3d &_T_w_i, Matrix3d &_R_w_i,
-                   cv::Mat &_image, int _loop_index, Eigen::Matrix<double, 8, 1> &_loop_info,
+                   cv::Mat &_image, int _loop_index, const LoopInfo &_loop_info,
                    vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm,
                    vector<BRIEF::bitset> &_brief_descriptors) {
     time_stamp = _time_stamp;
@@ -60,7 +58,7 @@ KeyFrame::KeyFrame(double _time_stamp, int _index,
     else
         has_loop = false;
     loop_peer_id_ = _loop_index;
-    loop_info = _loop_info;
+    loop_info_ = _loop_info;
     has_fast_point = false;
     sequence = 0;
     keypoints = _keypoints;
@@ -68,22 +66,21 @@ KeyFrame::KeyFrame(double _time_stamp, int _index,
     brief_descriptors = _brief_descriptors;
 }
 
-
-void KeyFrame::computeWindowBRIEFPoint() {
-    BriefExtractor extractor(BRIEF_PATTERN_FILE.c_str());
+void KeyFrame::computeWindowBRIEFPoint(const std::string &pattern_file) {
+    BriefExtractor extractor(pattern_file.c_str());
     for (auto & i : point_2d_uv) {
         cv::KeyPoint key;
         key.pt = i;
         window_keypoints.push_back(key);
     }
-    extractor(image, window_keypoints, window_brief_descriptors);
+    extractor.m_brief.compute(image, window_keypoints, window_brief_descriptors);
 }
 
-void KeyFrame::computeBRIEFPoint() {
-    BriefExtractor extractor(BRIEF_PATTERN_FILE);
+void KeyFrame::computeBRIEFPoint(const std::string &pattern_file) {
+    BriefExtractor extractor(pattern_file);
     const int fast_th = 20; // corner detector response threshold
     cv::FAST(image, keypoints, fast_th, true);
-    extractor(image, keypoints, brief_descriptors);
+    extractor.m_brief.compute(image, keypoints, brief_descriptors);
     for (auto & keypoint : keypoints) {
         Eigen::Vector3d tmp_p;
         m_camera->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
@@ -93,32 +90,22 @@ void KeyFrame::computeBRIEFPoint() {
     }
 }
 
-void
-BriefExtractor::operator()(const cv::Mat &im, vector<cv::KeyPoint> &keys, vector<BRIEF::bitset> &descriptors) const {
-    m_brief.compute(im, keys, descriptors);
-}
-
-
 bool KeyFrame::searchInAera(const BRIEF::bitset& window_descriptor,
-                            const std::vector<BRIEF::bitset> &descriptors_old,
-                            const std::vector<cv::KeyPoint> &keypoints_old,
-                            const std::vector<cv::KeyPoint> &keypoints_old_norm,
+                            const KeyFrame* old_kf,
                             cv::Point2f &best_match,
                             cv::Point2f &best_match_norm) {
-    cv::Point2f best_pt;
     int bestDist = 128;
     int bestIndex = -1;
-    for (int i = 0; i < (int) descriptors_old.size(); i++) {
-
-        int dis = HammingDis(window_descriptor, descriptors_old[i]);
+    for (int i = 0; i < (int) old_kf->brief_descriptors.size(); i++) {
+        int dis = HammingDis(window_descriptor, old_kf->brief_descriptors[i]);
         if (dis < bestDist) {
             bestDist = dis;
             bestIndex = i;
         }
     }
     if (bestIndex != -1 && bestDist < 80) {
-        best_match = keypoints_old[bestIndex].pt;
-        best_match_norm = keypoints_old_norm[bestIndex].pt;
+        best_match = old_kf->keypoints[bestIndex].pt;
+        best_match_norm = old_kf->keypoints_norm[bestIndex].pt;
         return true;
     } else
         return false;
@@ -127,20 +114,17 @@ bool KeyFrame::searchInAera(const BRIEF::bitset& window_descriptor,
 void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
                                 std::vector<cv::Point2f> &matched_2d_old_norm,
                                 std::vector<uchar> &status,
-                                const std::vector<BRIEF::bitset> &descriptors_old,
-                                const std::vector<cv::KeyPoint> &keypoints_old,
-                                const std::vector<cv::KeyPoint> &keypoints_old_norm) {
+                                const KeyFrame* old_kf) {
     for (auto & window_brief_descriptor : window_brief_descriptors) {
         cv::Point2f pt(0.f, 0.f);
         cv::Point2f pt_norm(0.f, 0.f);
-        if (searchInAera(window_brief_descriptor, descriptors_old, keypoints_old, keypoints_old_norm, pt, pt_norm))
+        if (searchInAera(window_brief_descriptor, old_kf, pt, pt_norm))
             status.push_back(1);
         else
             status.push_back(0);
         matched_2d_old.push_back(pt);
         matched_2d_old_norm.push_back(pt_norm);
     }
-
 }
 
 void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
@@ -149,13 +133,11 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
                          Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old) {
     cv::Mat r, rvec, t, D, tmp_r;
     cv::Mat K = (cv::Mat_<double>(3, 3) << 1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
-    Matrix3d R_inital;
-    Vector3d P_inital;
     Matrix3d R_w_c = origin_vio_R * qic;
     Vector3d T_w_c = origin_vio_T + origin_vio_R * tic;
 
-    R_inital = R_w_c.inverse();
-    P_inital = -(R_inital * T_w_c);
+    Matrix3d R_inital = R_w_c.inverse();
+    Vector3d P_inital = -(R_inital * T_w_c);
 
     cv::eigen2cv(R_inital, tmp_r);
     cv::Rodrigues(tmp_r, rvec);
@@ -166,8 +148,7 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
     solvePnPRansac(matched_3d, matched_2d_old_norm, K, D, rvec, t,
                    true, 100, 10.0 / 460.0, 0.99, inliers);
 
-    for (int i = 0; i < (int) matched_2d_old_norm.size(); i++)
-        status.push_back(0);
+    status = std::vector<uchar>(matched_2d_old_norm.size(), 0);
 
     for (int i = 0; i < inliers.rows; i++) {
         int n = inliers.at<int>(i);
@@ -198,8 +179,7 @@ bool KeyFrame::findConnection(KeyFrame *old_kf, int old_kf_id) {
     matched_2d_cur_norm = point_2d_norm;
     matched_id = point_id;
 
-    searchByBRIEFDes(matched_2d_old, matched_2d_old_norm, status, old_kf->brief_descriptors, old_kf->keypoints,
-                     old_kf->keypoints_norm);
+    searchByBRIEFDes(matched_2d_old, matched_2d_old_norm, status, old_kf);
     reduceVector(matched_2d_cur, status);
     reduceVector(matched_2d_old, status);
     reduceVector(matched_2d_cur_norm, status);
@@ -261,24 +241,6 @@ void KeyFrame::updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3
     vio_R_w_i = _R_w_i;
     T_w_i = vio_T_w_i;
     R_w_i = vio_R_w_i;
-}
-
-Eigen::Vector3d KeyFrame::getLoopRelativeT() {
-    return Eigen::Vector3d(loop_info(0), loop_info(1), loop_info(2));
-}
-
-Eigen::Quaterniond KeyFrame::getLoopRelativeQ() {
-    return Eigen::Quaterniond(loop_info(3), loop_info(4), loop_info(5), loop_info(6));
-}
-
-double KeyFrame::getLoopRelativeYaw() {
-    return loop_info(7);
-}
-
-void KeyFrame::updateLoop(Eigen::Matrix<double, 8, 1> &_loop_info) {
-    if (abs(_loop_info(7)) < 30.0 && _loop_info.block<3,1>(0,0).norm() < 20.0) {
-        loop_info = _loop_info;
-    }
 }
 
 BriefExtractor::BriefExtractor(const std::string &pattern_file) {

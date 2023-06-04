@@ -11,12 +11,9 @@
 
 namespace vins{
 
-    class BriefExtractor
-    {
+    class BriefExtractor {
     public:
-        virtual void operator()(const cv::Mat &im, vector<cv::KeyPoint> &keys, vector<DVision::BRIEF::bitset> &descriptors) const;
         BriefExtractor(const std::string &pattern_file);
-
         DVision::BRIEF m_brief;
     };
 
@@ -29,33 +26,18 @@ namespace vins{
             double relative_yaw;
         };
 
-        KeyFrame(double _time_stamp, int _index, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
+        KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
                  vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
                  vector<double> &_point_id, int _sequence);
-        KeyFrame(double _time_stamp, int _index, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i,
-                 cv::Mat &_image, int _loop_index, Eigen::Matrix<double, 8, 1 > &_loop_info,
+        KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i,
+                 cv::Mat &_image, int _loop_index, const LoopInfo &_loop_info,
                  vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm, vector<DVision::BRIEF::bitset> &_brief_descriptors);
         bool findConnection(KeyFrame *old_kf, int old_kf_id);
-        void computeWindowBRIEFPoint();
-        void computeBRIEFPoint();
-        //void extractBrief();
+
+        void computeWindowBRIEFPoint(const std::string &pattern_file);
+        void computeBRIEFPoint(const std::string &pattern_file);
+
         static int HammingDis(const DVision::BRIEF::bitset &a, const DVision::BRIEF::bitset &b);
-        bool searchInAera(const DVision::BRIEF::bitset& window_descriptor,
-                          const std::vector<DVision::BRIEF::bitset> &descriptors_old,
-                          const std::vector<cv::KeyPoint> &keypoints_old,
-                          const std::vector<cv::KeyPoint> &keypoints_old_norm,
-                          cv::Point2f &best_match,
-                          cv::Point2f &best_match_norm);
-        void searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
-                              std::vector<cv::Point2f> &matched_2d_old_norm,
-                              std::vector<uchar> &status,
-                              const std::vector<DVision::BRIEF::bitset> &descriptors_old,
-                              const std::vector<cv::KeyPoint> &keypoints_old,
-                              const std::vector<cv::KeyPoint> &keypoints_old_norm);
-        void PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
-                       const std::vector<cv::Point3f> &matched_3d,
-                       std::vector<uchar> &status,
-                       Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old);
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i);
         void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
@@ -66,8 +48,6 @@ namespace vins{
         double getLoopRelativeYaw();
         Eigen::Quaterniond getLoopRelativeQ();
 
-
-
         double time_stamp;
         Eigen::Vector3d vio_T_w_i;
         Eigen::Matrix3d vio_R_w_i;
@@ -76,7 +56,6 @@ namespace vins{
         Eigen::Vector3d origin_vio_T;
         Eigen::Matrix3d origin_vio_R;
         cv::Mat image;
-        cv::Mat thumbnail;
         vector<cv::Point3f> point_3d;
         vector<cv::Point2f> point_2d_uv;
         vector<cv::Point2f> point_2d_norm;
@@ -92,5 +71,18 @@ namespace vins{
         bool has_loop;
         int loop_peer_id_;
         LoopInfo loop_info_;
+    private:
+        bool searchInAera(const DVision::BRIEF::bitset& window_descriptor,
+                          const KeyFrame* old_kf,
+                          cv::Point2f &best_match,
+                          cv::Point2f &best_match_norm);
+        void searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
+                              std::vector<cv::Point2f> &matched_2d_old_norm,
+                              std::vector<uchar> &status,
+                              const KeyFrame* old_kf);
+        void PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
+                       const std::vector<cv::Point3f> &matched_3d,
+                       std::vector<uchar> &status,
+                       Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old);
     };
 }
