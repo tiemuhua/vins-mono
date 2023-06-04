@@ -1,6 +1,6 @@
 #include "rotation_extrinsic_estimator.h"
 #include "log.h"
-#include "utils.h"
+#include "vins_utils.h"
 
 namespace vins {
     using namespace Eigen;

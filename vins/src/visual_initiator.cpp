@@ -13,7 +13,7 @@
 #include <ceres/rotation.h>
 
 #include "log.h"
-#include "utils.h"
+#include "vins_utils.h"
 
 #include "feature_manager.h"
 #include "motion_estimator.h"

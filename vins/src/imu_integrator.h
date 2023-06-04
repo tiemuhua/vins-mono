@@ -6,7 +6,7 @@
 #define VINS_IMU_INTEGRATOR_H
 
 #include <Eigen/Eigen>
-#include "utils.h"
+#include "vins_utils.h"
 
 namespace vins {
     enum StateOrder {
@@ -54,13 +54,13 @@ namespace vins {
         [[nodiscard]] double deltaTime() const {
             return time_stamp_buf.back() - time_stamp_buf.front();
         }
-        Jacobian getJacobian() const {
+        [[nodiscard]] Jacobian getJacobian() const {
             return jacobian;
         }
-        Covariance getCovariance() const {
+        [[nodiscard]] Covariance getCovariance() const {
             return covariance;
         }
-        Noise getNoise() const {
+        [[nodiscard]] Noise getNoise() const {
             return noise;
         }
 
