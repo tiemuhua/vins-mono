@@ -10,6 +10,7 @@ namespace vins {
         features_.clear();
     }
 
+    // todo 前端建图的关键帧和后端回环的关键帧不是一个东西
     bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features_.size());
         double parallax_sum = 0;

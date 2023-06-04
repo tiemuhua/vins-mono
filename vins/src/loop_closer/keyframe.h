@@ -21,8 +21,8 @@ namespace vins{
     {
     public:
         struct LoopInfo{
-            Eigen::Vector3d relative_t;
-            Eigen::Quaterniond relative_q;
+            Eigen::Vector3d relative_pos;
+            Eigen::Matrix3d relative_rot;
             double relative_yaw;
         };
 

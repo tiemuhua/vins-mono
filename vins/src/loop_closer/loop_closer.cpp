@@ -142,22 +142,23 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
         KeyFrame *old_kf = keyframelist_[loop_index];
 
         if (cur_kf->findConnection(old_kf, loop_index)) {
-            if (earliest_loop_index > loop_index || earliest_loop_index == -1)
+            if (earliest_loop_index > loop_index || earliest_loop_index == -1) {
                 earliest_loop_index = loop_index;
+            }
 
             Vector3d w_P_old, vio_P_cur;
             Matrix3d w_R_old, vio_R_cur;
             old_kf->getVioPose(w_P_old, w_R_old);
             cur_kf->getVioPose(vio_P_cur, vio_R_cur);
 
-            Vector3d relative_t = cur_kf->getLoopRelativeT();
-            Quaterniond relative_q;
-            relative_q = (cur_kf->getLoopRelativeQ()).toRotationMatrix();
-            Vector3d w_P_cur = w_R_old * relative_t + w_P_old;
-            Matrix3d w_R_cur = w_R_old * relative_q;
+            const Vector3d &relative_pos = cur_kf->loop_info_.relative_pos;
+            const Matrix3d &relative_rot = cur_kf->loop_info_.relative_rot;
+            Vector3d w_P_cur = w_R_old * relative_pos + w_P_old;
+            Matrix3d w_R_cur = w_R_old * relative_rot;
             double shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
             Matrix3d shift_r = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
             Vector3d shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
+
             // shift vio pose of whole sequence to the world frame
             if (old_kf->sequence != cur_kf->sequence && sequence_loop[cur_kf->sequence] == 0) {
                 w_r_vio = shift_r;
@@ -187,7 +188,6 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
     P = r_drift * P + t_drift;
     R = r_drift * R;
     cur_kf->updatePose(P, R);
-
     keyframelist_.push_back(cur_kf);
     m_keyframelist.unlock();
 }

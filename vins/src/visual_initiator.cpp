@@ -98,6 +98,8 @@ namespace vins {
                           Quaterniond *q, Vector3d *T,
                           vector<SFMFeature> &sfm_features, map<int, Vector3d> &sfm_tracked_points);
 
+#define WINDOW_SIZE 100
+
     bool VisualInitiator::initialStructure(const FeatureManager& feature_manager_,
                                            const int key_frame_num,
                                            vector<ImageFrame> &all_image_frame_) {
