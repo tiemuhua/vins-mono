@@ -35,8 +35,8 @@ public:
     }
 };
 
-struct FourDOFError {
-    FourDOFError(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
+struct SequentialEdge {
+    SequentialEdge(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
             : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
 
     bool operator()(const double *const yaw_i, const double *ti, const double *yaw_j, const double *tj, double *residuals) const {
@@ -52,8 +52,8 @@ struct FourDOFError {
 
     static ceres::CostFunction *Create(const Vector3d &t,
                                        const double relative_yaw, const double pitch_i, const double roll_i) {
-        return (new ceres::AutoDiffCostFunction<FourDOFError, 4, 1, 3, 1, 3>(
-                new FourDOFError(t, relative_yaw, pitch_i, roll_i)));
+        return (new ceres::AutoDiffCostFunction<SequentialEdge, 4, 1, 3, 1, 3>(
+                new SequentialEdge(t, relative_yaw, pitch_i, roll_i)));
     }
 
     Vector3d t_;
@@ -61,8 +61,8 @@ struct FourDOFError {
 
 };
 
-struct FourDOFWeightError {
-    FourDOFWeightError(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
+struct LoopEdge {
+    LoopEdge(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
             : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {
         weight = 1;
     }
@@ -80,9 +80,8 @@ struct FourDOFWeightError {
 
     static ceres::CostFunction *Create(const Vector3d &t,
                                        const double relative_yaw, const double pitch_i, const double roll_i) {
-        return (new ceres::AutoDiffCostFunction<
-                FourDOFWeightError, 4, 1, 3, 1, 3>(
-                new FourDOFWeightError(t, relative_yaw, pitch_i, roll_i)));
+        return (new ceres::AutoDiffCostFunction<LoopEdge, 4, 1, 3, 1, 3>(
+                new LoopEdge(t, relative_yaw, pitch_i, roll_i)));
     }
 
     Vector3d t_;
@@ -236,17 +235,17 @@ void LoopCloser::optimize4DoF() {
 
             //add edge
             for (int j = 1; j < 5; j++) {
-                int cur_frame_id = frame_id - j;
-                if (cur_frame_id < 0) {
+                int peer_id = frame_id - j;
+                if (peer_id < 0) {
                     continue;
                 }
-                Vector3d euler_connected = euler_array[cur_frame_id];
-                Vector3d relative_t = r_array[cur_frame_id].transpose() * (t_array[frame_id] - t_array[cur_frame_id]);
-                double relative_yaw = euler_array[frame_id].x() - euler_array[cur_frame_id].x();
+                Vector3d peer_euler = euler_array[peer_id];
+                Vector3d relative_t = r_array[peer_id].transpose() * (t_array[frame_id] - t_array[peer_id]);
+                double relative_yaw = euler_array[frame_id].x() - euler_array[peer_id].x();
                 ceres::CostFunction *cost_function =
-                        FourDOFError::Create(relative_t, relative_yaw, euler_connected.y(), euler_connected.z());
+                        SequentialEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
                 problem.AddResidualBlock(cost_function, nullptr,
-                                         euler_array[cur_frame_id].data(), t_array[cur_frame_id].data(),
+                                         euler_array[peer_id].data(), t_array[peer_id].data(),
                                          euler_array[frame_id].data(), t_array[frame_id].data());
             }
 
@@ -258,7 +257,7 @@ void LoopCloser::optimize4DoF() {
                 Vector3d relative_t = kf->getLoopRelativeT();
                 double relative_yaw = kf->getLoopRelativeYaw();
                 ceres::CostFunction *cost_function =
-                        FourDOFWeightError::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
+                        LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
                 problem.AddResidualBlock(cost_function, loss_function,
                                          euler_array[peer_id].data(), t_array[peer_id].data(),
                                          euler_array[frame_id].data(), t_array[frame_id].data());
