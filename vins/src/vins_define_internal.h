@@ -32,7 +32,7 @@ namespace vins {
         std::vector<FeaturePoint> feature_points_;
 
         bool is_outlier_{};
-        double estimated_depth;
+        double inv_depth;
         enum {
             FeatureHaveNotSolved,
             FeatureSolvedSucc,
@@ -41,7 +41,7 @@ namespace vins {
 
         FeaturesOfId(int _feature_id, int _start_frame)
                 : feature_id_(_feature_id), start_frame_(_start_frame),
-                  estimated_depth(-1.0), solve_flag_(FeatureHaveNotSolved) {
+                  inv_depth(-1.0), solve_flag_(FeatureHaveNotSolved) {
         }
 
         [[nodiscard]] int endFrame() const {
@@ -75,7 +75,16 @@ namespace vins {
     typedef std::vector<Eigen::Vector3d> PosWindow;
     typedef std::vector<Eigen::Vector3d> VelWindow;
     typedef std::vector<Eigen::Matrix3d> RotWindow;
-    typedef std::vector<Eigen::Matrix3d> RotWindow;
+
+    struct BundleAdjustWindow {
+        PreIntegrateWindow pre_int_window;
+        TimeStampWindow time_stamp_window;
+        BaWindow ba_window;
+        BgWindow bg_window;
+        PosWindow pos_window;
+        VelWindow vel_window;
+        RotWindow rot_window;
+    };
 }
 
 

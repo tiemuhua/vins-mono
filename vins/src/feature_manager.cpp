@@ -1,6 +1,8 @@
 #include "feature_manager.h"
 #include "log.h"
-
+#define WINDOW_SIZE 100
+#define FOCAL_LENGTH 10
+#define MIN_PARALLAX 1
 namespace vins {
     using namespace std;
     using namespace Eigen;
@@ -8,18 +10,8 @@ namespace vins {
         features_.clear();
     }
 
-    int FeatureManager::getFeatureCount() {
-        int cnt = 0;
-        for (FeaturesOfId &it: features_) {
-            if (it.feature_points_.size() >= 2 && it.start_frame_ < WINDOW_SIZE - 2) {
-                cnt++;
-            }
-        }
-        return cnt;
-    }
-
     bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points) {
-        LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), getFeatureCount());
+        LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features_.size());
         double parallax_sum = 0;
         int parallax_num = 0;
         last_track_num = 0;
@@ -73,16 +65,12 @@ namespace vins {
     }
 
     void FeatureManager::setInvDepth(const VectorXd &x) {
-        int feature_index = -1;
-        for (auto &it_per_id: features_) {
-            if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
-                continue;
-
-            it_per_id.estimated_depth = 1.0 / x(++feature_index);
-            if (it_per_id.estimated_depth < 0) {
-                it_per_id.solve_flag_ = FeaturesOfId::FeatureSolveFail;
+        for (int i = 0; i < features_.size(); ++i) {
+            features_[i].inv_depth = x(i);
+            if (features_[i].inv_depth < 0) {
+                features_[i].solve_flag_ = FeaturesOfId::FeatureSolveFail;
             } else
-                it_per_id.solve_flag_ = FeaturesOfId::FeatureSolvedSucc;
+                features_[i].solve_flag_ = FeaturesOfId::FeatureSolvedSucc;
         }
     }
 
@@ -97,19 +85,14 @@ namespace vins {
 
     void FeatureManager::clearDepth() {
         for (FeaturesOfId &it_per_id: features_) {
-            if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
-                continue;
-            it_per_id.estimated_depth = -1.0;
+            it_per_id.inv_depth = -1.0;
         }
     }
 
-    VectorXd FeatureManager::getInvDepthVector() {
-        VectorXd dep_vec(getFeatureCount());
-        int feature_index = -1;
-        for (FeaturesOfId &it_per_id: features_) {
-            if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
-                continue;
-            dep_vec(++feature_index) = 1. / it_per_id.estimated_depth;
+    std::vector<double> FeatureManager::getInvDepth() const {
+        std::vector<double> dep_vec(features_.size());
+        for (int i = 0; i < features_.size(); ++i) {
+            dep_vec[i] = features_[i].inv_depth;
         }
         return dep_vec;
     }
@@ -120,7 +103,7 @@ namespace vins {
             if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
                 continue;
 
-            if (it_per_id.estimated_depth > 0)
+            if (it_per_id.inv_depth > 0)
                 continue;
 
             Eigen::MatrixXd svd_A(2 * it_per_id.feature_points_.size(), 4);
@@ -147,9 +130,9 @@ namespace vins {
             double svd_method = svd_V[2] / svd_V[3];
 
             if (svd_method < 0.1) {
-                it_per_id.estimated_depth = INIT_DEPTH;
+                it_per_id.inv_depth = INIT_DEPTH;
             } else {
-                it_per_id.estimated_depth = svd_method;
+                it_per_id.inv_depth = svd_method;
             }
         }
     }
@@ -178,8 +161,8 @@ namespace vins {
                 features_.erase(it);
                 continue;
             }
-            if (it->estimated_depth < 0)
-                it->estimated_depth = INIT_DEPTH;
+            if (it->inv_depth < 0)
+                it->inv_depth = INIT_DEPTH;
         }
     }
 

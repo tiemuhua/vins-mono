@@ -15,19 +15,15 @@ namespace vins {
     public:
         void clearState();
 
-        int getFeatureCount();
-
         bool addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points);
 
         [[nodiscard]] vector<pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r) const;
 
-        void setInvDepth(const VectorXd &x);
-
         void removeFailures();
 
         void clearDepth();
-
-        VectorXd getInvDepthVector();
+        std::vector<double> getInvDepth() const;
+        void setInvDepth(const VectorXd &x);
 
         void triangulate(const PosWindow& pos_window, const RotWindow& rot_window, const Vector3d& tic, const Matrix3d &ric);
 
@@ -37,7 +33,7 @@ namespace vins {
 
         void removeOutlier();
 
-        list<FeaturesOfId> features_;
+        vector<FeaturesOfId> features_;
         int last_track_num{};
 
     private:
