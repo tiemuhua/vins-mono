@@ -193,31 +193,32 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
 }
 
 int LoopCloser::detectLoop(KeyFrame *keyframe, int frame_index) {
-    // put image into image_pool; for visualization
-    cv::Mat compressed_image;
-    //first query; then add this frame into database!
+    if (frame_index < 50) {
+        return -1;
+    }
     QueryResults ret;
     db.query(keyframe->brief_descriptors, ret, 4, frame_index - 50);
-    bool find_loop = false;
     cv::Mat loop_result;
     // a good match with its neighbour
-    if (!ret.empty() && ret[0].Score > 0.05)
-        for (unsigned int i = 1; i < ret.size(); i++) {
-            if (ret[i].Score > 0.015) {
-                find_loop = true;
-            }
-
-        }
-    if (find_loop && frame_index > 50) {
-        int min_index = -1;
-        for (unsigned int i = 0; i < ret.size(); i++) {
-            if (min_index == -1 || (ret[i].Id < min_index && ret[i].Score > 0.015))
-                min_index = ret[i].Id;
-        }
-        return min_index;
-    } else
+    if (ret.size() < 2 || ret[0].Score < 0.05) {
         return -1;
-
+    }
+    bool find_loop = false;
+    for (unsigned int i = 1; i < ret.size(); i++) {
+        if (ret[i].Score > 0.015) {
+            find_loop = true;
+        }
+    }
+    if (!find_loop) {
+        return -1;
+    }
+    int min_index = 0x3f3f3f3f;
+    assert(ret.size() < min_index);
+    for (unsigned int i = 1; i < ret.size(); i++) {
+        if (ret[i].Id < min_index && ret[i].Score > 0.015)
+            min_index = ret[i].Id;
+    }
+    return min_index;
 }
 
 void LoopCloser::optimize4DoF() {
