@@ -6,32 +6,28 @@ using namespace DVision;
 using namespace DBoW2;
 using namespace Eigen;
 
-class AngleManifold {
+class AngleManifoldPi {
 public:
-
     template<typename T>
-    bool operator()(const T *theta_radians, const T *delta_theta_radians,
-                    T *theta_radians_plus_delta) const {
-        *theta_radians_plus_delta =
-                utils::normalizeAngle180(*theta_radians + *delta_theta_radians);
-
+    bool operator()(const T *first, const T *second, T *result) const {
+        *result = utils::normalizeAnglePi(*first + *second);
         return true;
     }
 
     template <typename T>
     bool Plus(const T *x, const T *delta, T *x_plus_delta) const {
-        *x_plus_delta = utils::normalizeAngle180(*x + *delta);
+        *x_plus_delta = utils::normalizeAnglePi(*x + *delta);
         return true;
     }
 
     template <typename T>
     bool Minus(const T *x, const T *delta, T *x_plus_delta) const {
-        *x_plus_delta = utils::normalizeAngle180(*x - *delta);
+        *x_plus_delta = utils::normalizeAnglePi(*x - *delta);
         return true;
     }
 
     static ceres::Manifold *Create() {
-        return (new ceres::AutoDiffManifold<AngleManifold, 1, 1>);
+        return (new ceres::AutoDiffManifold<AngleManifoldPi, 1, 1>);
     }
 };
 
@@ -220,14 +216,14 @@ void LoopCloser::optimize4DoF() {
         options.max_num_iterations = 5;
         ceres::Solver::Summary summary;
         ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
-        ceres::Manifold *angle_manifold = AngleManifold::Create();
+        ceres::Manifold *angle_manifold_pi = AngleManifoldPi::Create();
 
         for (int frame_id = first_looped_index; frame_id <= cur_looped_id; ++frame_id) {
             KeyFrame* kf = keyframelist_[frame_id];
             kf->getVioPose(t_array[frame_id], r_array[frame_id]);
             euler_array[frame_id] = utils::rot2ypr(r_array[frame_id]);
 
-            problem.AddParameterBlock(euler_array[frame_id].data(), 1, angle_manifold);
+            problem.AddParameterBlock(euler_array[frame_id].data(), 1, angle_manifold_pi);
             problem.AddParameterBlock(t_array[frame_id].data(), 3);
 
             problem.SetParameterBlockConstant(euler_array[frame_id].data());
