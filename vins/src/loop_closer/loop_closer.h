@@ -54,7 +54,7 @@ namespace vins{
 
         void optimize4DoF();
 
-        list<KeyFrame *> keyframelist_;
+        std::vector<KeyFrame *> keyframelist_;
         std::mutex m_keyframelist;
         std::mutex m_optimize_buf;
         std::mutex m_path;
