@@ -213,8 +213,8 @@ void LoopCloser::optimize4DoF() {
                 int peer_frame_id = kf->loop_info_.peer_frame_id;
                 assert(peer_frame_id >= first_looped_index);
                 Vector3d peer_euler = utils::rot2ypr(r_array[peer_frame_id]);
-                Vector3d relative_t = kf->loop_info_.pnp_pos;
-                double relative_yaw = kf->loop_info_.pnp_yaw;
+                Vector3d relative_t = kf->loop_info_.relative_t;
+                double relative_yaw = kf->loop_info_.relative_yaw;
                 ceres::CostFunction *cost_function =
                         LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
                 problem.AddResidualBlock(cost_function, loss_function,

@@ -19,8 +19,8 @@ namespace vins{
 
     struct LoopInfo {
         int peer_frame_id = -1;
-        Eigen::Vector3d pnp_pos;
-        double pnp_yaw;
+        Eigen::Vector3d relative_pos;
+        double relative_yaw;
     };
 
     class KeyFrame {
