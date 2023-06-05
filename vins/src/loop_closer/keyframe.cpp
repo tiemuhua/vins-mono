@@ -41,31 +41,6 @@ KeyFrame::KeyFrame(double _time_stamp, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_
     image.release();
 }
 
-// load previous keyframe
-KeyFrame::KeyFrame(double _time_stamp,
-                   Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i,
-                   Vector3d &_T_w_i, Matrix3d &_R_w_i,
-                   cv::Mat &_image, int _loop_index, const LoopInfo &_loop_info,
-                   vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm,
-                   vector<BRIEF::bitset> &_brief_descriptors) {
-    time_stamp = _time_stamp;
-    vio_T_w_i = _T_w_i;
-    vio_R_w_i = _R_w_i;
-    T_w_i = _T_w_i;
-    R_w_i = _R_w_i;
-    if (_loop_index != -1)
-        has_loop = true;
-    else
-        has_loop = false;
-    loop_peer_id_ = _loop_index;
-    loop_info_ = _loop_info;
-    has_fast_point = false;
-    sequence = 0;
-    keypoints = _keypoints;
-    keypoints_norm = _keypoints_norm;
-    brief_descriptors = _brief_descriptors;
-}
-
 void KeyFrame::computeWindowBRIEFPoint(const std::string &pattern_file) {
     BriefExtractor extractor(pattern_file.c_str());
     for (auto & i : point_2d_uv) {
