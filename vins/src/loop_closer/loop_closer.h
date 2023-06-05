@@ -43,11 +43,6 @@ namespace vins{
         double yaw_drift = 0;
         Eigen::Matrix3d r_drift = Eigen::Matrix3d::Identity();
 
-        // world frame( base sequence or first sequence)<----> cur sequence frame
-        Eigen::Vector3d w_t_vio = Eigen::Vector3d::Zero();;
-        Eigen::Matrix3d w_r_vio = Eigen::Matrix3d::Identity();
-
-
     private:
         int detectLoop(KeyFrame *keyframe, int frame_index);
 
