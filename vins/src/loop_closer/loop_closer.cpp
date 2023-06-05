@@ -268,8 +268,8 @@ void LoopCloser::optimize4DoF() {
         cur_kf->getPose(cur_t, cur_r);
         cur_kf->getVioPose(vio_t, vio_r);
         m_drift.lock();
-        yaw_drift = utils::rot2ypr(cur_r).x() - utils::rot2ypr(vio_r).x();
-        r_drift = utils::rot2ypr(Vector3d(yaw_drift, 0, 0));
+        double yaw_drift = utils::rot2ypr(cur_r).x() - utils::rot2ypr(vio_r).x();
+        r_drift = utils::ypr2rot(Vector3d(yaw_drift, 0, 0));
         t_drift = cur_t - r_drift * vio_t;
         m_drift.unlock();
 
@@ -287,34 +287,25 @@ void LoopCloser::optimize4DoF() {
 
 extern int FAST_RELOCALIZATION;
 
-void LoopCloser::updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1> &_loop_info) {
+void LoopCloser::updateKeyFrameLoop(int index, KeyFrame::LoopInfo &_loop_info) {
     KeyFrame *kf = keyframelist_[index];
     kf->updateLoop(_loop_info);
-    if (abs(_loop_info(7)) < 30.0 && Vector3d(_loop_info(0), _loop_info(1), _loop_info(2)).norm() < 20.0) {
+    if (abs(_loop_info.relative_yaw) < 30.0 && _loop_info.relative_pos.norm() < 20.0) {
         if (FAST_RELOCALIZATION) {
             KeyFrame *old_kf = keyframelist_[kf->loop_peer_id_];
-            Vector3d w_P_old, w_P_cur, vio_P_cur;
-            Matrix3d w_R_old, w_R_cur, vio_R_cur;
+            Vector3d w_P_old, vio_P_cur;
+            Matrix3d w_R_old, vio_R_cur;
             old_kf->getPose(w_P_old, w_R_old);
             kf->getVioPose(vio_P_cur, vio_R_cur);
 
-            Vector3d relative_t;
-            Quaterniond relative_q;
-            relative_t = kf->getLoopRelativeT();
-            relative_q = (kf->getLoopRelativeQ()).toRotationMatrix();
-            w_P_cur = w_R_old * relative_t + w_P_old;
-            w_R_cur = w_R_old * relative_q;
-            double shift_yaw;
-            Matrix3d shift_r;
-            Vector3d shift_t;
-            shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
-            shift_r = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
-            shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
-
+            Vector3d relative_t = kf->getLoopRelativeT();
+            Matrix3d relative_rot = kf->loop_info_.relative_rot;
+            Vector3d w_P_cur = w_R_old * relative_t + w_P_old;
+            Matrix3d w_R_cur = w_R_old * relative_rot;
+            double shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
             m_drift.lock();
-            yaw_drift = shift_yaw;
-            r_drift = shift_r;
-            t_drift = shift_t;
+            r_drift = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
+            t_drift = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
             m_drift.unlock();
         }
     }

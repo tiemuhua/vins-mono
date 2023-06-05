@@ -35,12 +35,11 @@ namespace vins{
 
         void loadVocabulary(const std::string &voc_path);
 
-        void updateKeyFrameLoop(int index, Eigen::Matrix<double, 8, 1> &_loop_info);
+        void updateKeyFrameLoop(int index, KeyFrame::LoopInfo &_loop_info);
 
         KeyFrame *getKeyFrame(int index);
 
         Eigen::Vector3d t_drift = Eigen::Vector3d::Zero();
-        double yaw_drift = 0;
         Eigen::Matrix3d r_drift = Eigen::Matrix3d::Identity();
 
     private:
