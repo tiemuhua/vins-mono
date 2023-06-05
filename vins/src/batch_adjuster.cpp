@@ -34,6 +34,9 @@ static arr4d c_ric;
 static arr1d c_inv_depth[FeaturePointSize];
 static arr1d c_time_delay;
 
+static arr3d c_loop_peer_pos;
+static arr4d c_loop_peer_quat;
+
 static std::vector<double*> s_marginal_param_blocks;
 static std::shared_ptr<vins::MarginalInfo> sp_marginal_info;
 
@@ -71,8 +74,14 @@ namespace vins{
 
     }
 
-    void BatchAdjuster::optimize(const BatchAdjustParam& param,
+    struct LoopCloseInfo {
+        int loop_close_peer_frame;
+        std::unordered_map<int, cv::Point2f> feature_id_2_point;
+    };
+
+    void BatchAdjuster::optimize(const BatchAdjustParam &param,
                                  const FeatureManager &feature_manager,
+                                 const LoopCloseInfo &loop_close_info,
                                  BundleAdjustWindow &window) {
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
@@ -142,27 +151,25 @@ namespace vins{
 
         /*************** 4:回环 **************************/
         if (param.is_re_localize) {
-            ceres::Manifold *local_parameterization = new ceres::SE3Manifold();
-            problem.AddParameterBlock(re_local_Pose, 7);
-            int retrive_feature_index = 0;
-            feature_index = -1;
-            for (const FeaturesOfId &features_of_id: feature_manager_.features_) {
-                if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2)
-                    continue;
-                ++feature_index;
+            problem.AddParameterBlock(c_loop_peer_pos, 3);
+            problem.AddParameterBlock(c_loop_peer_quat, 4);
+            for (int feature_id = 0; feature_id < feature_manager.features_.size(); ++feature_id) {
+                const FeaturesOfId features_of_id = feature_manager.features_[feature_id];
                 int start = features_of_id.start_frame_;
-                if (start <= re_local_frame_local_index) {
-                    while ((int) match_points_[retrive_feature_index].feature_id < features_of_id.feature_id_) {
-                        retrive_feature_index++;
-                    }
-                    if (match_points_[retrive_feature_index].feature_id == features_of_id.feature_id_) {
-                        auto *cost_function = new ProjectionFactor(match_points_[retrive_feature_index].point,
-                                                                   features_of_id.feature_points_[0].unified_point);
-                        problem.AddResidualBlock(cost_function, loss_function,
-                                                 para_Pose[start], re_local_Pose, para_Ex_Pose, para_FeatureInvDepth[feature_index]);
-                        retrive_feature_index++;
-                    }
+                if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
+                    continue;
                 }
+                if (start > loop_close_info.loop_close_peer_frame) {
+                    continue;
+                }
+                if (loop_close_info.feature_id_2_point.count(features_of_id.feature_id_) == 0) {
+                    continue;
+                }
+                const cv::Point2f peer_point = loop_close_info.feature_id_2_point.at(features_of_id.feature_id_);
+                auto *cost_function = new ProjectionFactor(peer_point,features_of_id.feature_points_[0].unified_point);
+                problem.AddResidualBlock(cost_function, loss_function,
+                                         c_pos[start], c_quat[start], c_loop_peer_pos, c_loop_peer_quat,
+                                         c_tic, c_ric, c_inv_depth[feature_id]);
             }
         }
 
