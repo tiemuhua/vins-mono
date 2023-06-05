@@ -89,11 +89,6 @@ struct LoopEdge {
 LoopCloser::LoopCloser() {
     t_optimization = std::thread(&LoopCloser::optimize4DoF, this);
     earliest_loop_index = -1;
-    t_drift = Eigen::Vector3d(0, 0, 0);
-    yaw_drift = 0;
-    r_drift = Eigen::Matrix3d::Identity();
-    w_t_vio = Eigen::Vector3d(0, 0, 0);
-    w_r_vio = Eigen::Matrix3d::Identity();
 }
 
 LoopCloser::~LoopCloser() {
