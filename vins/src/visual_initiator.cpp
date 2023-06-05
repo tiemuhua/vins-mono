@@ -31,32 +31,27 @@ namespace vins {
     };
 
     struct ReProjectionError3D {
-        ReProjectionError3D(double observed_u, double observed_v)
-                : observed_u(observed_u), observed_v(observed_v) {}
+        ReProjectionError3D(const cv::Point2f &observed_point)
+                : observed_point_(observed_point) {}
 
         template<typename T>
         bool operator()(const T *const camera_R, const T *const camera_T, const T *point, T *residuals) const {
             T p[3];
             ceres::QuaternionRotatePoint(camera_R, point, p);
-            p[0] += camera_T[0];
-            p[1] += camera_T[1];
-            p[2] += camera_T[2];
+            utils::arrayPlus(p, camera_T, p, 3);
             T xp = p[0] / p[2];
             T yp = p[1] / p[2];
-            residuals[0] = xp - T(observed_u);
-            residuals[1] = yp - T(observed_v);
+            residuals[0] = xp - T(observed_point_.x);
+            residuals[1] = yp - T(observed_point_.y);
             return true;
         }
 
-        static ceres::CostFunction *Create(const double observed_x,
-                                           const double observed_y) {
-            return (new ceres::AutoDiffCostFunction<
-                    ReProjectionError3D, 2, 4, 3, 3>(
-                    new ReProjectionError3D(observed_x, observed_y)));
+        static ceres::CostFunction *Create(const cv::Point2f &observed_point) {
+            return (new ceres::AutoDiffCostFunction<ReProjectionError3D, 2, 4, 3, 3>(
+                    new ReProjectionError3D(observed_point)));
         }
 
-        double observed_u;
-        double observed_v;
+        cv::Point2f observed_point_;
     };
 
     static bool isAccVariantIsBigEnough(const vector<ImageFrame> &all_image_frame_) {
@@ -336,7 +331,7 @@ namespace vins {
                 continue;
             for (const auto &it:sfm.frame_id_2_point_) {
                 ceres::CostFunction *cost_function =
-                        ReProjectionError3D::Create(it.second.x,it.second.y);
+                        ReProjectionError3D::Create(it.second);
                 problem.AddResidualBlock(cost_function, nullptr,
                                          c_rotation[big_parallax_frame_id], c_translation[big_parallax_frame_id], sfm.position.data());
             }
