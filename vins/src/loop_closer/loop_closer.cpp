@@ -101,11 +101,6 @@ void LoopCloser::loadVocabulary(const std::string &voc_path) {
 }
 
 void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
-    //shift to base frame
-    Vector3d vio_P_cur;
-    Matrix3d vio_R_cur;
-    cur_kf->getVioPose(vio_P_cur, vio_R_cur);
-    cur_kf->updateVioPose(vio_P_cur, vio_R_cur);
     int loop_index = -1;
     if (flag_detect_loop) {
         loop_index = detectLoop(cur_kf, keyframelist_.size());
@@ -121,20 +116,6 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
             if (earliest_loop_index > loop_index || earliest_loop_index == -1) {
                 earliest_loop_index = loop_index;
             }
-
-            Vector3d w_P_old, vio_P_cur;
-            Matrix3d w_R_old, vio_R_cur;
-            old_kf->getVioPose(w_P_old, w_R_old);
-            cur_kf->getVioPose(vio_P_cur, vio_R_cur);
-
-            const Vector3d &relative_pos = cur_kf->loop_info_.relative_pos;
-            const Matrix3d &relative_rot = cur_kf->loop_info_.relative_rot;
-            Vector3d w_P_cur = w_R_old * relative_pos + w_P_old;
-            Matrix3d w_R_cur = w_R_old * relative_rot;
-            double shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
-            Matrix3d shift_r = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
-            Vector3d shift_t = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
-
             m_optimize_buf.lock();
             optimize_buf.push(keyframelist_.size());
             m_optimize_buf.unlock();
