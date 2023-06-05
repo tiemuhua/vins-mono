@@ -40,7 +40,10 @@ namespace vins{
         static int HammingDis(const DVision::BRIEF::bitset &a, const DVision::BRIEF::bitset &b);
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i);
+        void getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
+                            Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift);
         void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
+        void updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
         void updateLoop(LoopInfo &_loop_info);
 

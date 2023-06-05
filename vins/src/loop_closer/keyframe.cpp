@@ -226,6 +226,13 @@ void KeyFrame::getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) cons
     _R_w_i = vio_R_w_i;
 }
 
+void KeyFrame::getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
+                              Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) {
+    double yaw_drift = euler.x() - utils::rot2ypr(vio_R_w_i).x();
+    rot_drift = utils::ypr2rot(Vector3d(yaw_drift, 0, 0));
+    pos_drift = pos - rot_drift * vio_T_w_i;
+}
+
 void KeyFrame::getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) {
     _T_w_i = T_w_i;
     _R_w_i = R_w_i;
@@ -234,6 +241,11 @@ void KeyFrame::getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) {
 void KeyFrame::updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i) {
     T_w_i = _T_w_i;
     R_w_i = _R_w_i;
+}
+
+void KeyFrame::updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift) {
+    T_w_i = r_drift * T_w_i + t_drift;
+    R_w_i = r_drift * R_w_i;
 }
 
 void KeyFrame::updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i) {

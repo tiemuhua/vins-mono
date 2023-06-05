@@ -111,10 +111,12 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
         loop_index = detectLoop(cur_kf, keyframelist_.size());
     }
     db.add(cur_kf->brief_descriptors);
+    cur_kf->updatePoseByDrift(t_drift, r_drift);
+    m_keyframelist.lock();
+    keyframelist_.push_back(cur_kf);
+    m_keyframelist.unlock();
     if (loop_index != -1) {
-        //printf(" %d detect loop with %d \n", cur_kf->index, loop_index);
         KeyFrame *old_kf = keyframelist_[loop_index];
-
         if (cur_kf->findConnection(old_kf, loop_index)) {
             if (earliest_loop_index > loop_index || earliest_loop_index == -1) {
                 earliest_loop_index = loop_index;
@@ -138,15 +140,6 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
             m_optimize_buf.unlock();
         }
     }
-    m_keyframelist.lock();
-    Vector3d P;
-    Matrix3d R;
-    cur_kf->getVioPose(P, R);
-    P = r_drift * P + t_drift;
-    R = r_drift * R;
-    cur_kf->updatePose(P, R);
-    keyframelist_.push_back(cur_kf);
-    m_keyframelist.unlock();
 }
 
 int LoopCloser::detectLoop(KeyFrame *keyframe, int frame_index) {
@@ -194,7 +187,6 @@ void LoopCloser::optimize4DoF() {
         m_optimize_buf.unlock();
         if (cur_looped_id == -1) { continue; }
         m_keyframelist.lock();
-        KeyFrame *cur_kf = keyframelist_[cur_looped_id];
 
         int max_length = cur_looped_id + 1;
 
@@ -256,6 +248,11 @@ void LoopCloser::optimize4DoF() {
 
         ceres::Solve(options, &problem, &summary);
 
+        m_drift.lock();
+        KeyFrame *cur_kf = keyframelist_[cur_looped_id];
+        cur_kf->getPosRotDrift(t_array[cur_looped_id], euler_array[cur_looped_id], t_drift, r_drift);
+        m_drift.unlock();
+
         m_keyframelist.lock();
         for (int frame_id = first_looped_index; frame_id <= cur_looped_id; ++frame_id) {
             Vector3d t = t_array[frame_id];
@@ -263,23 +260,8 @@ void LoopCloser::optimize4DoF() {
             keyframelist_[frame_id]->updatePose(t, r);
         }
 
-        Vector3d cur_t, vio_t;
-        Matrix3d cur_r, vio_r;
-        cur_kf->getPose(cur_t, cur_r);
-        cur_kf->getVioPose(vio_t, vio_r);
-        m_drift.lock();
-        double yaw_drift = utils::rot2ypr(cur_r).x() - utils::rot2ypr(vio_r).x();
-        r_drift = utils::ypr2rot(Vector3d(yaw_drift, 0, 0));
-        t_drift = cur_t - r_drift * vio_t;
-        m_drift.unlock();
-
         for (int frame_id = cur_looped_id + 1; frame_id < keyframelist_.size(); ++frame_id) {
-            Vector3d P;
-            Matrix3d R;
-            keyframelist_[frame_id]->getVioPose(P, R);
-            P = r_drift * P + t_drift;
-            R = r_drift * R;
-            keyframelist_[frame_id]->updatePose(P, R);
+            keyframelist_[frame_id]->updatePoseByDrift(t_drift, r_drift);
         }
         m_keyframelist.unlock();
     }
