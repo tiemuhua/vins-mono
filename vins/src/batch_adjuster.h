@@ -20,7 +20,6 @@ namespace vins{
     public:
         void optimize(const BatchAdjustParam &param,
                       const FeatureManager &feature_manager,
-                      const LoopInfo &loop_info,
                       BundleAdjustWindow &window);
     };
 }

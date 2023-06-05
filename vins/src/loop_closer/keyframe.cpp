@@ -32,8 +32,6 @@ KeyFrame::KeyFrame(double _time_stamp, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_
     point_2d_uv = _point_2d_uv;
     point_2d_norm = _point_2d_norm;
     point_id = _point_id;
-    has_loop = false;
-    loop_peer_id_ = -1;
     has_fast_point = false;
     sequence = _sequence;
     computeWindowBRIEFPoint();
@@ -181,12 +179,11 @@ bool KeyFrame::findConnection(KeyFrame *old_kf, int old_kf_id) {
         return false;
     }
 
-    if (abs(loop_info_.relative_yaw) < 30.0 / 180.0 * 3.14 && loop_info_.relative_pos.norm() < 20.0) {
+    // todo tiemuhuaguo 这里好像不太对，应该是通过pnp算出来相对位置关系
+    loop_info_.pnp_pos = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
+    loop_info_.pnp_yaw = utils::normalizeAnglePi(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
+    if (abs(loop_info_.pnp_yaw) < 30.0 / 180.0 * 3.14 && loop_info_.pnp_pos.norm() < 20.0) {
         loop_info_.peer_frame_id = old_kf_id;
-        loop_info_.relative_pos = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
-        loop_info_.relative_rot = PnP_R_old.transpose() * origin_vio_R;
-        loop_info_.relative_yaw = utils::normalizeAnglePi(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
-        // todo tiemuhuaguo feature_id_2_point
         return true;
     }
     return false;

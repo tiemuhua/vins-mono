@@ -110,17 +110,20 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
     m_keyframelist.lock();
     keyframelist_.push_back(cur_kf);
     m_keyframelist.unlock();
-    if (loop_index != -1) {
-        KeyFrame *old_kf = keyframelist_[loop_index];
-        if (cur_kf->findConnection(old_kf, loop_index)) {
-            if (earliest_loop_index > loop_index || earliest_loop_index == -1) {
-                earliest_loop_index = loop_index;
-            }
-            m_optimize_buf.lock();
-            optimize_buf.push(keyframelist_.size());
-            m_optimize_buf.unlock();
-        }
+    if (loop_index == -1) {
+        return;
     }
+    KeyFrame *old_kf = keyframelist_[loop_index];
+    cur_kf->findConnection(old_kf, loop_index);
+    if (cur_kf->loop_info_.peer_frame_id == -1) {
+        return;
+    }
+    if (earliest_loop_index > loop_index || earliest_loop_index == -1) {
+        earliest_loop_index = loop_index;
+    }
+    m_optimize_buf.lock();
+    optimize_buf.push(keyframelist_.size());
+    m_optimize_buf.unlock();
 }
 
 int LoopCloser::detectLoop(KeyFrame *keyframe, int frame_index) {
@@ -167,7 +170,6 @@ void LoopCloser::optimize4DoF() {
         }
         m_optimize_buf.unlock();
         if (cur_looped_id == -1) { continue; }
-        m_keyframelist.lock();
 
         int max_length = cur_looped_id + 1;
 
@@ -184,6 +186,7 @@ void LoopCloser::optimize4DoF() {
         ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
         ceres::Manifold *angle_manifold_pi = AngleManifoldPi::Create();
 
+        m_keyframelist.lock();
         for (int frame_id = first_looped_index; frame_id <= cur_looped_id; ++frame_id) {
             KeyFrame* kf = keyframelist_[frame_id];
             kf->getVioPose(t_array[frame_id], r_array[frame_id]);
@@ -195,12 +198,9 @@ void LoopCloser::optimize4DoF() {
             problem.SetParameterBlockConstant(euler_array[frame_id].data());
             problem.SetParameterBlockConstant(t_array[frame_id].data());
 
-            //add edge
-            for (int j = 1; j < 5; j++) {
+            //add sequential edge
+            for (int j = 1; j < 5 && frame_id - j >= 0; j++) {
                 int peer_id = frame_id - j;
-                if (peer_id < 0) {
-                    continue;
-                }
                 Vector3d peer_euler = euler_array[peer_id];
                 Vector3d relative_t = r_array[peer_id].transpose() * (t_array[frame_id] - t_array[peer_id]);
                 double relative_yaw = euler_array[frame_id].x() - euler_array[peer_id].x();
@@ -216,8 +216,8 @@ void LoopCloser::optimize4DoF() {
                 int peer_frame_id = kf->loop_info_.peer_frame_id;
                 assert(peer_frame_id >= first_looped_index);
                 Vector3d peer_euler = utils::rot2ypr(r_array[peer_frame_id]);
-                Vector3d relative_t = kf->loop_info_.relative_pos;
-                double relative_yaw = kf->loop_info_.relative_yaw;
+                Vector3d relative_t = kf->loop_info_.pnp_pos;
+                double relative_yaw = kf->loop_info_.pnp_yaw;
                 ceres::CostFunction *cost_function =
                         LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
                 problem.AddResidualBlock(cost_function, loss_function,
@@ -246,30 +246,4 @@ void LoopCloser::optimize4DoF() {
         }
         m_keyframelist.unlock();
     }
-}
-
-extern bool FAST_RELOCALIZATION;
-
-void LoopCloser::updateKeyFrameLoop(int index, LoopInfo &_loop_info) {
-    if (_loop_info.peer_frame_id == -1 || !FAST_RELOCALIZATION) {
-        return;
-    }
-    KeyFrame *kf = keyframelist_[index];
-    kf->updateLoop(_loop_info);
-
-    KeyFrame *old_kf = keyframelist_[kf->loop_info_.peer_frame_id];
-    Vector3d w_P_old, vio_P_cur;
-    Matrix3d w_R_old, vio_R_cur;
-    old_kf->getPose(w_P_old, w_R_old);
-    kf->getVioPose(vio_P_cur, vio_R_cur);
-
-    Vector3d relative_t = kf->loop_info_.relative_pos;
-    Matrix3d relative_rot = kf->loop_info_.relative_rot;
-    Vector3d w_P_cur = w_R_old * relative_t + w_P_old;
-    Matrix3d w_R_cur = w_R_old * relative_rot;
-    double shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
-    m_drift.lock();
-    r_drift = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
-    t_drift = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
-    m_drift.unlock();
 }

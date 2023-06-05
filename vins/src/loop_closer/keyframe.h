@@ -17,10 +17,14 @@ namespace vins{
         DVision::BRIEF m_brief;
     };
 
-    class KeyFrame
-    {
-    public:
+    struct LoopInfo {
+        int peer_frame_id = -1;
+        Eigen::Vector3d pnp_pos;
+        double pnp_yaw;
+    };
 
+    class KeyFrame {
+    public:
         KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
                  vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
                  vector<double> &_point_id, int _sequence);
@@ -40,7 +44,6 @@ namespace vins{
         void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
         void updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
-        void updateLoop(LoopInfo &_loop_info);
 
         Eigen::Vector3d getLoopRelativeT();
         double getLoopRelativeYaw();
