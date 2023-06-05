@@ -76,7 +76,7 @@ namespace vins{
 
     void BatchAdjuster::optimize(const BatchAdjustParam &param,
                                  const FeatureManager &feature_manager,
-                                 const LoopCloseInfo &loop_close_info,
+                                 const LoopInfo &loop_info,
                                  BundleAdjustWindow &window) {
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
@@ -145,7 +145,7 @@ namespace vins{
         }
 
         /*************** 4:回环 **************************/
-        if (loop_close_info.loop_close_peer_frame != -1) {
+        if (loop_info.peer_frame_id != -1) {
             problem.AddParameterBlock(c_loop_peer_pos, 3);
             problem.AddParameterBlock(c_loop_peer_quat, 4);
             for (int feature_id = 0; feature_id < feature_manager.features_.size(); ++feature_id) {
@@ -154,13 +154,13 @@ namespace vins{
                 if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
                     continue;
                 }
-                if (start > loop_close_info.loop_close_peer_frame) {
+                if (start > loop_info.peer_frame_id) {
                     continue;
                 }
-                if (loop_close_info.feature_id_2_point.count(features_of_id.feature_id_) == 0) {
+                if (loop_info.feature_id_2_point.count(features_of_id.feature_id_) == 0) {
                     continue;
                 }
-                const cv::Point2f peer_point = loop_close_info.feature_id_2_point.at(features_of_id.feature_id_);
+                const cv::Point2f peer_point = loop_info.feature_id_2_point.at(features_of_id.feature_id_);
                 auto *cost_function = new ProjectionFactor(peer_point,features_of_id.feature_points_[0].point);
                 problem.AddResidualBlock(cost_function, loss_function,
                                          c_pos[start], c_quat[start], c_loop_peer_pos, c_loop_peer_quat,

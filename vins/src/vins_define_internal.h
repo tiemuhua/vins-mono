@@ -84,6 +84,14 @@ namespace vins {
         VelWindow vel_window;
         RotWindow rot_window;
     };
+
+    struct LoopInfo {
+        Eigen::Vector3d relative_pos;
+        Eigen::Matrix3d relative_rot;
+        double relative_yaw;
+        int peer_frame_id = -1;
+        std::unordered_map<int, cv::Point2f> feature_id_2_point;
+    };
 }
 
 

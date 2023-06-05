@@ -16,16 +16,11 @@ namespace vins{
         int max_iter_num = 100;
     };
 
-    struct LoopCloseInfo {
-        int loop_close_peer_frame = -1;
-        std::unordered_map<int, cv::Point2f> feature_id_2_point;
-    };
-
     class BatchAdjuster {
     public:
         void optimize(const BatchAdjustParam &param,
                       const FeatureManager &feature_manager,
-                      const LoopCloseInfo &loop_close_info,
+                      const LoopInfo &loop_info,
                       BundleAdjustWindow &window);
     };
 }

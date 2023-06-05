@@ -212,16 +212,16 @@ void LoopCloser::optimize4DoF() {
             }
 
             //add loop edge
-            if (kf->has_loop) {
-                assert(kf->loop_peer_id_ >= first_looped_index);
-                int peer_id = kf->loop_peer_id_;
-                Vector3d peer_euler = utils::rot2ypr(r_array[peer_id]);
-                Vector3d relative_t = kf->getLoopRelativeT();
-                double relative_yaw = kf->getLoopRelativeYaw();
+            if (kf->loop_info_.peer_frame_id != -1) {
+                int peer_frame_id = kf->loop_info_.peer_frame_id;
+                assert(peer_frame_id >= first_looped_index);
+                Vector3d peer_euler = utils::rot2ypr(r_array[peer_frame_id]);
+                Vector3d relative_t = kf->loop_info_.relative_pos;
+                double relative_yaw = kf->loop_info_.relative_yaw;
                 ceres::CostFunction *cost_function =
                         LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
                 problem.AddResidualBlock(cost_function, loss_function,
-                                         euler_array[peer_id].data(), t_array[peer_id].data(),
+                                         euler_array[peer_frame_id].data(), t_array[peer_frame_id].data(),
                                          euler_array[frame_id].data(), t_array[frame_id].data());
             }
         }
@@ -248,28 +248,28 @@ void LoopCloser::optimize4DoF() {
     }
 }
 
-extern int FAST_RELOCALIZATION;
+extern bool FAST_RELOCALIZATION;
 
-void LoopCloser::updateKeyFrameLoop(int index, KeyFrame::LoopInfo &_loop_info) {
+void LoopCloser::updateKeyFrameLoop(int index, LoopInfo &_loop_info) {
+    if (_loop_info.peer_frame_id == -1 || !FAST_RELOCALIZATION) {
+        return;
+    }
     KeyFrame *kf = keyframelist_[index];
     kf->updateLoop(_loop_info);
-    if (abs(_loop_info.relative_yaw) < 30.0 && _loop_info.relative_pos.norm() < 20.0) {
-        if (FAST_RELOCALIZATION) {
-            KeyFrame *old_kf = keyframelist_[kf->loop_peer_id_];
-            Vector3d w_P_old, vio_P_cur;
-            Matrix3d w_R_old, vio_R_cur;
-            old_kf->getPose(w_P_old, w_R_old);
-            kf->getVioPose(vio_P_cur, vio_R_cur);
 
-            Vector3d relative_t = kf->getLoopRelativeT();
-            Matrix3d relative_rot = kf->loop_info_.relative_rot;
-            Vector3d w_P_cur = w_R_old * relative_t + w_P_old;
-            Matrix3d w_R_cur = w_R_old * relative_rot;
-            double shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
-            m_drift.lock();
-            r_drift = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
-            t_drift = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
-            m_drift.unlock();
-        }
-    }
+    KeyFrame *old_kf = keyframelist_[kf->loop_info_.peer_frame_id];
+    Vector3d w_P_old, vio_P_cur;
+    Matrix3d w_R_old, vio_R_cur;
+    old_kf->getPose(w_P_old, w_R_old);
+    kf->getVioPose(vio_P_cur, vio_R_cur);
+
+    Vector3d relative_t = kf->loop_info_.relative_pos;
+    Matrix3d relative_rot = kf->loop_info_.relative_rot;
+    Vector3d w_P_cur = w_R_old * relative_t + w_P_old;
+    Matrix3d w_R_cur = w_R_old * relative_rot;
+    double shift_yaw = utils::rot2ypr(w_R_cur).x() - utils::rot2ypr(vio_R_cur).x();
+    m_drift.lock();
+    r_drift = utils::ypr2rot(Vector3d(shift_yaw, 0, 0));
+    t_drift = w_P_cur - w_R_cur * vio_R_cur.transpose() * vio_P_cur;
+    m_drift.unlock();
 }

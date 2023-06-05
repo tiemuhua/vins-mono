@@ -6,7 +6,7 @@
 #include <opencv2/core/eigen.hpp>
 #include "ThirdParty/DBoW/DBoW2.h"
 #include "ThirdParty/DVision/DVision.h"
-
+#include "../vins_define_internal.h"
 #define MIN_LOOP_NUM 25
 
 namespace vins{
@@ -20,11 +20,6 @@ namespace vins{
     class KeyFrame
     {
     public:
-        struct LoopInfo{
-            Eigen::Vector3d relative_pos;
-            Eigen::Matrix3d relative_rot;
-            double relative_yaw;
-        };
 
         KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
                  vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
@@ -71,8 +66,6 @@ namespace vins{
         bool has_fast_point;
         int sequence;
 
-        bool has_loop;
-        int loop_peer_id_;
         LoopInfo loop_info_;
     private:
         bool searchInAera(const DVision::BRIEF::bitset& window_descriptor,

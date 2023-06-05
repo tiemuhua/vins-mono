@@ -35,7 +35,7 @@ namespace vins{
 
         void loadVocabulary(const std::string &voc_path);
 
-        void updateKeyFrameLoop(int index, KeyFrame::LoopInfo &_loop_info);
+        void updateKeyFrameLoop(int index, LoopInfo &_loop_info);
 
         KeyFrame *getKeyFrame(int index);
 
