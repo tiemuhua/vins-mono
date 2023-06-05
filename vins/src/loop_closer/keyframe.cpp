@@ -208,8 +208,8 @@ bool KeyFrame::findConnection(KeyFrame *old_kf, int old_kf_id) {
 
     loop_info_.relative_pos = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
     loop_info_.relative_rot = PnP_R_old.transpose() * origin_vio_R;
-    loop_info_.relative_yaw = utils::normalizeAngle180(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
-    if (abs(loop_info_.relative_yaw) < 30.0 && loop_info_.relative_pos.norm() < 20.0) {
+    loop_info_.relative_yaw = utils::normalizeAnglePi(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
+    if (abs(loop_info_.relative_yaw) < 30.0 / 180.0 * 3.14 && loop_info_.relative_pos.norm() < 20.0) {
         has_loop = true;
         loop_peer_id_ = old_kf_id;
         return true;
