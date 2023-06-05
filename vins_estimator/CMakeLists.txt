@@ -6,15 +6,12 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 add_library(vins_estimator
     src/parameters.cpp
     src/estimator.cpp
-    src/feature_manager.cpp
     src/factor/projection_factor.cpp
     src/factor/projection_td_factor.cpp
     src/factor/marginalization_factor.cpp
     src/utility/utility.cpp
-    src/initial/solve_5pts.cpp
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
-    src/initial/initial_ex_rotation.cpp
     )
 
 
