@@ -28,9 +28,6 @@ namespace vins{
         KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
                  vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
                  vector<double> &_point_id, int _sequence);
-        KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i,
-                 cv::Mat &_image, int _loop_index, const LoopInfo &_loop_info,
-                 vector<cv::KeyPoint> &_keypoints, vector<cv::KeyPoint> &_keypoints_norm, vector<DVision::BRIEF::bitset> &_brief_descriptors);
         bool findConnection(KeyFrame *old_kf, int old_kf_id);
 
         void computeWindowBRIEFPoint(const std::string &pattern_file);
