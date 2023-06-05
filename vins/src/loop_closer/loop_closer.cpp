@@ -264,7 +264,7 @@ void LoopCloser::optimize4DoF() {
         ceres::Solve(options, &problem, &summary);
 
         m_keyframelist.lock();
-        for (int frame_id = first_looped_index; frame_id < cur_looped_id; ++frame_id) {
+        for (int frame_id = first_looped_index; frame_id <= cur_looped_id; ++frame_id) {
             Vector3d t = t_array[frame_id];
             Matrix3d r = utils::ypr2rot(euler_array[frame_id]);
             keyframelist_[frame_id]->updatePose(t, r);
