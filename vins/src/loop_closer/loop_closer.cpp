@@ -54,7 +54,6 @@ struct SequentialEdge {
 
     Vector3d t_;
     double relative_yaw, pitch_i, roll_i;
-
 };
 
 struct LoopEdge {
@@ -83,12 +82,10 @@ struct LoopEdge {
     Vector3d t_;
     double relative_yaw, pitch_i, roll_i;
     double weight;
-
 };
 
 LoopCloser::LoopCloser() {
     t_optimization = std::thread(&LoopCloser::optimize4DoF, this);
-    earliest_loop_index = -1;
 }
 
 LoopCloser::~LoopCloser() {
@@ -122,7 +119,7 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
         earliest_loop_index = loop_index;
     }
     m_optimize_buf.lock();
-    optimize_buf.push(keyframelist_.size());
+    optimize_buf.push(keyframelist_.size() - 1);
     m_optimize_buf.unlock();
 }
 
