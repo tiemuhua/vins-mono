@@ -129,9 +129,9 @@ namespace vins{
             if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2)
                 continue;
             int start_frame_id = features_of_id.start_frame_;
-            const FeaturePoint & point0 = features_of_id.feature_points_[0];
+            const FeaturePoint2D & point0 = features_of_id.feature_points_[0];
             for (int frame_bias = 0; frame_bias < features_of_id.feature_points_.size(); ++frame_bias) {
-                const FeaturePoint &point = features_of_id.feature_points_[frame_bias];
+                const FeaturePoint2D &point = features_of_id.feature_points_[frame_bias];
                 int cur_frame_id = start_frame_id + frame_bias;
                 if (param.estimate_time_delay) {
                     auto *cost_function = new ProjectionTdFactor(point0, point);
@@ -140,7 +140,7 @@ namespace vins{
                                              c_pos[cur_frame_id], c_quat[cur_frame_id],
                                              c_tic, c_ric, c_inv_depth[feature_id], c_time_delay);
                 } else {
-                    auto *cost_function = new ProjectionFactor(point0.unified_point, point.unified_point);
+                    auto *cost_function = new ProjectionFactor(point0.point, point.point);
                     problem.AddResidualBlock(cost_function, loss_function,
                                              c_pos[start_frame_id], c_quat[start_frame_id],
                                              c_pos[cur_frame_id], c_quat[cur_frame_id],
@@ -166,7 +166,7 @@ namespace vins{
                     continue;
                 }
                 const cv::Point2f peer_point = loop_close_info.feature_id_2_point.at(features_of_id.feature_id_);
-                auto *cost_function = new ProjectionFactor(peer_point,features_of_id.feature_points_[0].unified_point);
+                auto *cost_function = new ProjectionFactor(peer_point,features_of_id.feature_points_[0].point);
                 problem.AddResidualBlock(cost_function, loss_function,
                                          c_pos[start], c_quat[start], c_loop_peer_pos, c_loop_peer_quat,
                                          c_tic, c_ric, c_inv_depth[feature_id]);

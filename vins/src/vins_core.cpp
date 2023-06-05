@@ -26,12 +26,12 @@ namespace vins{
             }
         }
 
-        std::vector<FeaturePoint> feature_points;
+        std::vector<FeaturePoint2D> feature_points;
         for (int i = 0; i < image.feature_ids.size(); ++i) {
-            FeaturePoint point;
-            point.unified_point = image.unified_points[i];
+            FeaturePoint2D point;
+            point.point = image.unified_points[i];
             point.point = image.points[i];
-            point.point_velocity = image.points_velocity[i];
+            point.velocity = image.points_velocity[i];
             point.feature_id = image.feature_ids[i];
             feature_points.emplace_back(std::move(point));
         }

@@ -15,7 +15,7 @@ namespace vins {
     public:
         void clearState();
 
-        bool addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points);
+        bool addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint2D> &feature_points);
 
         [[nodiscard]] vector<pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r) const;
 

@@ -18,10 +18,9 @@ namespace vins {
         int cnt = 0;
     };
 
-    struct FeaturePoint {
+    struct FeaturePoint2D {
         cv::Point2f point;
-        cv::Point2f unified_point;
-        cv::Point2f point_velocity;
+        cv::Point2f velocity;
         int feature_id;
     };
 
@@ -29,7 +28,7 @@ namespace vins {
     public:
         const int feature_id_;
         int start_frame_;
-        std::vector<FeaturePoint> feature_points_;
+        std::vector<FeaturePoint2D> feature_points_;
 
         bool is_outlier_{};
         double inv_depth;
@@ -55,12 +54,12 @@ namespace vins {
     public:
         ImageFrame() = delete;
 
-        ImageFrame(std::vector<FeaturePoint> _points, double _t, ImuIntegrator pre_integrate_, bool _is_key_frame):
+        ImageFrame(std::vector<FeaturePoint2D> _points, double _t, ImuIntegrator pre_integrate_, bool _is_key_frame):
                 points{std::move(_points)},
                 t{_t},
                 pre_integrate_(std::move(pre_integrate_)),
                 is_key_frame_(_is_key_frame){};
-        std::vector<FeaturePoint> points;
+        std::vector<FeaturePoint2D> points;
         double t{};
         Eigen::Matrix3d R;
         Eigen::Vector3d T;

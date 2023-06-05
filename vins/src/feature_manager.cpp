@@ -11,13 +11,13 @@ namespace vins {
     }
 
     // todo 前端建图的关键帧和后端回环的关键帧不是一个东西
-    bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint> &feature_points) {
+    bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features_.size());
         double parallax_sum = 0;
         int parallax_num = 0;
         last_track_num = 0;
 
-        for (const FeaturePoint &point: feature_points) {
+        for (const FeaturePoint2D &point: feature_points) {
             auto it = find_if(features_.begin(), features_.end(), [point](const FeaturesOfId &it)->bool {
                 return it.feature_id_ == point.feature_id;
             });
@@ -57,8 +57,8 @@ namespace vins {
             if (it.start_frame_ <= frame_count_l && it.endFrame() >= frame_count_r) {
                 int idx_l = frame_count_l - it.start_frame_;
                 int idx_r = frame_count_r - it.start_frame_;
-                cv::Point2f a = it.feature_points_[idx_l].unified_point;
-                cv::Point2f b = it.feature_points_[idx_r].unified_point;
+                cv::Point2f a = it.feature_points_[idx_l].point;
+                cv::Point2f b = it.feature_points_[idx_r].point;
                 corres.emplace_back(make_pair(a, b));
             }
         }
@@ -122,7 +122,7 @@ namespace vins {
                 Eigen::Matrix<double, 3, 4> P;
                 P.leftCols<3>() = R.transpose();
                 P.rightCols<1>() = -R.transpose() * t;
-                const cv::Point2f &unified_point = it_per_id.feature_points_[i].unified_point;
+                const cv::Point2f &unified_point = it_per_id.feature_points_[i].point;
                 Eigen::Vector3d f = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0).normalized();
                 svd_A.row(2 * i) = f[0] * P.row(2) - f[2] * P.row(0);
                 svd_A.row(2 * i + 1) = f[1] * P.row(2) - f[2] * P.row(1);
@@ -156,7 +156,7 @@ namespace vins {
                 it->start_frame_--;
                 continue;
             }
-            const cv::Point2f &unified_point = it->feature_points_[0].unified_point;
+            const cv::Point2f &unified_point = it->feature_points_[0].point;
             it->feature_points_.erase(it->feature_points_.begin());
             if (it->feature_points_.size() < 2) {
                 features_.erase(it);
@@ -189,8 +189,8 @@ namespace vins {
     double FeatureManager::compensatedParallax2(const FeaturesOfId &it_per_id, int frame_count) {
         //check the second last frame is keyframe or not
         //parallax between second last frame and third last frame
-        cv::Point2f p_i = it_per_id.feature_points_[frame_count - 2 - it_per_id.start_frame_].unified_point;
-        cv::Point2f p_j = it_per_id.feature_points_[frame_count - 1 - it_per_id.start_frame_].unified_point;
+        cv::Point2f p_i = it_per_id.feature_points_[frame_count - 2 - it_per_id.start_frame_].point;
+        cv::Point2f p_j = it_per_id.feature_points_[frame_count - 1 - it_per_id.start_frame_].point;
         return cv::norm(p_i - p_j);
     }
 }

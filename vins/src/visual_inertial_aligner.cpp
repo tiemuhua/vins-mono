@@ -233,7 +233,7 @@ namespace vins {
             if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
                 continue;
             }
-            features_of_id.estimated_depth *= s;
+            features_of_id.inv_depth *= s; // todo tiemuhuaguo 这里是乘还是除？？
         }
 
         return true;

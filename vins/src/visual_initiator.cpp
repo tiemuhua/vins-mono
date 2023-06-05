@@ -25,7 +25,7 @@ namespace vins {
     struct SFMFeature {
         bool state = false;
         int id = -1;
-        map<int, cv::Point2f> frame_id_2_unified_point_;
+        map<int, cv::Point2f> frame_id_2_point_;
         Vector3d position;
         double depth;
     };
@@ -113,8 +113,8 @@ namespace vins {
             SFMFeature sfm_feature;
             sfm_feature.id = features_of_id.feature_id_;
             for (int i = 0; i < features_of_id.feature_points_.size(); ++i) {
-                sfm_feature.frame_id_2_unified_point_[features_of_id.start_frame_ + i] =
-                        features_of_id.feature_points_[i].unified_point;
+                sfm_feature.frame_id_2_point_[features_of_id.start_frame_ + i] =
+                        features_of_id.feature_points_[i].point;
             }
             sfm_features.push_back(sfm_feature);
         }
@@ -162,12 +162,12 @@ namespace vins {
             frame.is_key_frame_ = false;
             vector<cv::Point3f> pts_3_vector;
             vector<cv::Point2f> pts_2_vector;
-            for (const FeaturePoint &point:frame.points) {
+            for (const FeaturePoint2D &point:frame.points) {
                 const auto it = sfm_tracked_points.find(point.feature_id);
                 if (it != sfm_tracked_points.end()) {
                     Vector3d world_pts = it->second;
                     pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                    pts_2_vector.emplace_back(point.unified_point);
+                    pts_2_vector.emplace_back(point.point);
                 }
             }
             cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
@@ -203,8 +203,8 @@ namespace vins {
     static void features2FramePoints(const vector<SFMFeature> &sfm_features, const int frame_id,
                                      vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
-            if (sfm.state && sfm.frame_id_2_unified_point_.count(frame_id)) {
-                cv::Point2f img_pts = sfm.frame_id_2_unified_point_.at(frame_id);
+            if (sfm.state && sfm.frame_id_2_point_.count(frame_id)) {
+                cv::Point2f img_pts = sfm.frame_id_2_point_.at(frame_id);
                 pts_2_vector.emplace_back(img_pts);
                 pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
@@ -235,11 +235,11 @@ namespace vins {
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.state)
                 continue;
-            if (!sfm.frame_id_2_unified_point_.count(frame0) || !sfm.frame_id_2_unified_point_.count(frame1)) {
+            if (!sfm.frame_id_2_point_.count(frame0) || !sfm.frame_id_2_point_.count(frame1)) {
                 continue;
             }
-            cv::Point2f point0 = sfm.frame_id_2_unified_point_.at(frame0);
-            cv::Point2f point1 = sfm.frame_id_2_unified_point_.at(frame1);
+            cv::Point2f point0 = sfm.frame_id_2_point_.at(frame0);
+            cv::Point2f point1 = sfm.frame_id_2_point_.at(frame1);
             sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
             sfm.state = true;
         }
@@ -302,13 +302,13 @@ namespace vins {
 
         //5: triangulate all others points
         for (SFMFeature& sfm: sfm_features) {
-            if (sfm.state || sfm.frame_id_2_unified_point_.size() < 2) {
+            if (sfm.state || sfm.frame_id_2_point_.size() < 2) {
                 continue;
             }
-            int frame_0 = sfm.frame_id_2_unified_point_.begin()->first;
-            cv::Point2f point0 = sfm.frame_id_2_unified_point_.begin()->second;
-            int frame_1 = sfm.frame_id_2_unified_point_.end()->first;
-            cv::Point2f point1 = sfm.frame_id_2_unified_point_.end()->second;
+            int frame_0 = sfm.frame_id_2_point_.begin()->first;
+            cv::Point2f point0 = sfm.frame_id_2_point_.begin()->second;
+            int frame_1 = sfm.frame_id_2_point_.end()->first;
+            cv::Point2f point1 = sfm.frame_id_2_point_.end()->second;
             sfm.position = triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1);
             sfm.state = true;
         }
@@ -334,10 +334,9 @@ namespace vins {
         for (SFMFeature & sfm : sfm_features) {
             if (!sfm.state)
                 continue;
-            for (const auto &it:sfm.frame_id_2_unified_point_) {
-                ceres::CostFunction *cost_function = ReProjectionError3D::Create(
-                        it.second.x,
-                        it.second.y);
+            for (const auto &it:sfm.frame_id_2_point_) {
+                ceres::CostFunction *cost_function =
+                        ReProjectionError3D::Create(it.second.x,it.second.y);
                 problem.AddResidualBlock(cost_function, nullptr,
                                          c_rotation[big_parallax_frame_id], c_translation[big_parallax_frame_id], sfm.position.data());
             }
