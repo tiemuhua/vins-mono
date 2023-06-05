@@ -74,11 +74,6 @@ namespace vins{
 
     }
 
-    struct LoopCloseInfo {
-        int loop_close_peer_frame;
-        std::unordered_map<int, cv::Point2f> feature_id_2_point;
-    };
-
     void BatchAdjuster::optimize(const BatchAdjustParam &param,
                                  const FeatureManager &feature_manager,
                                  const LoopCloseInfo &loop_close_info,
@@ -150,7 +145,7 @@ namespace vins{
         }
 
         /*************** 4:回环 **************************/
-        if (param.is_re_localize) {
+        if (loop_close_info.loop_close_peer_frame != -1) {
             problem.AddParameterBlock(c_loop_peer_pos, 3);
             problem.AddParameterBlock(c_loop_peer_quat, 4);
             for (int feature_id = 0; feature_id < feature_manager.features_.size(); ++feature_id) {
