@@ -28,12 +28,11 @@ namespace vins{
         KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
                  vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
                  vector<double> &_point_id, int _sequence);
-        bool findConnection(KeyFrame *old_kf, int old_kf_id);
+        bool findConnection(const KeyFrame *old_kf, int old_kf_id);
 
         void computeWindowBRIEFPoint(const std::string &pattern_file);
         void computeBRIEFPoint(const std::string &pattern_file);
 
-        static int HammingDis(const DVision::BRIEF::bitset &a, const DVision::BRIEF::bitset &b);
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i);
         void getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
@@ -54,28 +53,14 @@ namespace vins{
         Eigen::Vector3d origin_vio_T;
         Eigen::Matrix3d origin_vio_R;
         cv::Mat image;
-        vector<cv::Point3f> point_3d;
-        vector<cv::Point2f> point_2d_uv;
-        vector<cv::Point2f> point_2d_norm;
-        vector<double> point_id;
-        vector<cv::KeyPoint> keypoints;
-        vector<cv::KeyPoint> keypoints_norm;
-        vector<cv::KeyPoint> window_keypoints;
-        vector<DVision::BRIEF::bitset> brief_descriptors;
-        vector<DVision::BRIEF::bitset> window_brief_descriptors;
+        vector<cv::KeyPoint> external_key_points_;
+        vector<DVision::BRIEF::bitset> external_brief_descriptors;
+        vector<cv::Point3f> key_points_pos_;
+        vector<DVision::BRIEF::bitset> descriptors;
         bool has_fast_point;
-        int sequence;
 
         LoopInfo loop_info_;
     private:
-        bool searchInAera(const DVision::BRIEF::bitset& window_descriptor,
-                          const KeyFrame* old_kf,
-                          cv::Point2f &best_match,
-                          cv::Point2f &best_match_norm);
-        void searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
-                              std::vector<cv::Point2f> &matched_2d_old_norm,
-                              std::vector<uchar> &status,
-                              const KeyFrame* old_kf);
         void PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
                        const std::vector<cv::Point3f> &matched_3d,
                        std::vector<uchar> &status,

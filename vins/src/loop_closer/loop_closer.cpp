@@ -102,7 +102,7 @@ void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
     if (flag_detect_loop) {
         loop_index = detectLoop(cur_kf, keyframelist_.size());
     }
-    db.add(cur_kf->brief_descriptors);
+    db.add(cur_kf->external_brief_descriptors);
     cur_kf->updatePoseByDrift(t_drift, r_drift);
     m_keyframelist.lock();
     keyframelist_.push_back(cur_kf);
@@ -128,7 +128,7 @@ int LoopCloser::detectLoop(KeyFrame *keyframe, int frame_index) {
         return -1;
     }
     QueryResults ret;
-    db.query(keyframe->brief_descriptors, ret, 4, frame_index - 50);
+    db.query(keyframe->external_brief_descriptors, ret, 4, frame_index - 50);
     cv::Mat loop_result;
     // a good match with its neighbour
     if (ret.size() < 2 || ret[0].Score < 0.05) {
@@ -213,7 +213,7 @@ void LoopCloser::optimize4DoF() {
                 int peer_frame_id = kf->loop_info_.peer_frame_id;
                 assert(peer_frame_id >= first_looped_index);
                 Vector3d peer_euler = utils::rot2ypr(r_array[peer_frame_id]);
-                Vector3d relative_t = kf->loop_info_.relative_t;
+                Vector3d relative_t = kf->loop_info_.relative_pos;
                 double relative_yaw = kf->loop_info_.relative_yaw;
                 ceres::CostFunction *cost_function =
                         LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());

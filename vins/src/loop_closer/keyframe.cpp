@@ -17,9 +17,7 @@ static void reduceVector(vector<Derived> &v, vector<uchar> status) {
 
 // create keyframe online
 KeyFrame::KeyFrame(double _time_stamp, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, cv::Mat &_image,
-                   vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv,
-                   vector<cv::Point2f> &_point_2d_norm,
-                   vector<double> &_point_id, int _sequence) {
+                   vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv) {
     time_stamp = _time_stamp;
     vio_T_w_i = _vio_T_w_i;
     vio_R_w_i = _vio_R_w_i;
@@ -28,79 +26,78 @@ KeyFrame::KeyFrame(double _time_stamp, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_
     origin_vio_T = vio_T_w_i;
     origin_vio_R = vio_R_w_i;
     image = _image.clone();
-    point_3d = _point_3d;
-    point_2d_uv = _point_2d_uv;
-    point_2d_norm = _point_2d_norm;
-    point_id = _point_id;
+    key_points_pos_ = _point_3d;
     has_fast_point = false;
-    sequence = _sequence;
-    computeWindowBRIEFPoint();
+    computeWindowBRIEFPoint(_point_2d_uv);
     computeBRIEFPoint();
     image.release();
 }
 
-void KeyFrame::computeWindowBRIEFPoint(const std::string &pattern_file) {
+void KeyFrame::computeWindowBRIEFPoint(const std::string &pattern_file,
+                                       const vector<cv::Point2f> &point_2d_uv) {
     BriefExtractor extractor(pattern_file.c_str());
+    vector<cv::KeyPoint> key_points;
     for (auto & i : point_2d_uv) {
         cv::KeyPoint key;
         key.pt = i;
-        window_keypoints.push_back(key);
+        key_points.push_back(key);
     }
-    extractor.m_brief.compute(image, window_keypoints, window_brief_descriptors);
+    extractor.m_brief.compute(image, key_points, descriptors);
 }
 
 void KeyFrame::computeBRIEFPoint(const std::string &pattern_file) {
     BriefExtractor extractor(pattern_file);
     const int fast_th = 20; // corner detector response threshold
-    cv::FAST(image, keypoints, fast_th, true);
-    extractor.m_brief.compute(image, keypoints, brief_descriptors);
-    for (auto & keypoint : keypoints) {
+    vector<cv::KeyPoint> external_key_points_un_normalized;
+    cv::FAST(image, external_key_points_un_normalized, fast_th, true);
+    extractor.m_brief.compute(image, external_key_points_un_normalized, external_brief_descriptors);
+    for (auto & keypoint : external_key_points_un_normalized) {
         Eigen::Vector3d tmp_p;
         m_camera->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
         cv::KeyPoint tmp_norm;
         tmp_norm.pt = cv::Point2f(tmp_p.x() / tmp_p.z(), tmp_p.y() / tmp_p.z());
-        keypoints_norm.push_back(tmp_norm);
+        external_key_points_.push_back(tmp_norm);
     }
 }
 
-bool KeyFrame::searchInAera(const BRIEF::bitset& window_descriptor,
+inline int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
+    return (a ^ b).count();
+}
+
+static bool searchInArea(const DVision::BRIEF::bitset& descriptor,
                             const KeyFrame* old_kf,
-                            cv::Point2f &best_match,
                             cv::Point2f &best_match_norm) {
     int bestDist = 128;
     int bestIndex = -1;
-    for (int i = 0; i < (int) old_kf->brief_descriptors.size(); i++) {
-        int dis = HammingDis(window_descriptor, old_kf->brief_descriptors[i]);
+    for (int i = 0; i < (int) old_kf->external_brief_descriptors.size(); i++) {
+        int dis = HammingDis(descriptor, old_kf->external_brief_descriptors[i]);
         if (dis < bestDist) {
             bestDist = dis;
             bestIndex = i;
         }
     }
     if (bestIndex != -1 && bestDist < 80) {
-        best_match = old_kf->keypoints[bestIndex].pt;
-        best_match_norm = old_kf->keypoints_norm[bestIndex].pt;
+        best_match_norm = old_kf->external_key_points_[bestIndex].pt;
         return true;
     } else
         return false;
 }
 
-void KeyFrame::searchByBRIEFDes(std::vector<cv::Point2f> &matched_2d_old,
-                                std::vector<cv::Point2f> &matched_2d_old_norm,
-                                std::vector<uchar> &status,
-                                const KeyFrame* old_kf) {
-    for (auto & window_brief_descriptor : window_brief_descriptors) {
-        cv::Point2f pt(0.f, 0.f);
+static void searchByBRIEFDes(const KeyFrame* old_kf,
+                             const std::vector<BRIEF::bitset> &descriptors,
+                             std::vector<cv::Point2f> &matched_2d_old_norm,
+                             std::vector<uchar> &status) {
+    for (auto & descriptor : descriptors) {
         cv::Point2f pt_norm(0.f, 0.f);
-        if (searchInAera(window_brief_descriptor, old_kf, pt, pt_norm))
+        if (searchInArea(descriptor, old_kf, pt_norm))
             status.push_back(1);
         else
             status.push_back(0);
-        matched_2d_old.push_back(pt);
         matched_2d_old_norm.push_back(pt_norm);
     }
 }
 
-void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
+void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &old_feature_pt,
                          const std::vector<cv::Point3f> &matched_3d,
                          std::vector<uchar> &status,
                          Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old) {
@@ -118,10 +115,10 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
 
     cv::Mat inliers;
 
-    solvePnPRansac(matched_3d, matched_2d_old_norm, K, D, rvec, t,
+    solvePnPRansac(matched_3d, old_feature_pt, K, D, rvec, t,
                    true, 100, 10.0 / 460.0, 0.99, inliers);
 
-    status = std::vector<uchar>(matched_2d_old_norm.size(), 0);
+    status = std::vector<uchar>(old_feature_pt.size(), 0);
 
     for (int i = 0; i < inliers.rows; i++) {
         int n = inliers.at<int>(i);
@@ -140,46 +137,30 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
     PnP_T_old = T_w_c_old - PnP_R_old * tic;
 }
 
-bool KeyFrame::findConnection(KeyFrame *old_kf, int old_kf_id) {
-    vector<cv::Point2f> matched_2d_cur, matched_2d_old;
-    vector<cv::Point2f> matched_2d_cur_norm, matched_2d_old_norm;
-    vector<cv::Point3f> matched_3d;
-    vector<double> matched_id;
+bool KeyFrame::findConnection(const KeyFrame *old_kf, int old_kf_id) {
+    vector<cv::Point2f> old_feature_pt;
+    vector<cv::Point3f> pos_in_new_frame = key_points_pos_;
     vector<uchar> status;
 
-    matched_3d = point_3d;
-    matched_2d_cur = point_2d_uv;
-    matched_2d_cur_norm = point_2d_norm;
-    matched_id = point_id;
+    searchByBRIEFDes(old_kf, descriptors, old_feature_pt, status);
+    reduceVector(old_feature_pt, status);
+    reduceVector(pos_in_new_frame, status);
 
-    searchByBRIEFDes(matched_2d_old, matched_2d_old_norm, status, old_kf);
-    reduceVector(matched_2d_cur, status);
-    reduceVector(matched_2d_old, status);
-    reduceVector(matched_2d_cur_norm, status);
-    reduceVector(matched_2d_old_norm, status);
-    reduceVector(matched_3d, status);
-    reduceVector(matched_id, status);
-
-    if (matched_2d_cur.size() < MIN_LOOP_NUM) {
+    if (old_feature_pt.size() < MIN_LOOP_NUM) {
         return false;
     }
 
     Eigen::Vector3d PnP_T_old;
     Eigen::Matrix3d PnP_R_old;
     status.clear();
-    PnPRANSAC(matched_2d_old_norm, matched_3d, status, PnP_T_old, PnP_R_old);
-    reduceVector(matched_2d_cur, status);
-    reduceVector(matched_2d_old, status);
-    reduceVector(matched_2d_cur_norm, status);
-    reduceVector(matched_2d_old_norm, status);
-    reduceVector(matched_3d, status);
-    reduceVector(matched_id, status);
+    PnPRANSAC(old_feature_pt, pos_in_new_frame, status, PnP_T_old, PnP_R_old);
+    reduceVector(old_feature_pt, status);
+    reduceVector(pos_in_new_frame, status);
 
-    if (matched_2d_cur.size() < MIN_LOOP_NUM) {
+    if (pos_in_new_frame.size() < MIN_LOOP_NUM) {
         return false;
     }
 
-    // todo tiemuhuaguo 这里好像不太对，应该是通过pnp算出来相对位置关系
     loop_info_.relative_pos = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
     loop_info_.relative_yaw = utils::normalizeAnglePi(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
     if (abs(loop_info_.relative_yaw) < 30.0 / 180.0 * 3.14 && loop_info_.relative_pos.norm() < 20.0) {
@@ -187,10 +168,6 @@ bool KeyFrame::findConnection(KeyFrame *old_kf, int old_kf_id) {
         return true;
     }
     return false;
-}
-
-inline int KeyFrame::HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
-    return (a ^ b).count();
 }
 
 void KeyFrame::getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const {
