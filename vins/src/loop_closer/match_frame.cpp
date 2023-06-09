@@ -43,15 +43,15 @@ static bool searchInArea(const DVision::BRIEF::bitset& descriptor,
 
 static void searchByBRIEFDes(ConstKeyFramePtr old_kf,
                              const std::vector<BRIEF::bitset> &descriptors,
-                             std::vector<cv::Point2f> &matched_2d_old_norm,
+                             std::vector<cv::Point2f> &pts2d_in_old_frame,
                              std::vector<uchar> &status) {
     for (auto & descriptor : descriptors) {
-        cv::Point2f pt_norm(0.f, 0.f);
-        if (searchInArea(descriptor, old_kf, pt_norm))
+        cv::Point2f pt(0.f, 0.f);
+        if (searchInArea(descriptor, old_kf, pt))
             status.push_back(1);
         else
             status.push_back(0);
-        matched_2d_old_norm.push_back(pt_norm);
+        pts2d_in_old_frame.push_back(pt);
     }
 }
 
