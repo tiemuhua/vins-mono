@@ -19,8 +19,8 @@ namespace vins{
 
     struct LoopInfo {
         int peer_frame_id = -1;
-        Eigen::Vector3d relative_pos;
-        double relative_yaw;
+        Eigen::Vector3d relative_pos = Eigen::Vector3d::Zero();
+        double relative_yaw = 0.0;
     };
 
     class KeyFrame {
@@ -34,9 +34,9 @@ namespace vins{
         void computeBRIEFPoint(const std::string &pattern_file);
 
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
-        void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i);
+        void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
-                            Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift);
+                            Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) const;
         void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
         void updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
@@ -46,10 +46,10 @@ namespace vins{
         Eigen::Quaterniond getLoopRelativeQ();
 
         double time_stamp;
-        Eigen::Vector3d vio_T_w_i;
-        Eigen::Matrix3d vio_R_w_i;
-        Eigen::Vector3d T_w_i;
-        Eigen::Matrix3d R_w_i;
+        Eigen::Vector3d vio_T_i_w_;
+        Eigen::Matrix3d vio_R_i_w_;
+        Eigen::Vector3d T_i_w_;
+        Eigen::Matrix3d R_i_w_;
         Eigen::Vector3d origin_vio_T;
         Eigen::Matrix3d origin_vio_R;
         cv::Mat image;
@@ -57,7 +57,6 @@ namespace vins{
         vector<DVision::BRIEF::bitset> external_brief_descriptors;
         vector<cv::Point3f> key_points_pos_;
         vector<DVision::BRIEF::bitset> descriptors;
-        bool has_fast_point;
 
         LoopInfo loop_info_;
     private:
@@ -66,4 +65,6 @@ namespace vins{
                        std::vector<uchar> &status,
                        Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old);
     };
+    typedef std::shared_ptr<KeyFrame> KeyFramePtr;
+    typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;
 }

@@ -1,5 +1,5 @@
 #include "loop_closer.h"
-#include "../vins_utils.h"
+#include "match_frame.h"
 
 using namespace vins;
 using namespace DVision;
@@ -97,33 +97,34 @@ void LoopCloser::loadVocabulary(const std::string &voc_path) {
     db.setVocabulary(*voc, false, 0);
 }
 
-void LoopCloser::addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop) {
+void LoopCloser::addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop) {
     int loop_index = -1;
     if (flag_detect_loop) {
-        loop_index = detectLoop(cur_kf, keyframelist_.size());
+        loop_index = _detectLoop(cur_kf, key_frame_list_.size());
     }
     db.add(cur_kf->external_brief_descriptors);
     cur_kf->updatePoseByDrift(t_drift, r_drift);
-    m_keyframelist.lock();
-    keyframelist_.push_back(cur_kf);
-    m_keyframelist.unlock();
+    key_frame_list_mutex_.lock();
+    key_frame_list_.push_back(cur_kf);
+    key_frame_list_mutex_.unlock();
     if (loop_index == -1) {
         return;
     }
-    KeyFrame *old_kf = keyframelist_[loop_index];
-    cur_kf->findConnection(old_kf, loop_index);
-    if (cur_kf->loop_info_.peer_frame_id == -1) {
+    LoopInfo loop_info;
+    bool find_loop = MatchFrame::findLoop(key_frame_list_[loop_index], loop_index, cur_kf, loop_info);
+    if (!find_loop) {
         return;
     }
+    cur_kf->loop_info_ = loop_info;
     if (earliest_loop_index > loop_index || earliest_loop_index == -1) {
         earliest_loop_index = loop_index;
     }
-    m_optimize_buf.lock();
-    optimize_buf.push(keyframelist_.size() - 1);
-    m_optimize_buf.unlock();
+    optimize_buf_mutex_.lock();
+    optimize_buf.push(key_frame_list_.size() - 1);
+    optimize_buf_mutex_.unlock();
 }
 
-int LoopCloser::detectLoop(KeyFrame *keyframe, int frame_index) {
+int LoopCloser::_detectLoop(ConstKeyFramePtr keyframe, int frame_index) {
     if (frame_index < 50) {
         return -1;
     }
@@ -159,13 +160,13 @@ void LoopCloser::optimize4DoF() {
 
         int cur_looped_id = -1;
         int first_looped_index = -1;
-        m_optimize_buf.lock();
+        optimize_buf_mutex_.lock();
         while (!optimize_buf.empty()) {
             cur_looped_id = optimize_buf.front();
             first_looped_index = earliest_loop_index;
             optimize_buf.pop();
         }
-        m_optimize_buf.unlock();
+        optimize_buf_mutex_.unlock();
         if (cur_looped_id == -1) { continue; }
 
         int max_length = cur_looped_id + 1;
@@ -183,9 +184,9 @@ void LoopCloser::optimize4DoF() {
         ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
         ceres::Manifold *angle_manifold_pi = AngleManifoldPi::Create();
 
-        m_keyframelist.lock();
+        key_frame_list_mutex_.lock();
         for (int frame_id = first_looped_index; frame_id <= cur_looped_id; ++frame_id) {
-            KeyFrame* kf = keyframelist_[frame_id];
+            auto kf = key_frame_list_[frame_id];
             kf->getVioPose(t_array[frame_id], r_array[frame_id]);
             euler_array[frame_id] = utils::rot2ypr(r_array[frame_id]);
 
@@ -222,25 +223,25 @@ void LoopCloser::optimize4DoF() {
                                          euler_array[frame_id].data(), t_array[frame_id].data());
             }
         }
-        m_keyframelist.unlock();
+        key_frame_list_mutex_.unlock();
 
         ceres::Solve(options, &problem, &summary);
 
-        m_drift.lock();
-        KeyFrame *cur_kf = keyframelist_[cur_looped_id];
+        drift_mutex_.lock();
+        ConstKeyFramePtr cur_kf = key_frame_list_[cur_looped_id];
         cur_kf->getPosRotDrift(t_array[cur_looped_id], euler_array[cur_looped_id], t_drift, r_drift);
-        m_drift.unlock();
+        drift_mutex_.unlock();
 
-        m_keyframelist.lock();
+        key_frame_list_mutex_.lock();
         for (int frame_id = first_looped_index; frame_id <= cur_looped_id; ++frame_id) {
             Vector3d t = t_array[frame_id];
             Matrix3d r = utils::ypr2rot(euler_array[frame_id]);
-            keyframelist_[frame_id]->updatePose(t, r);
+            key_frame_list_[frame_id]->updatePose(t, r);
         }
 
-        for (int frame_id = cur_looped_id + 1; frame_id < keyframelist_.size(); ++frame_id) {
-            keyframelist_[frame_id]->updatePoseByDrift(t_drift, r_drift);
+        for (int frame_id = cur_looped_id + 1; frame_id < key_frame_list_.size(); ++frame_id) {
+            key_frame_list_[frame_id]->updatePoseByDrift(t_drift, r_drift);
         }
-        m_keyframelist.unlock();
+        key_frame_list_mutex_.unlock();
     }
 }

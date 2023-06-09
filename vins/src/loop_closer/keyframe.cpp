@@ -6,28 +6,16 @@ using namespace Eigen;
 using namespace std;
 using namespace DVision;
 
-template<typename Derived>
-static void reduceVector(vector<Derived> &v, vector<uchar> status) {
-    int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
-        if (status[i])
-            v[j++] = v[i];
-    v.resize(j);
-}
-
 // create keyframe online
 KeyFrame::KeyFrame(double _time_stamp, Vector3d &_vio_T_w_i, Matrix3d &_vio_R_w_i, cv::Mat &_image,
                    vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv) {
     time_stamp = _time_stamp;
-    vio_T_w_i = _vio_T_w_i;
-    vio_R_w_i = _vio_R_w_i;
-    T_w_i = vio_T_w_i;
-    R_w_i = vio_R_w_i;
-    origin_vio_T = vio_T_w_i;
-    origin_vio_R = vio_R_w_i;
+    vio_T_i_w_ = _vio_T_w_i;
+    vio_R_i_w_ = _vio_R_w_i;
+    T_i_w_ = vio_T_i_w_;
+    R_i_w_ = vio_R_i_w_;
     image = _image.clone();
     key_points_pos_ = _point_3d;
-    has_fast_point = false;
     computeWindowBRIEFPoint(_point_2d_uv);
     computeBRIEFPoint();
     image.release();
@@ -60,148 +48,31 @@ void KeyFrame::computeBRIEFPoint(const std::string &pattern_file) {
     }
 }
 
-inline int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
-    return (a ^ b).count();
-}
-
-static bool searchInArea(const DVision::BRIEF::bitset& descriptor,
-                            const KeyFrame* old_kf,
-                            cv::Point2f &best_match_norm) {
-    int bestDist = 128;
-    int bestIndex = -1;
-    for (int i = 0; i < (int) old_kf->external_brief_descriptors.size(); i++) {
-        int dis = HammingDis(descriptor, old_kf->external_brief_descriptors[i]);
-        if (dis < bestDist) {
-            bestDist = dis;
-            bestIndex = i;
-        }
-    }
-    if (bestIndex != -1 && bestDist < 80) {
-        best_match_norm = old_kf->external_key_points_[bestIndex].pt;
-        return true;
-    } else
-        return false;
-}
-
-static void searchByBRIEFDes(const KeyFrame* old_kf,
-                             const std::vector<BRIEF::bitset> &descriptors,
-                             std::vector<cv::Point2f> &matched_2d_old_norm,
-                             std::vector<uchar> &status) {
-    for (auto & descriptor : descriptors) {
-        cv::Point2f pt_norm(0.f, 0.f);
-        if (searchInArea(descriptor, old_kf, pt_norm))
-            status.push_back(1);
-        else
-            status.push_back(0);
-        matched_2d_old_norm.push_back(pt_norm);
-    }
-}
-
-void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &old_feature_pt,
-                         const std::vector<cv::Point3f> &matched_3d,
-                         std::vector<uchar> &status,
-                         Eigen::Vector3d &PnP_T_old, Eigen::Matrix3d &PnP_R_old) {
-    cv::Mat r, rvec, t, D, tmp_r;
-    cv::Mat K = (cv::Mat_<double>(3, 3) << 1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
-    Matrix3d R_w_c = origin_vio_R * qic;
-    Vector3d T_w_c = origin_vio_T + origin_vio_R * tic;
-
-    Matrix3d R_inital = R_w_c.inverse();
-    Vector3d P_inital = -(R_inital * T_w_c);
-
-    cv::eigen2cv(R_inital, tmp_r);
-    cv::Rodrigues(tmp_r, rvec);
-    cv::eigen2cv(P_inital, t);
-
-    cv::Mat inliers;
-
-    solvePnPRansac(matched_3d, old_feature_pt, K, D, rvec, t,
-                   true, 100, 10.0 / 460.0, 0.99, inliers);
-
-    status = std::vector<uchar>(old_feature_pt.size(), 0);
-
-    for (int i = 0; i < inliers.rows; i++) {
-        int n = inliers.at<int>(i);
-        status[n] = 1;
-    }
-
-    cv::Rodrigues(rvec, r);
-    Matrix3d R_pnp, R_w_c_old;
-    cv::cv2eigen(r, R_pnp);
-    R_w_c_old = R_pnp.transpose();
-    Vector3d T_pnp, T_w_c_old;
-    cv::cv2eigen(t, T_pnp);
-    T_w_c_old = R_w_c_old * (-T_pnp);
-
-    PnP_R_old = R_w_c_old * qic.transpose();
-    PnP_T_old = T_w_c_old - PnP_R_old * tic;
-}
-
-bool KeyFrame::findConnection(const KeyFrame *old_kf, int old_kf_id) {
-    vector<cv::Point2f> old_feature_pt;
-    vector<cv::Point3f> pos_in_new_frame = key_points_pos_;
-    vector<uchar> status;
-
-    searchByBRIEFDes(old_kf, descriptors, old_feature_pt, status);
-    reduceVector(old_feature_pt, status);
-    reduceVector(pos_in_new_frame, status);
-
-    if (old_feature_pt.size() < MIN_LOOP_NUM) {
-        return false;
-    }
-
-    Eigen::Vector3d PnP_T_old;
-    Eigen::Matrix3d PnP_R_old;
-    status.clear();
-    PnPRANSAC(old_feature_pt, pos_in_new_frame, status, PnP_T_old, PnP_R_old);
-    reduceVector(old_feature_pt, status);
-    reduceVector(pos_in_new_frame, status);
-
-    if (pos_in_new_frame.size() < MIN_LOOP_NUM) {
-        return false;
-    }
-
-    loop_info_.relative_pos = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
-    loop_info_.relative_yaw = utils::normalizeAnglePi(utils::rot2ypr(origin_vio_R).x() - utils::rot2ypr(PnP_R_old).x());
-    if (abs(loop_info_.relative_yaw) < 30.0 / 180.0 * 3.14 && loop_info_.relative_pos.norm() < 20.0) {
-        loop_info_.peer_frame_id = old_kf_id;
-        return true;
-    }
-    return false;
-}
-
-void KeyFrame::getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const {
-    _T_w_i = vio_T_w_i;
-    _R_w_i = vio_R_w_i;
+void KeyFrame::getVioPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {
+    _T_i_w = vio_T_i_w_;
+    _R_i_w = vio_R_i_w_;
 }
 
 void KeyFrame::getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
-                              Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) {
-    double yaw_drift = euler.x() - utils::rot2ypr(vio_R_w_i).x();
+                              Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) const {
+    double yaw_drift = euler.x() - utils::rot2ypr(vio_T_i_w_).x();
     rot_drift = utils::ypr2rot(Vector3d(yaw_drift, 0, 0));
-    pos_drift = pos - rot_drift * vio_T_w_i;
+    pos_drift = pos - rot_drift * vio_T_i_w_;
 }
 
-void KeyFrame::getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) {
-    _T_w_i = T_w_i;
-    _R_w_i = R_w_i;
+void KeyFrame::getPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {
+    _T_i_w = T_i_w_;
+    _R_i_w = R_i_w_;
 }
 
 void KeyFrame::updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i) {
-    T_w_i = _T_w_i;
-    R_w_i = _R_w_i;
+    T_i_w_ = _T_w_i;
+    R_i_w_ = _R_w_i;
 }
 
 void KeyFrame::updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift) {
-    T_w_i = r_drift * T_w_i + t_drift;
-    R_w_i = r_drift * R_w_i;
-}
-
-void KeyFrame::updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i) {
-    vio_T_w_i = _T_w_i;
-    vio_R_w_i = _R_w_i;
-    T_w_i = vio_T_w_i;
-    R_w_i = vio_R_w_i;
+    T_i_w_ = r_drift * T_i_w_ + t_drift;
+    R_i_w_ = r_drift * R_i_w_;
 }
 
 BriefExtractor::BriefExtractor(const std::string &pattern_file) {

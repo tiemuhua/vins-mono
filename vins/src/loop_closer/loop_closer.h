@@ -31,38 +31,29 @@ namespace vins{
 
         ~LoopCloser();
 
-        void addKeyFrame(KeyFrame *cur_kf, bool flag_detect_loop);
+        void addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop);
 
         void loadVocabulary(const std::string &voc_path);
 
-        void updateKeyFrameLoop(int index, LoopInfo &_loop_info);
-
-        KeyFrame *getKeyFrame(int index);
-
-        Eigen::Vector3d t_drift = Eigen::Vector3d::Zero();
-        Eigen::Matrix3d r_drift = Eigen::Matrix3d::Identity();
-
     private:
-        int detectLoop(KeyFrame *keyframe, int frame_index);
-
-        void _addKeyFrameIntoVoc(KeyFrame *keyframe);
+        int _detectLoop(ConstKeyFramePtr keyframe, int frame_index);
 
         void optimize4DoF();
 
-        std::vector<KeyFrame *> keyframelist_;
-        std::mutex m_keyframelist;
-        std::mutex m_optimize_buf;
-        std::mutex m_path;
-        std::mutex m_drift;
-        std::thread t_optimization;
-        std::queue<int> optimize_buf;
+        std::vector<KeyFramePtr> key_frame_list_;
+        std::mutex key_frame_list_mutex_;
 
-        map<int, cv::Mat> image_pool;
+        Eigen::Vector3d t_drift = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d r_drift = Eigen::Matrix3d::Identity();
+        std::mutex drift_mutex_;
+
+        std::thread t_optimization;
         int earliest_loop_index = -1;
+        std::queue<int> optimize_buf;
+        std::mutex optimize_buf_mutex_;
 
         BriefDatabase db;
         BriefVocabulary *voc{};
-
     };
 
 }
