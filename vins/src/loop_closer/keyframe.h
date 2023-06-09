@@ -25,9 +25,8 @@ namespace vins{
 
     class KeyFrame {
     public:
-        KeyFrame(double _time_stamp, Eigen::Vector3d &_vio_T_w_i, Eigen::Matrix3d &_vio_R_w_i, cv::Mat &_image,
-                 vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_normal,
-                 vector<double> &_point_id, int _sequence);
+        KeyFrame(double _time_stamp, Eigen::Vector3d &t, Eigen::Matrix3d &r, cv::Mat &_image,
+                 std::vector<cv::Point3f> &_point_3d, std::vector<cv::Point2f> &_point_2d_uv);
         bool findConnection(const KeyFrame *old_kf, int old_kf_id);
 
         void computeWindowBRIEFPoint(const std::string &pattern_file);
@@ -52,7 +51,6 @@ namespace vins{
         Eigen::Matrix3d R_i_w_;
         Eigen::Vector3d origin_vio_T;
         Eigen::Matrix3d origin_vio_R;
-        cv::Mat image;
         vector<cv::KeyPoint> external_key_points_;
         vector<DVision::BRIEF::bitset> external_brief_descriptors;
         vector<cv::Point3f> key_points_pos_;
