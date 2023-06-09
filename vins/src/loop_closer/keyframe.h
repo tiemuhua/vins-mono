@@ -7,7 +7,6 @@
 #include "ThirdParty/DBoW/DBoW2.h"
 #include "ThirdParty/DVision/DVision.h"
 #include "../vins_define_internal.h"
-#define MIN_LOOP_NUM 25
 
 namespace vins{
 

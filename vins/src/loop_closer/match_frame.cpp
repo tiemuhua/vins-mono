@@ -89,6 +89,7 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
     cv::cv2eigen(t_cv, T_pnp);
 }
 
+constexpr int min_loop_key_points_num = 25;
 bool findLoop(ConstKeyFramePtr old_kf,
               const int old_kf_id,
               ConstKeyFramePtr new_kf,
@@ -99,7 +100,7 @@ bool findLoop(ConstKeyFramePtr old_kf,
     searchByBRIEFDes(old_kf, new_kf->descriptors_, pts2d_in_old_frame, status);
     reduceVector(pts2d_in_old_frame, status);
     reduceVector(pts3d_in_new_frame, status);
-    if (pts2d_in_old_frame.size() < MIN_LOOP_NUM) {
+    if (pts2d_in_old_frame.size() < min_loop_key_points_num) {
         return false;
     }
 
@@ -115,7 +116,7 @@ bool findLoop(ConstKeyFramePtr old_kf,
     PnpRANSAC(pts2d_in_old_frame, pts3d_in_new_frame, R_o_n_vio, T_o_n_vio, status, R_o_n_pnp, T_o_n_pnp);
     reduceVector(pts2d_in_old_frame, status);
     reduceVector(pts3d_in_new_frame, status);
-    if (pts2d_in_old_frame.size() < MIN_LOOP_NUM) {
+    if (pts2d_in_old_frame.size() < min_loop_key_points_num) {
         return false;
     }
 
