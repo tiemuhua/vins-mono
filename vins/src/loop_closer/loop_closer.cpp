@@ -102,7 +102,7 @@ void LoopCloser::addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop) {
     if (flag_detect_loop) {
         loop_index = _detectLoop(cur_kf, key_frame_list_.size());
     }
-    db.add(cur_kf->external_brief_descriptors);
+    db.add(cur_kf->external_descriptors_);
     cur_kf->updatePoseByDrift(t_drift, r_drift);
     key_frame_list_mutex_.lock();
     key_frame_list_.push_back(cur_kf);
@@ -124,12 +124,12 @@ void LoopCloser::addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop) {
     optimize_buf_mutex_.unlock();
 }
 
-int LoopCloser::_detectLoop(ConstKeyFramePtr keyframe, int frame_index) {
+int LoopCloser::_detectLoop(ConstKeyFramePtr keyframe, int frame_index) const {
     if (frame_index < 50) {
         return -1;
     }
     QueryResults ret;
-    db.query(keyframe->external_brief_descriptors, ret, 4, frame_index - 50);
+    db.query(keyframe->external_descriptors_, ret, 4, frame_index - 50);
     cv::Mat loop_result;
     // a good match with its neighbour
     if (ret.size() < 2 || ret[0].Score < 0.05) {

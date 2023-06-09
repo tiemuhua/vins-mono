@@ -27,10 +27,6 @@ namespace vins{
     public:
         KeyFrame(double _time_stamp, Eigen::Vector3d &t, Eigen::Matrix3d &r, cv::Mat &_image,
                  std::vector<cv::Point3f> &_point_3d, std::vector<cv::Point2f> &_point_2d_uv);
-        bool findConnection(const KeyFrame *old_kf, int old_kf_id);
-
-        void computeWindowBRIEFPoint(const std::string &pattern_file);
-        void computeBRIEFPoint(const std::string &pattern_file);
 
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
@@ -40,21 +36,18 @@ namespace vins{
         void updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
 
-        Eigen::Vector3d getLoopRelativeT();
-        double getLoopRelativeYaw();
-        Eigen::Quaterniond getLoopRelativeQ();
-
         double time_stamp;
         Eigen::Vector3d vio_T_i_w_;
         Eigen::Matrix3d vio_R_i_w_;
         Eigen::Vector3d T_i_w_;
         Eigen::Matrix3d R_i_w_;
-        Eigen::Vector3d origin_vio_T;
-        Eigen::Matrix3d origin_vio_R;
-        vector<cv::KeyPoint> external_key_points_;
-        vector<DVision::BRIEF::bitset> external_brief_descriptors;
-        vector<cv::Point3f> key_points_pos_;
-        vector<DVision::BRIEF::bitset> descriptors;
+
+        // pnp匹配的时候新帧提供key_pts3d_和descriptors_
+        vector<cv::Point3f> key_pts3d_;
+        vector<DVision::BRIEF::bitset> descriptors_;
+        // pnp匹配的时候老帧提供external_key_pts2d_和external_descriptors_
+        vector<cv::KeyPoint> external_key_pts2d_;
+        vector<DVision::BRIEF::bitset> external_descriptors_;
 
         LoopInfo loop_info_;
     private:

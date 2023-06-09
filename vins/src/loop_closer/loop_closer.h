@@ -36,7 +36,7 @@ namespace vins{
         void loadVocabulary(const std::string &voc_path);
 
     private:
-        int _detectLoop(ConstKeyFramePtr keyframe, int frame_index);
+        int _detectLoop(ConstKeyFramePtr keyframe, int frame_index) const;
 
         void optimize4DoF();
 

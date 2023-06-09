@@ -14,7 +14,7 @@ KeyFrame::KeyFrame(double _time_stamp, Vector3d &t, Matrix3d &r, cv::Mat &_image
     vio_R_i_w_ = r;
     T_i_w_ = vio_T_i_w_;
     R_i_w_ = vio_R_i_w_;
-    key_points_pos_ = _point_3d;
+    key_pts3d_ = _point_3d;
 
     BriefExtractor extractor(pattern_file.c_str());
     vector<cv::KeyPoint> key_points;
@@ -23,18 +23,18 @@ KeyFrame::KeyFrame(double _time_stamp, Vector3d &t, Matrix3d &r, cv::Mat &_image
         key.pt = i;
         key_points.push_back(key);
     }
-    extractor.m_brief.compute(_image, key_points, descriptors);
+    extractor.m_brief.compute(_image, key_points, descriptors_);
 
     const int fast_th = 20; // corner detector response threshold
     vector<cv::KeyPoint> external_key_points_un_normalized;
     cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
-    extractor.m_brief.compute(_image, external_key_points_un_normalized, external_brief_descriptors);
+    extractor.m_brief.compute(_image, external_key_points_un_normalized, external_descriptors_);
     for (auto & keypoint : external_key_points_un_normalized) {
         Eigen::Vector3d tmp_p;
         m_camera->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
         cv::KeyPoint tmp_norm;
         tmp_norm.pt = cv::Point2f(tmp_p.x() / tmp_p.z(), tmp_p.y() / tmp_p.z());
-        external_key_points_.push_back(tmp_norm);
+        external_key_pts2d_.push_back(tmp_norm);
     }
 }
 

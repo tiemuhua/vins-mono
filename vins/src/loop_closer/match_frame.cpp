@@ -27,15 +27,15 @@ static bool searchInArea(const DVision::BRIEF::bitset& descriptor,
                          cv::Point2f &best_match_norm) {
     int bestDist = 128;
     int bestIndex = -1;
-    for (int i = 0; i < (int) old_kf->external_brief_descriptors.size(); i++) {
-        int dis = HammingDis(descriptor, old_kf->external_brief_descriptors[i]);
+    for (int i = 0; i < (int) old_kf->external_descriptors_.size(); i++) {
+        int dis = HammingDis(descriptor, old_kf->external_descriptors_[i]);
         if (dis < bestDist) {
             bestDist = dis;
             bestIndex = i;
         }
     }
     if (bestIndex != -1 && bestDist < 80) {
-        best_match_norm = old_kf->external_key_points_[bestIndex].pt;
+        best_match_norm = old_kf->external_key_pts2d_[bestIndex].pt;
         return true;
     } else
         return false;
@@ -93,10 +93,10 @@ bool findLoop(ConstKeyFramePtr old_kf,
               const int old_kf_id,
               ConstKeyFramePtr new_kf,
               LoopInfo &loop_info) {
-    vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_points_pos_;
+    vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_pts3d_;
     vector<uchar> status;
     vector<cv::Point2f> pts2d_in_old_frame;
-    searchByBRIEFDes(old_kf, new_kf->descriptors, pts2d_in_old_frame, status);
+    searchByBRIEFDes(old_kf, new_kf->descriptors_, pts2d_in_old_frame, status);
     reduceVector(pts2d_in_old_frame, status);
     reduceVector(pts3d_in_new_frame, status);
     if (pts2d_in_old_frame.size() < MIN_LOOP_NUM) {
