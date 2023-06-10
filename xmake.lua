@@ -2,11 +2,13 @@ add_rules("mode.debug", "mode.release")
 
 add_includedirs("/usr/local/include")
 add_includedirs("/usr/local/include/eigen3")
+add_includedirs("$(projectdir)/src/")
+add_includedirs("/usr/local/include/folly")
 
 target("vins")
     set_kind("static")
     set_languages("cxx17", "c17")
-    add_files("src/vins/src/*.cpp")
+    add_files("$(projectdir)/src/vins/**.cpp")
 
 
 --

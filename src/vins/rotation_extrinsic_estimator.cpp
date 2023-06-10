@@ -37,7 +37,7 @@ namespace vins {
             R.block<1, 3>(3, 0) = -q.transpose();
             R(3, 3) = w;
 
-            double angular_distance = 180 / M_PI * rot_visual.angularDistance(rot_imu_in_world_frame);
+            double angular_distance = 180 / pi * rot_visual.angularDistance(rot_imu_in_world_frame);
             LOG_D("%d %f", i, angular_distance);
             double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
             A.block<4, 4>((i - 1) * 4, 0) = huber * (L - R);

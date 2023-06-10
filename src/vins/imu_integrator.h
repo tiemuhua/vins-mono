@@ -42,26 +42,29 @@ namespace vins {
         State evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
                        ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
 
-        [[nodiscard]] Eigen::Vector3d deltaPos() const {
+        [[nodiscard]] const Eigen::Vector3d& deltaPos() const {
             return pre_pos;
         }
-        [[nodiscard]] Eigen::Vector3d deltaVel() const {
+        [[nodiscard]] const Eigen::Vector3d& deltaVel() const {
             return pre_vel;
         }
-        [[nodiscard]] Eigen::Quaterniond deltaQuat() const {
+        [[nodiscard]] const Eigen::Quaterniond& deltaQuat() const {
             return pre_quat;
         }
         [[nodiscard]] double deltaTime() const {
             return time_stamp_buf.back() - time_stamp_buf.front();
         }
-        [[nodiscard]] Jacobian getJacobian() const {
+        [[nodiscard]] const Jacobian& getJacobian() const {
             return jacobian;
         }
-        [[nodiscard]] Covariance getCovariance() const {
+        [[nodiscard]] const Covariance& getCovariance() const {
             return covariance;
         }
-        [[nodiscard]] Noise getNoise() const {
+        [[nodiscard]] const Noise& getNoise() const {
             return noise;
+        }
+        [[nodiscard]] const Eigen::Vector3d& getBg() const {
+            return bg_;
         }
 
     private:

@@ -9,15 +9,6 @@ using namespace vins;
 using namespace DVision;
 using namespace Eigen;
 
-template<typename Derived>
-static void reduceVector(vector<Derived> &v, vector<uchar> status) {
-    int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
-        if (status[i])
-            v[j++] = v[i];
-    v.resize(j);
-}
-
 inline int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
     return (a ^ b).count();
 }
@@ -98,8 +89,8 @@ bool findLoop(ConstKeyFramePtr old_kf,
     vector<uchar> status;
     vector<cv::Point2f> pts2d_in_old_frame;
     searchByBRIEFDes(old_kf, new_kf->descriptors_, pts2d_in_old_frame, status);
-    reduceVector(pts2d_in_old_frame, status);
-    reduceVector(pts3d_in_new_frame, status);
+    utils::reduceVector(pts2d_in_old_frame, status);
+    utils::reduceVector(pts3d_in_new_frame, status);
     if (pts2d_in_old_frame.size() < min_loop_key_points_num) {
         return false;
     }
@@ -114,8 +105,8 @@ bool findLoop(ConstKeyFramePtr old_kf,
     Eigen::Vector3d T_o_n_pnp;
     status.clear();
     PnpRANSAC(pts2d_in_old_frame, pts3d_in_new_frame, R_o_n_vio, T_o_n_vio, status, R_o_n_pnp, T_o_n_pnp);
-    reduceVector(pts2d_in_old_frame, status);
-    reduceVector(pts3d_in_new_frame, status);
+    utils::reduceVector(pts2d_in_old_frame, status);
+    utils::reduceVector(pts3d_in_new_frame, status);
     if (pts2d_in_old_frame.size() < min_loop_key_points_num) {
         return false;
     }
@@ -124,7 +115,7 @@ bool findLoop(ConstKeyFramePtr old_kf,
     double old_yaw = utils::rot2ypr(R_o_n_vio * new_kf->vio_R_i_w_).x();
     double new_yaw = utils::rot2ypr(new_kf->vio_R_i_w_).x();
     loop_info.relative_yaw = utils::normalizeAnglePi(old_yaw - new_yaw);
-    if (abs(loop_info.relative_yaw) < 30.0 / 180.0 * 3.14 && loop_info.relative_pos.norm() < 20.0) {
+    if (abs(loop_info.relative_yaw) < pi/6 && loop_info.relative_pos.norm() < 20.0) {
         loop_info.peer_frame_id = old_kf_id;
         return true;
     }

@@ -1,6 +1,8 @@
 #include "keyframe.h"
 #include <opencv2/imgproc/types_c.h>
 #include "../vins_utils.h"
+#include "vins/vins_run_info.h"
+
 using namespace vins;
 using namespace Eigen;
 using namespace std;
@@ -16,22 +18,21 @@ KeyFrame::KeyFrame(double _time_stamp, Vector3d &t, Matrix3d &r, cv::Mat &_image
     R_i_w_ = vio_R_i_w_;
     key_pts3d_ = _point_3d;
 
-    BriefExtractor extractor(pattern_file.c_str());
     vector<cv::KeyPoint> key_points;
     for (auto & i : _point_2d_uv) {
         cv::KeyPoint key;
         key.pt = i;
         key_points.push_back(key);
     }
-    extractor.m_brief.compute(_image, key_points, descriptors_);
+    RunInfo::Instance().extractor.m_brief.compute(_image, key_points, descriptors_);
 
     const int fast_th = 20; // corner detector response threshold
     vector<cv::KeyPoint> external_key_points_un_normalized;
     cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
-    extractor.m_brief.compute(_image, external_key_points_un_normalized, external_descriptors_);
+    RunInfo::Instance().extractor.m_brief.compute(_image, external_key_points_un_normalized, external_descriptors_);
     for (auto & keypoint : external_key_points_un_normalized) {
         Eigen::Vector3d tmp_p;
-        m_camera->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
+        RunInfo::Instance().camera_ptr->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
         cv::KeyPoint tmp_norm;
         tmp_norm.pt = cv::Point2f(tmp_p.x() / tmp_p.z(), tmp_p.y() / tmp_p.z());
         external_key_pts2d_.push_back(tmp_norm);
@@ -64,24 +65,3 @@ void KeyFrame::updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Ma
     T_i_w_ = r_drift * T_i_w_ + t_drift;
     R_i_w_ = r_drift * R_i_w_;
 }
-
-BriefExtractor::BriefExtractor(const std::string &pattern_file) {
-    // The DVision::BRIEF extractor computes a random pattern by default when
-    // the object is created.
-    // We load the pattern that we used to build the vocabulary, to make
-    // the descriptors compatible with the predefined vocabulary
-
-    // loads the pattern
-    cv::FileStorage fs(pattern_file.c_str(), cv::FileStorage::READ);
-    if (!fs.isOpened()) throw string("Could not open file ") + pattern_file;
-
-    vector<int> x1, y1, x2, y2;
-    fs["x1"] >> x1;
-    fs["x2"] >> x2;
-    fs["y1"] >> y1;
-    fs["y2"] >> y2;
-
-    m_brief.importPairs(x1, y1, x2, y2);
-}
-
-

@@ -21,6 +21,7 @@ namespace vins {
     struct FeaturePoint2D {
         cv::Point2f point;
         cv::Point2f velocity;
+        double time_stamp;
         int feature_id;
     };
 
@@ -106,6 +107,8 @@ namespace vins {
         Window<Eigen::Vector3d> vel_window;
         Window<Eigen::Matrix3d> rot_window;
     };
+
+    constexpr double pi = 3.1415926;
 }
 
 

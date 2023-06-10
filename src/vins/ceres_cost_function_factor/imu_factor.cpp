@@ -43,17 +43,18 @@ namespace vins{
         }
 
         Eigen::Quaterniond corrected_delta_q =
-                pre_integration.deltaQuat() * Utility::deltaQ(dq_dbg * (Bgi - pre_integration.bg_));
+                pre_integration.deltaQuat() * utils::deltaQ(dq_dbg * (Bgi - pre_integration.getBg()));
 
         // jacobian_pose_i
+        const Eigen::Vector3d G = {0,0,-9.81};// todo tiemuhuaguo G应该用标定后的值
         Eigen::Map<Eigen::Matrix<double, 15, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
         jacobian_pose_i.setZero();
         jacobian_pose_i.block<3, 3>(O_P, O_P) = -Qi.inverse().toRotationMatrix();
-        jacobian_pose_i.block<3, 3>(O_P, O_R) = Utility::skewSymmetric(
+        jacobian_pose_i.block<3, 3>(O_P, O_R) = utils::skewSymmetric(
                 Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
         jacobian_pose_i.block<3, 3>(O_R, O_R) =
-                -(Utility::Qleft(Qj.inverse() * Qi) * Utility::Qright(corrected_delta_q)).bottomRightCorner<3, 3>();
-        jacobian_pose_i.block<3, 3>(O_V, O_R) = Utility::skewSymmetric(Qi.inverse() * (G * sum_dt + Vj - Vi));
+                -(utils::Qleft(Qj.inverse() * Qi) * utils::Qright(corrected_delta_q)).bottomRightCorner<3, 3>();
+        jacobian_pose_i.block<3, 3>(O_V, O_R) = utils::skewSymmetric(Qi.inverse() * (G * sum_dt + Vj - Vi));
         jacobian_pose_i = sqrt_info * jacobian_pose_i;
         if (jacobian_pose_i.maxCoeff() > 1e8 || jacobian_pose_i.minCoeff() < -1e8) {
             LOG_W("numerical unstable in pre-integration");
@@ -66,7 +67,7 @@ namespace vins{
         jacobian_speed_bias_i.block<3, 3>(O_P, O_BA - O_V) = -dp_dba;
         jacobian_speed_bias_i.block<3, 3>(O_P, O_BG - O_V) = -dp_dbg;
         jacobian_speed_bias_i.block<3, 3>(O_R, O_BG - O_V) =
-                -Utility::Qleft(Qj.inverse() * Qi * pre_integration.deltaQuat()).bottomRightCorner<3, 3>() * dq_dbg;
+                -utils::Qleft(Qj.inverse() * Qi * pre_integration.deltaQuat()).bottomRightCorner<3, 3>() * dq_dbg;
         jacobian_speed_bias_i.block<3, 3>(O_V, O_V - O_V) = -Qi.inverse().toRotationMatrix();
         jacobian_speed_bias_i.block<3, 3>(O_V, O_BA - O_V) = -dv_dba;
         jacobian_speed_bias_i.block<3, 3>(O_V, O_BG - O_V) = -dv_dbg;
@@ -78,7 +79,7 @@ namespace vins{
         Eigen::Map<Eigen::Matrix<double, 15, 7, Eigen::RowMajor>> jacobian_pose_j(jacobians[2]);
         jacobian_pose_j.setZero();
         jacobian_pose_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
-        jacobian_pose_j.block<3, 3>(O_R, O_R) = Utility::Qleft(
+        jacobian_pose_j.block<3, 3>(O_R, O_R) = utils::Qleft(
                 corrected_delta_q.inverse() * Qi.inverse() * Qj).bottomRightCorner<3, 3>();
         jacobian_pose_j = sqrt_info * jacobian_pose_j;
 

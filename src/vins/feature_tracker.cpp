@@ -1,5 +1,9 @@
 #include "feature_tracker.h"
 #include "log.h"
+#include "vins_utils.h"
+#include "parameters.h"
+
+using namespace vins;
 
 int FeatureTracker::s_feature_id_cnt_ = 0;
 
@@ -7,16 +11,10 @@ bool inBorder(const cv::Point2f &pt) {
     const int BORDER_SIZE = 1;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
-    return BORDER_SIZE <= img_x && img_x < COL - BORDER_SIZE && BORDER_SIZE <= img_y && img_y < ROW - BORDER_SIZE;
-}
-
-template<typename T>
-void reduceVector(vector<T> &v, vector<uchar> mask) {
-    int j = 0;
-    for (int i = 0; i < int(v.size()); i++)
-        if (mask[i])
-            v[j++] = v[i];
-    v.resize(j);
+    return  BORDER_SIZE <= img_x &&
+            img_x < Param::Instance().camera.col - BORDER_SIZE &&
+            BORDER_SIZE <= img_y &&
+            img_y < Param::Instance().camera.row - BORDER_SIZE;
 }
 
 FeatureTracker::FeatureTracker(const string &calib_file) {
@@ -27,20 +25,20 @@ FeatureTracker::FeatureTracker(const string &calib_file) {
 cv::Point2f FeatureTracker::rawPoint2UniformedPoint(cv::Point2f p) {
     Eigen::Vector3d tmp_p;
     m_camera_->liftProjective(Eigen::Vector2d(p.x, p.y), tmp_p);
-    float col = FOCAL_LENGTH * tmp_p.x() / tmp_p.z() + COL / 2.0;
-    float row = FOCAL_LENGTH * tmp_p.y() / tmp_p.z() + ROW / 2.0;
+    float col = Param::Instance().camera.focal * tmp_p.x() / tmp_p.z() + Param::Instance().camera.col / 2.0;
+    float row = Param::Instance().camera.focal * tmp_p.y() / tmp_p.z() + Param::Instance().camera.row / 2.0;
     return {col, row};
 }
 
-FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, double _cur_time){
+FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, double _cur_time, bool equalize, bool publish){
     cv::Mat img;
-    TicToc t_r;
+    int COL = Param::Instance().camera.col;
+    int ROW = Param::Instance().camera.row;
+    double FOCAL_LENGTH = Param::Instance().camera.focal;
 
-    if (EQUALIZE) {
+    if (equalize) {
         cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
-        TicToc t_c;
         clahe->apply(_img, img);
-        LOG_D("CLAHE costs: %fms", t_c.toc());
     } else
         img = _img;
 
@@ -60,10 +58,10 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
         for (int i = 0; i < int(next_pts.size()); i++) {
             status[i] = status[i] && inBorder(next_pts[i]);
         }
-        reduceVector(prev_pts_, status);
-        reduceVector(next_pts, status);
-        reduceVector(prev_uniformed_pts_, status);
-        reduceVector(feature_ids_, status);
+        utils::reduceVector(prev_pts_, status);
+        utils::reduceVector(next_pts, status);
+        utils::reduceVector(prev_uniformed_pts_, status);
+        utils::reduceVector(feature_ids_, status);
     }
 
     vector<cv::Point2f> next_uniformed_pts(next_pts.size());
@@ -71,17 +69,17 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
         next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
     }
 
-    if (PUB_THIS_FRAME) {
+    if (publish) {
         if (next_pts.size() >= 8) {
             vector<uchar> mask;
-            cv::findFundamentalMat(prev_uniformed_pts_, next_uniformed_pts,
-                                   cv::FM_RANSAC, F_THRESHOLD, 0.99, mask);
+            cv::findFundamentalMat(prev_uniformed_pts_, next_uniformed_pts, cv::FM_RANSAC,
+                                   Param::Instance().frame_tracker.fundamental_threshold, 0.99, mask);
             size_t size_a = prev_pts_.size();
-            reduceVector(prev_pts_, mask);
-            reduceVector(next_pts, mask);
-            reduceVector(prev_uniformed_pts_, mask);
-            reduceVector(next_uniformed_pts, mask);
-            reduceVector(feature_ids_, mask);
+            utils::reduceVector(prev_pts_, mask);
+            utils::reduceVector(next_pts, mask);
+            utils::reduceVector(prev_uniformed_pts_, mask);
+            utils::reduceVector(next_uniformed_pts, mask);
+            utils::reduceVector(feature_ids_, mask);
             LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
         }
 
@@ -89,15 +87,15 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
         cv::Mat mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
         for (const cv::Point2f & p: next_pts) {
             if (mask.at<uchar>(p.x, p.y) == 255) {
-                cv::circle(mask, p, MIN_DIST, 0, -1);
+                cv::circle(mask, p, Param::Instance().frame_tracker.min_dist, 0, -1);
             }
         }
 
-        int max_new_pnt_num = MAX_CNT - static_cast<int>(next_pts.size());
+        int max_new_pnt_num = Param::Instance().frame_tracker.max_cnt - static_cast<int>(next_pts.size());
         if (max_new_pnt_num > 0) {
             vector<cv::Point2f> new_pts;
             constexpr double qualityLevel = 0.01;
-            cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, MIN_DIST, mask);
+            cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, Param::Instance().frame_tracker.min_dist, mask);
             for (auto &p: new_pts) {
                 next_pts.push_back(p);
                 next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
@@ -138,22 +136,25 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
 }
 
 void FeatureTracker::showUndistortion(const string &name) {
+    int COL = Param::Instance().camera.col;
+    int ROW = Param::Instance().camera.row;
+    double FOCAL_LENGTH = Param::Instance().camera.focal;
     cv::Mat undistortedImg(ROW + 600, COL + 600, CV_8UC1, cv::Scalar(0));
-    vector<Eigen::Vector2d> distortedp, undistortedp;
+    vector<Eigen::Vector2d> distorted_p, un_distorted_p;
     for (int i = 0; i < COL; i++)
         for (int j = 0; j < ROW; j++) {
             Eigen::Vector2d a(i, j);
             Eigen::Vector3d b;
             m_camera_->liftProjective(a, b);
-            distortedp.push_back(a);
-            undistortedp.emplace_back(Eigen::Vector2d(b.x() / b.z(), b.y() / b.z()));
+            distorted_p.push_back(a);
+            un_distorted_p.emplace_back(Eigen::Vector2d(b.x() / b.z(), b.y() / b.z()));
         }
-    for (int i = 0; i < int(undistortedp.size()); i++) {
-        float col = undistortedp[i].x() * FOCAL_LENGTH + COL / 2;
-        float row = undistortedp[i].y() * FOCAL_LENGTH + ROW / 2;
+    for (int i = 0; i < int(un_distorted_p.size()); i++) {
+        float col = un_distorted_p[i].x() * FOCAL_LENGTH + COL / 2;
+        float row = un_distorted_p[i].y() * FOCAL_LENGTH + ROW / 2;
         if (col + 300 >= 0 && col < COL + 300 && row + 300 >= 0 && row < ROW + 300) {
             undistortedImg.at<uchar>(row + 300, col + 300) =
-                    prev_img_.at<uchar>(distortedp[i].y(), distortedp[i].x());
+                    prev_img_.at<uchar>(distorted_p[i].y(), distorted_p[i].x());
         }
     }
     cv::imshow(name, undistortedImg);

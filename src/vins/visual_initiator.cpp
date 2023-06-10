@@ -5,6 +5,7 @@
 #include "visual_initiator.h"
 
 #include <vector>
+#include <cmath>
 
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
@@ -14,19 +15,19 @@
 
 #include "log.h"
 #include "vins_utils.h"
+#include "parameters.h"
 
 #include "feature_manager.h"
 #include "motion_estimator.h"
 
 namespace vins {
-    using namespace Eigen;
     using namespace std;
 
     struct SFMFeature {
         bool state = false;
         int id = -1;
         map<int, cv::Point2f> frame_id_2_point_;
-        Vector3d position;
+        Eigen::Vector3d position;
         double depth;
     };
 
@@ -56,20 +57,21 @@ namespace vins {
 
     static bool isAccVariantIsBigEnough(const vector<ImageFrame> &all_image_frame_) {
         //check imu observability
-        Vector3d sum_acc;
+        Eigen::Vector3d sum_acc;
         // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
         for (const ImageFrame &frame: all_image_frame_) {
             double dt = frame.pre_integrate_.deltaTime();
-            Vector3d tmp_acc = frame.pre_integrate_.deltaVel() / dt;
+            Eigen::Vector3d tmp_acc = frame.pre_integrate_.deltaVel() / dt;
             sum_acc += tmp_acc;
         }
-        Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
+        Eigen::Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
         double var = 0;
         for (const ImageFrame &frame:all_image_frame_) {
             double dt = frame.pre_integrate_.deltaTime();
-            Vector3d tmp_acc = frame.pre_integrate_.deltaVel() / dt;
+            Eigen::Vector3d tmp_acc = frame.pre_integrate_.deltaVel() / dt;
             var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
         }
+
         var = sqrt(var / (double )all_image_frame_.size());
         LOG_I("IMU acc variant:%f", var);
         return var > 0.25;
@@ -77,7 +79,7 @@ namespace vins {
 
     static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2_vector, const vector<cv::Point3f> &pts_3_vector,
                                 const bool use_extrinsic_guess,
-                                Matrix3d &R_initial, Vector3d &P_initial);
+                                Eigen::Matrix3d &R_initial, Eigen::Vector3d &P_initial);
 
     static double getAverageParallax(const vector<pair<cv::Point2f , cv::Point2f>>& correspondences) {
         double sum_parallax = 0;
@@ -89,11 +91,9 @@ namespace vins {
     }
 
     static bool construct(int key_frame_num, int big_parallax_frame_id,
-                          const Matrix3d &relative_R, const Vector3d &relative_T,
-                          Quaterniond *q, Vector3d *T,
-                          vector<SFMFeature> &sfm_features, map<int, Vector3d> &sfm_tracked_points);
-
-#define WINDOW_SIZE 100
+                          const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
+                          Eigen::Quaterniond *q, Eigen::Vector3d *T,
+                          vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &sfm_tracked_points);
 
     bool VisualInitiator::initialStructure(const FeatureManager& feature_manager_,
                                            const int key_frame_num,
@@ -115,12 +115,12 @@ namespace vins {
         }
 
         // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
-        Matrix3d relative_R;
-        Vector3d relative_T;
+        Eigen::Matrix3d relative_R;
+        Eigen::Vector3d relative_T;
         int big_parallax_frame_id = -1;
-        for (int i = 0; i < WINDOW_SIZE; ++i) {
+        for (int i = 0; i < Param::Instance().window_size; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    feature_manager_.getCorresponding(i, WINDOW_SIZE);
+                    feature_manager_.getCorresponding(i, Param::Instance().window_size);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
@@ -135,9 +135,9 @@ namespace vins {
         }
 
         // 初始化所有关键帧的位姿，和特征点的深度
-        Quaterniond Q[WINDOW_SIZE + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
-        Vector3d T[WINDOW_SIZE + 1];
-        map<int, Vector3d> sfm_tracked_points;
+        Eigen::Quaterniond Q[Param::Instance().window_size + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
+        Eigen::Vector3d T[Param::Instance().window_size + 1];
+        map<int, Eigen::Vector3d> sfm_tracked_points;
         if (!construct(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T, sfm_features, sfm_tracked_points)) {
             LOG_D("global SFM failed!");
             return false;
@@ -160,7 +160,7 @@ namespace vins {
             for (const FeaturePoint2D &point:frame.points) {
                 const auto it = sfm_tracked_points.find(point.feature_id);
                 if (it != sfm_tracked_points.end()) {
-                    Vector3d world_pts = it->second;
+                    Eigen::Vector3d world_pts = it->second;
                     pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
                     pts_2_vector.emplace_back(point.point);
                 }
@@ -171,8 +171,8 @@ namespace vins {
                 return false;
             }
 
-            Matrix3d R_initial = Q[i].toRotationMatrix();
-            Vector3d P_initial = T[i];
+            Eigen::Matrix3d R_initial = Q[i].toRotationMatrix();
+            Eigen::Vector3d P_initial = T[i];
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
                 LOG_D("solve pnp fail!");
                 return false;
@@ -183,14 +183,14 @@ namespace vins {
         return true;
     }
 
-    static Vector3d triangulatePoint(const Eigen::Matrix<double, 3, 4> &Pose0, const Eigen::Matrix<double, 3, 4> &Pose1,
+    static Eigen::Vector3d triangulatePoint(const Eigen::Matrix<double, 3, 4> &Pose0, const Eigen::Matrix<double, 3, 4> &Pose1,
                                      const cv::Point2f &point0, const cv::Point2f &point1) {
-        Matrix4d design_matrix = Matrix4d::Zero();
+        Eigen::Matrix4d design_matrix = Eigen::Matrix4d::Zero();
         design_matrix.row(0) = point0.x * Pose0.row(2) - Pose0.row(0);
         design_matrix.row(1) = point0.y * Pose0.row(2) - Pose0.row(1);
         design_matrix.row(2) = point1.x * Pose1.row(2) - Pose1.row(0);
         design_matrix.row(3) = point1.y * Pose1.row(2) - Pose1.row(1);
-        Vector4d triangulated_point =
+        Eigen::Vector4d triangulated_point =
                 design_matrix.jacobiSvd(Eigen::ComputeFullV).matrixV().rightCols<1>();
         return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
     }
@@ -208,7 +208,7 @@ namespace vins {
 
     static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2_vector, const vector<cv::Point3f> &pts_3_vector,
                                 const bool use_extrinsic_guess,
-                                Matrix3d &R_initial, Vector3d &P_initial) {
+                                Eigen::Matrix3d &R_initial, Eigen::Vector3d &P_initial) {
         cv::Mat r, rvec, t, D, tmp_r;
         cv::eigen2cv(R_initial, tmp_r);
         cv::Rodrigues(tmp_r, rvec);
@@ -241,15 +241,15 @@ namespace vins {
     }
 
     bool construct(int key_frame_num, int big_parallax_frame_id,
-                   const Matrix3d &relative_R, const Vector3d &relative_T,
-                   Quaterniond *q, Vector3d *T,
-                   vector<SFMFeature> &sfm_features, map<int, Vector3d> &sfm_tracked_points) {
+                   const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
+                   Eigen::Quaterniond *q, Eigen::Vector3d *T,
+                   vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &sfm_tracked_points) {
         Eigen::Matrix<double, 3, 4> Pose[key_frame_num];
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
         // 1: triangulate between l <-> frame_num - 1
-        Pose[big_parallax_frame_id].block<3, 3>(0, 0) = Matrix3d::Identity();
-        Pose[big_parallax_frame_id].block<3, 1>(0, 3) = Vector3d::Zero();
+        Pose[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+        Pose[big_parallax_frame_id].block<3, 1>(0, 3) = Eigen::Vector3d::Zero();
         Pose[key_frame_num - 1].block<3, 3>(0, 0) = relative_R;
         Pose[key_frame_num - 1].block<3, 1>(0, 3) = relative_T;
         triangulateTwoFrames(big_parallax_frame_id, Pose[big_parallax_frame_id],
@@ -259,8 +259,8 @@ namespace vins {
         // triangulate [l+1, frame_num-2] <-> frame_num-1;
         for (int frame_id = big_parallax_frame_id + 1; frame_id < key_frame_num - 1; frame_id++) {
             // solve pnp
-            Matrix3d R_initial = Pose[frame_id - 1].block<3, 3>(0, 0);
-            Vector3d P_initial = Pose[frame_id - 1].block<3, 1>(0, 3);
+            Eigen::Matrix3d R_initial = Pose[frame_id - 1].block<3, 3>(0, 0);
+            Eigen::Vector3d P_initial = Pose[frame_id - 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
             features2FramePoints(sfm_features, frame_id, pts_2_vector, pts_3_vector);
@@ -282,8 +282,8 @@ namespace vins {
         //    triangulate [0, l-1] <-> l
         for (int frame_id = big_parallax_frame_id - 1; frame_id >= 0; frame_id--) {
             //solve pnp
-            Matrix3d R_initial = Pose[frame_id + 1].block<3, 3>(0, 0);
-            Vector3d P_initial = Pose[frame_id + 1].block<3, 1>(0, 3);
+            Eigen::Matrix3d R_initial = Pose[frame_id + 1].block<3, 3>(0, 0);
+            Eigen::Vector3d P_initial = Pose[frame_id + 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
             features2FramePoints(sfm_features, frame_id, pts_2_vector, pts_3_vector);
@@ -314,7 +314,7 @@ namespace vins {
         double c_rotation[key_frame_num][4];
         double c_translation[key_frame_num][3];
         for (int i = 0; i < key_frame_num; i++) {
-            utils::quat2array(Quaterniond(Pose[i].block<3, 3>(0, 0)), c_rotation[i]);
+            utils::quat2array(Eigen::Quaterniond(Pose[i].block<3, 3>(0, 0)), c_rotation[i]);
             utils::vec3d2array(Pose[i].block<3, 1>(0, 3), c_translation[i]);
             problem.AddParameterBlock(c_rotation[i], 4, local_parameterization);
             problem.AddParameterBlock(c_translation[i], 3);

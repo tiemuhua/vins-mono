@@ -3,6 +3,8 @@
 //
 
 #include "visual_inertial_aligner.h"
+#include <stdlib.h>
+#include "parameters.h"
 #include "log.h"
 
 namespace vins {
@@ -156,7 +158,7 @@ namespace vins {
         double s = x(n_state - 1) / 100.0;
         LOG_I("estimated scale: %f", s);
         g = x.segment<3>(n_state - 4);
-        if (fabs(g.norm() - gravity_norm) > 1.0 || s < 1e-4) {
+        if (abs(g.norm() - gravity_norm) > 1.0 || s < 1e-4) {
             LOG_E("fabs(g.norm() - G.norm()) > 1.0 || s < 0");
             return false;
         }
@@ -178,16 +180,17 @@ namespace vins {
     }
 
     bool VisualInertialAligner::visualInitialAlign(const double gravity_norm, ConstVec3dRef TIC, ConstMat3dRef RIC,
-                                                   BgWindow &bg_window, PosWindow& pos_window, RotWindow &rot_window,
-                                                   VelWindow &vel_window, PreIntegrateWindow &pre_integrate_window,
+                                                   Window<Eigen::Vector3d> &bg_window, Window<Eigen::Vector3d>& pos_window,
+                                                   Window<Eigen::Matrix3d> &rot_window, Window<Eigen::Vector3d> &vel_window,
+                                                   Window<ImuIntegrator> &pre_integrate_window,
                                                    std::vector<ImageFrame> &all_frames, Eigen::Vector3d& gravity,
                                                    FeatureManager &feature_manager) {
         int frame_size = (int) all_frames.size();
 
         // todo solveGyroscopeBias求出来的是bg的值还是bg的变化值？
         Eigen::Vector3d delta_bg = solveGyroscopeBias(all_frames);
-        for (Vec3dRef bg: bg_window) {
-            bg += delta_bg;
+        for (int i = 0; i < bg_window.size(); ++i) {
+            bg_window.at(i) = bg_window.at(i) + delta_bg;
         }
 
         for (int i = 0; i < frame_size - 1; ++i) {
@@ -213,24 +216,24 @@ namespace vins {
             if (!all_frames[frame_id].is_key_frame_) {
                 continue;
             }
-            pos_window[key_frame_id] = rot_diff * all_frames[frame_id].R;
-            rot_window[key_frame_id] = rot_diff * all_frames[frame_id].T;
-            vel_window[key_frame_id] = rot_diff * velocities[frame_id];
+            pos_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).R;
+            rot_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).T;
+            vel_window.at(key_frame_id) = rot_diff * velocities.at(key_frame_id);
             key_frame_id++;
         }
         for (int i = 0; i < (int) pos_window.size(); ++i) {
-            pos_window[i] = s * pos_window[i] - rot_window[i] * TIC - (s * pos_window[0] - rot_window[0] * TIC);
+            pos_window.at(i) = s * pos_window.at(i) - rot_window.at(i) * TIC - (s * pos_window.at(i) - rot_window.at(i) * TIC);
         }
 
         for (int i = 0; i < (int) pre_integrate_window.size(); ++i) {
-            pre_integrate_window[i].rePredict(Eigen::Vector3d::Zero(), bg_window[i]);
+            pre_integrate_window.at(i).rePredict(Eigen::Vector3d::Zero(), bg_window.at(i));
         }
 
         //triangulate on cam pose , no tic
         feature_manager.clearDepth();
         feature_manager.triangulate(pos_window, rot_window, Eigen::Vector3d::Zero(), RIC);
         for (FeaturesOfId &features_of_id: feature_manager.features_) {
-            if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2) {
+            if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= Param::Instance().window_size - 2) {
                 continue;
             }
             features_of_id.inv_depth *= s; // todo tiemuhuaguo 这里是乘还是除？？

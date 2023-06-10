@@ -60,17 +60,18 @@ namespace vins {
                 return angle_degrees;
         };
 
+        template<typename Derived>
+        static void reduceVector(vector<Derived> &v, const vector<uchar> &status) {
+            int j = 0;
+            for (int i = 0; i < int(v.size()); i++)
+                if (status[i])
+                    v[j++] = v[i];
+            v.resize(j);
+        }
+
         /**
          * 矩阵运算
          * */
-        inline Eigen::Matrix3d AntiSymmetric(ConstVec3dRef vec){
-            Eigen::Matrix3d mat;
-            mat << 0, -vec(2), vec(1),
-                    vec(2), 0, -vec(0),
-                    -vec(1), vec(0), 0;
-            return mat;
-        }
-
         template<typename Derived>
         static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta) {
             typedef typename Derived::Scalar Scalar_t;

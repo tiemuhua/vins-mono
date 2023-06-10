@@ -10,12 +10,6 @@
 
 namespace vins{
 
-    class BriefExtractor {
-    public:
-        BriefExtractor(const std::string &pattern_file);
-        DVision::BRIEF m_brief;
-    };
-
     struct LoopInfo {
         int peer_frame_id = -1;
         Eigen::Vector3d relative_pos = Eigen::Vector3d::Zero();

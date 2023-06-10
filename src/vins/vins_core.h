@@ -7,7 +7,7 @@
 
 #include <vector>
 #include <mutex>
-#include "Eigen/Eigen"
+#include <Eigen/Eigen>
 
 #include "feature_tracker.h"
 #include "vins_define_internal.h"

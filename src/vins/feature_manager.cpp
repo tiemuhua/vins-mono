@@ -131,7 +131,7 @@ namespace vins {
             double svd_method = svd_V[2] / svd_V[3];
 
             if (svd_method < 0.1) {
-                it_per_id.inv_depth = INIT_DEPTH;
+                it_per_id.inv_depth = -1;
             } else {
                 it_per_id.inv_depth = svd_method;
             }
@@ -163,7 +163,7 @@ namespace vins {
                 continue;
             }
             if (it->inv_depth < 0)
-                it->inv_depth = INIT_DEPTH;
+                it->inv_depth = -1;
         }
     }
 

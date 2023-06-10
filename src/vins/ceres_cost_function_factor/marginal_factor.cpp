@@ -211,7 +211,7 @@ std::vector<double *> MarginalInfo::getParameterBlocks(std::unordered_map<double
     return keep_block_addr;
 }
 
-MarginalFactor::MarginalFactor(MarginalInfo *_marginal_info) : marginal_info_(_marginal_info) {
+MarginalFactor::MarginalFactor(const std::shared_ptr<MarginalInfo>& _marginal_info) : marginal_info_(_marginal_info) {
     for (auto it: marginal_info_->keep_block_size_) {
         mutable_parameter_block_sizes()->push_back(it);
     }
@@ -233,9 +233,9 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
             Eigen::Quaterniond q1 = Eigen::Quaterniond(x0(6), x0(3), x0(4), x0(5)).inverse();
             Eigen::Quaterniond q2 = Eigen::Quaterniond(x(6), x(3), x(4), x(5));
             dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();
-            dx.segment<3>(idx + 3) = 2.0 * Utility::positify(q1 * q2).vec();
+            dx.segment<3>(idx + 3) = 2.0 * utils::positify(q1 * q2).vec();
             if ((q1 * q2).w() < 0) {
-                dx.segment<3>(idx + 3) = 2.0 * -Utility::positify(q1 * q2).vec();
+                dx.segment<3>(idx + 3) = 2.0 * -utils::positify(q1 * q2).vec();
             }
         }
     }

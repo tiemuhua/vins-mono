@@ -45,12 +45,12 @@ namespace vins{
             case kVinsStateEstimateExtrinsic:
                 vins_state_ = _handleEstimateExtrinsic();
                 break;
-            case kVinsStateInitial:
-                vins_state_ = _handleInitial();
-                break;
-            case kVinsStateNormal:
-                vins_state_ = _handleNormal();
-                break;
+//            case kVinsStateInitial:
+//                vins_state_ = _handleInitial();
+//                break;
+//            case kVinsStateNormal:
+//                vins_state_ = _handleNormal();
+//                break;
         }
     }
 
@@ -77,11 +77,10 @@ namespace vins{
             return kVinsStateInitial;
         }
         last_init_time_stamp_ = time_stamp;
-        bool succ = ()
     }
 
-    VinsCore::EVinsState VinsCore::_handleNormal(const FeatureTracker::FeaturesPerImage& image_features){
-
-    }
+//    VinsCore::EVinsState VinsCore::_handleNormal(const FeatureTracker::FeaturesPerImage& image_features){
+//
+//    }
 
 }

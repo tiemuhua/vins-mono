@@ -117,9 +117,9 @@ namespace vins {
         cur_pos = pre_pos + pre_vel * dt + 0.5 * avg_acc * dt2;
         cur_vel = pre_vel + avg_acc * dt;
 
-        Matrix3d avg_gyr_hat = utils::AntiSymmetric(avg_gyr);
-        Matrix3d pre_acc_hat = utils::AntiSymmetric(pre_acc_no_bias);
-        Matrix3d cur_acc_hat = utils::AntiSymmetric(cur_acc_no_bias);
+        Matrix3d avg_gyr_hat = utils::skewSymmetric(avg_gyr);
+        Matrix3d pre_acc_hat = utils::skewSymmetric(pre_acc_no_bias);
+        Matrix3d cur_acc_hat = utils::skewSymmetric(cur_acc_no_bias);
 
         const Eigen::Matrix3d pre_rot = pre_quat.toRotationMatrix();
         const Eigen::Matrix3d cur_rot = cur_quat.toRotationMatrix();

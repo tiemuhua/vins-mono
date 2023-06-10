@@ -62,9 +62,9 @@ namespace vins {
     class MarginalFactor : public ceres::CostFunction
     {
     public:
-        explicit MarginalFactor(std::shared_ptr<MarginalInfo> _marginal_info);
+        explicit MarginalFactor(const std::shared_ptr<MarginalInfo>& _marginal_info);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
-        MarginalInfo* marginal_info_;
+        std::shared_ptr<MarginalInfo> marginal_info_;
     };
 }
