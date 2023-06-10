@@ -47,10 +47,10 @@ namespace vins{
         Eigen::Matrix3d r_drift = Eigen::Matrix3d::Identity();
         std::mutex drift_mutex_;
 
-        std::thread t_optimization;
-        int earliest_loop_index = -1;
-        std::queue<int> optimize_buf;
-        std::mutex optimize_buf_mutex_;
+        std::thread thread_optimize_;
+        int loop_interval_lower_bound_ = -1;
+        int loop_interval_upper_bound_ = -1;
+        std::mutex loop_interval_mutex_;
 
         BriefDatabase db;
         BriefVocabulary *voc{};
