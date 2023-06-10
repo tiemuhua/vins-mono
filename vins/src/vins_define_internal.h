@@ -67,22 +67,44 @@ namespace vins {
         bool is_key_frame_ = false;
     };
 
-    typedef std::vector<ImuIntegrator> PreIntegrateWindow;
-    typedef std::vector<double> TimeStampWindow;
-    typedef std::vector<Eigen::Vector3d> BaWindow;
-    typedef std::vector<Eigen::Vector3d> BgWindow;
-    typedef std::vector<Eigen::Vector3d> PosWindow;
-    typedef std::vector<Eigen::Vector3d> VelWindow;
-    typedef std::vector<Eigen::Matrix3d> RotWindow;
+    template<typename T>
+    class Window {
+    public:
+        void push(T t) {
+            queue_[(begin_ + size_) % capacity_] = std::move(t);
+            if (size_ < capacity_) {
+                size_++;
+            } else {
+                begin_ = (begin_ + 1) % capacity_;
+            }
+        }
+        [[nodiscard]] int size() const {
+            return size_;
+        }
+        [[nodiscard]] const T& at(int i) const {
+            assert(i < size_);
+            return queue_[(begin_ + i) % capacity_];
+        }
+        [[nodiscard]] T& at(int i) {
+            assert(i < size_);
+            return queue_[(begin_ + i) % capacity_];
+        }
+
+    private:
+        std::vector<T> queue_;
+        int capacity_ = 0;
+        int begin_ = 0;
+        int size_ = 0;
+    };
 
     struct BundleAdjustWindow {
-        PreIntegrateWindow pre_int_window;
-        TimeStampWindow time_stamp_window;
-        BaWindow ba_window;
-        BgWindow bg_window;
-        PosWindow pos_window;
-        VelWindow vel_window;
-        RotWindow rot_window;
+        Window<ImuIntegrator> pre_int_window;
+        Window<double> time_stamp_window;
+        Window<Eigen::Vector3d> ba_window;
+        Window<Eigen::Vector3d> bg_window;
+        Window<Eigen::Vector3d> pos_window;
+        Window<Eigen::Vector3d> vel_window;
+        Window<Eigen::Matrix3d> rot_window;
     };
 }
 

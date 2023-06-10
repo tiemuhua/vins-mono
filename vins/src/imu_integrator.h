@@ -40,7 +40,7 @@ namespace vins {
         void predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr);
         void rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg);
         State evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
-                       ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj);
+                       ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
 
         [[nodiscard]] Eigen::Vector3d deltaPos() const {
             return pre_pos;

@@ -46,19 +46,19 @@ namespace vins{
                  const FeatureManager& feature_manager,
                  const Eigen::Vector3d& tic, const Eigen::Matrix3d &ric){
         for (int i = 0; i < window.pos_window.size(); ++i) {
-            utils::vec3d2array(window.pos_window[i], c_pos[i]);
+            utils::vec3d2array(window.pos_window.at(i), c_pos[i]);
         }
         for (int i = 0; i < window.rot_window.size(); ++i) {
-            utils::quat2array(Eigen::Quaterniond(window.rot_window[i]), c_quat[i]);
+            utils::quat2array(Eigen::Quaterniond(window.rot_window.at(i)), c_quat[i]);
         }
         for (int i = 0; i < window.vel_window.size(); ++i) {
-            utils::vec3d2array(window.vel_window[i], c_vel[i]);
+            utils::vec3d2array(window.vel_window.at(i), c_vel[i]);
         }
         for (int i = 0; i < window.ba_window.size(); ++i) {
-            utils::vec3d2array(window.ba_window[i], c_ba[i]);
+            utils::vec3d2array(window.ba_window.at(i), c_ba[i]);
         }
         for (int i = 0; i < window.bg_window.size(); ++i) {
-            utils::vec3d2array(window.bg_window[i], c_bg[i]);
+            utils::vec3d2array(window.bg_window.at(i), c_bg[i]);
         }
 
         std::vector<double> inv_depth_vec = feature_manager.getInvDepth();
@@ -107,11 +107,11 @@ namespace vins{
         }
 
         /*************** 2:IMU **************************/
-        for (int i = 0; i < WINDOW_SIZE; i++) {
+        for (int i = 0; i < window.pre_int_window.size(); i++) {
             int j = i + 1;
-            if (window.pre_int_window[i].deltaTime() > 10.0)// todo why???
+            if (window.pre_int_window.at(i).deltaTime() > 10.0)// todo why???
                 continue;
-            auto *cost_function = new IMUFactor(&window.pre_int_window[i]);
+            auto *cost_function = new IMUFactor(window.pre_int_window.at(i));
             problem.AddResidualBlock(cost_function, nullptr,
                                      c_pos[i], c_quat[i], c_vel[i], c_ba[i], c_bg[i],
                                      c_pos[j], c_quat[j], c_vel[j], c_ba[j], c_bg[j]);

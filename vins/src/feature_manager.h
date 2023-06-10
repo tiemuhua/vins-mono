@@ -22,10 +22,13 @@ namespace vins {
         void removeFailures();
 
         void clearDepth();
+
         std::vector<double> getInvDepth() const;
+
         void setInvDepth(const VectorXd &x);
 
-        void triangulate(const PosWindow& pos_window, const RotWindow& rot_window, const Vector3d& tic, const Matrix3d &ric);
+        void triangulate(const Window<Eigen::Vector3d>& pos_window, const Window<Eigen::Matrix3d>& rot_window
+                         , const Vector3d& tic, const Matrix3d &ric);
 
         void removeBackShiftDepth();
 

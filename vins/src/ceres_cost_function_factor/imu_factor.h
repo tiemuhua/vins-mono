@@ -12,8 +12,8 @@ namespace vins {
     class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9> {
     public:
         IMUFactor() = delete;
-        explicit IMUFactor(ImuIntegrator *_pre_integration) : pre_integration(_pre_integration) {}
+        explicit IMUFactor(const ImuIntegrator &_pre_integration) : pre_integration(_pre_integration) {}
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
-        ImuIntegrator *pre_integration;
+        const ImuIntegrator &pre_integration;
     };
 }

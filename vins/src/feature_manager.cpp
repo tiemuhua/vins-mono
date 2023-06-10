@@ -98,7 +98,7 @@ namespace vins {
         return dep_vec;
     }
 
-    void FeatureManager::triangulate(const PosWindow& pos_window, const RotWindow& rot_window,
+    void FeatureManager::triangulate(const Window<Eigen::Vector3d>& pos_window, const Window<Eigen::Matrix3d>& rot_window,
                                      const Vector3d& tic, const Matrix3d &ric) {
         for (FeaturesOfId &it_per_id: features_) {
             if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
@@ -110,13 +110,13 @@ namespace vins {
             Eigen::MatrixXd svd_A(2 * it_per_id.feature_points_.size(), 4);
 
             int imu_i = it_per_id.start_frame_;
-            Eigen::Vector3d t0 = pos_window[imu_i] + rot_window[imu_i] * tic;
-            Eigen::Matrix3d R0 = rot_window[imu_i] * ric;
+            Eigen::Vector3d t0 = pos_window.at(imu_i) + rot_window.at(imu_i) * tic;
+            Eigen::Matrix3d R0 = rot_window.at(imu_i) * ric;
 
             for (int i = 0; i < it_per_id.feature_points_.size(); ++i) {
                 int imu_j = it_per_id.start_frame_ + i;
-                Eigen::Vector3d t1 = pos_window[imu_j] + rot_window[imu_j] * tic;
-                Eigen::Matrix3d R1 = rot_window[imu_j] * ric;
+                Eigen::Vector3d t1 = pos_window.at(imu_j) + rot_window.at(imu_j) * tic;
+                Eigen::Matrix3d R1 = rot_window.at(imu_j) * ric;
                 Eigen::Vector3d t = R0.transpose() * (t1 - t0);
                 Eigen::Matrix3d R = R0.transpose() * R1;
                 Eigen::Matrix<double, 3, 4> P;
