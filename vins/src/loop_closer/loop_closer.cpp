@@ -1,4 +1,5 @@
 #include "loop_closer.h"
+#include "../../log.h"
 #include "match_frame.h"
 
 using namespace vins;
@@ -42,7 +43,7 @@ struct SequentialEdge {
         Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
         utils::arrayMinus(t_i_ij.data(), t_.data(), residuals, 3);
         residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - relative_yaw);
-
+        LOG_I("residuals:\t%f\t%f\t%f\t%f", residuals[0],residuals[1],residuals[2],residuals[3]);
         return true;
     }
 
@@ -71,6 +72,7 @@ struct LoopEdge {
         utils::arrayMultiply(residuals, residuals, weight, 3);
         // todo tiemuhua 论文里面没有说明这里为什么要除10
         residuals[3] = utils::normalizeAngle180((yaw_j[0] - yaw_i[0] - relative_yaw)) * weight / 10.0;
+        LOG_I("residuals:\t%f\t%f\t%f\t%f", residuals[0],residuals[1],residuals[2],residuals[3]);
         return true;
     }
 
