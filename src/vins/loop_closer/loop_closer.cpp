@@ -1,6 +1,7 @@
 #include "loop_closer.h"
-#include "../../log.h"
+#include "log.h"
 #include "match_frame.h"
+#include "vins/vins_utils.h"
 
 using namespace vins;
 using namespace DVision;
@@ -36,14 +37,19 @@ struct SequentialEdge {
     SequentialEdge(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
             : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
 
-    bool operator()(const double *const yaw_i, const double *ti, const double *yaw_j, const double *tj, double *residuals) const {
-        Vector3d t_w_ij;
+    //.T为ceres::Jet<double, 8>，Jet.a为数据，Jet.v为导数.
+    template<class T>
+    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
+        typedef Matrix<T, 3, 3> Mat3T;
+        typedef Matrix<T, 3, 1> Vec3T;
+        Vec3T t_w_ij;
         utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
-        Matrix3d w_R_i = utils::ypr2rot({yaw_i[0], pitch_i, roll_i});
-        Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
-        utils::arrayMinus(t_i_ij.data(), t_.data(), residuals, 3);
-        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - relative_yaw);
-        LOG_I("residuals:\t%f\t%f\t%f\t%f", residuals[0],residuals[1],residuals[2],residuals[3]);
+        Vec3T euler(yaw_i[0], (T)pitch_i, (T)roll_i);
+        Mat3T w_R_i = utils::ypr2rot(euler);
+        Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
+        Vec3T t((T)t_(0), (T)t_(1), (T)t_(2));
+        utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
+        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw));
         return true;
     }
 
@@ -58,31 +64,34 @@ struct SequentialEdge {
 };
 
 struct LoopEdge {
-    LoopEdge(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
-            : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {
+    LoopEdge(Vector3d relative_t, double relative_yaw, double pitch_i, double roll_i)
+            : relative_t_(std::move(relative_t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {
         weight = 1;
     }
 
-    bool operator()(const double *const yaw_i, const double *ti, const double *yaw_j, const double *tj, double *residuals) const {
-        Vector3d t_w_ij;
+    template<class T>
+    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
+        typedef Matrix<T, 3, 3> Mat3T;
+        typedef Matrix<T, 3, 1> Vec3T;
+        Vec3T t_w_ij;
         utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
-        Matrix3d w_R_i = utils::ypr2rot({yaw_i[0], pitch_i, roll_i});
-        Vector3d t_i_ij = w_R_i.transpose() * t_w_ij;
-        utils::arrayMinus(t_i_ij.data(), t_.data(), residuals, 3);
-        utils::arrayMultiply(residuals, residuals, weight, 3);
+        Vec3T euler(yaw_i[0], (T)pitch_i, (T)roll_i);
+        Mat3T w_R_i = utils::ypr2rot(euler);
+        Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
+        Vec3T t((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
+        utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
         // todo tiemuhua 论文里面没有说明这里为什么要除10
-        residuals[3] = utils::normalizeAngle180((yaw_j[0] - yaw_i[0] - relative_yaw)) * weight / 10.0;
-        LOG_I("residuals:\t%f\t%f\t%f\t%f", residuals[0],residuals[1],residuals[2],residuals[3]);
+        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw)) / 10.0;
         return true;
     }
 
-    static ceres::CostFunction *Create(const Vector3d &t,
-                                       const double relative_yaw, const double pitch_i, const double roll_i) {
+    static ceres::CostFunction *Create(const Vector3d &relative_t, const double relative_yaw,
+                                       const double pitch_i, const double roll_i) {
         return (new ceres::AutoDiffCostFunction<LoopEdge, 4, 1, 3, 1, 3>(
-                new LoopEdge(t, relative_yaw, pitch_i, roll_i)));
+                new LoopEdge(relative_t, relative_yaw, pitch_i, roll_i)));
     }
 
-    Vector3d t_;
+    Vector3d relative_t_;
     double relative_yaw, pitch_i, roll_i;
     double weight;
 };
@@ -100,7 +109,7 @@ void LoopCloser::loadVocabulary(const std::string &voc_path) {
     db.setVocabulary(*voc, false, 0);
 }
 
-void LoopCloser::addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop) {
+void LoopCloser::addKeyFrame(const KeyFramePtr& cur_kf, bool flag_detect_loop) {
     int peer_loop_id = -1;
     if (flag_detect_loop) {
         peer_loop_id = _detectLoop(cur_kf, key_frame_list_.size());
@@ -127,7 +136,7 @@ void LoopCloser::addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop) {
     }
 }
 
-int LoopCloser::_detectLoop(ConstKeyFramePtr keyframe, int frame_index) const {
+int LoopCloser::_detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const {
     if (frame_index < 50) {
         return -1;
     }

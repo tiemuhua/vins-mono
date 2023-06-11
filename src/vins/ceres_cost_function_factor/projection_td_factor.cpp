@@ -1,6 +1,7 @@
 #include "projection_td_factor.h"
 #include "log.h"
 #include "vins/parameters.h"
+#include "vins/vins_utils.h"
 
 using namespace vins;
 
@@ -80,22 +81,25 @@ bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *resid
 #endif
     reduce = sqrt_info * reduce;
 
-    Eigen::Map <Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
-    Eigen::Matrix<double, 3, 6> jaco_i;
+    typedef Eigen::Matrix<double, 2, 7, Eigen::RowMajor> Mat27Row;
+    typedef Eigen::Matrix<double, 3, 6> mat36;
+    typedef Eigen::Matrix<double, 2, 3> mat23;
+    Eigen::Map <Mat27Row> jacobian_pose_i(jacobians[0]);
+    mat36 jaco_i;
     jaco_i.leftCols<3>() = ric.transpose() * Rj.transpose();
     jaco_i.rightCols<3>() = ric.transpose() * Rj.transpose() * Ri * - utils::skewSymmetric(pts_imu_i);
     jacobian_pose_i.leftCols<6>() = reduce * jaco_i;
     jacobian_pose_i.rightCols<1>().setZero();
 
-    Eigen::Map <Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_j(jacobians[1]);
-    Eigen::Matrix<double, 3, 6> jaco_j;
+    Eigen::Map <Mat27Row> jacobian_pose_j(jacobians[1]);
+    mat36 jaco_j;
     jaco_j.leftCols<3>() = ric.transpose() * -Rj.transpose();
     jaco_j.rightCols<3>() = ric.transpose() * utils::skewSymmetric(pts_imu_j);
     jacobian_pose_j.leftCols<6>() = reduce * jaco_j;
     jacobian_pose_j.rightCols<1>().setZero();
 
-    Eigen::Map <Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_ex_pose(jacobians[2]);
-    Eigen::Matrix<double, 3, 6> jaco_ex;
+    Eigen::Map <Mat27Row> jacobian_ex_pose(jacobians[2]);
+    mat36 jaco_ex;
     jaco_ex.leftCols<3>() = ric.transpose() * (Rj.transpose() * Ri - Eigen::Matrix3d::Identity());
     Eigen::Matrix3d rot_diff_in_camera_frame = ric.transpose() * Rj.transpose() * Ri * ric;
     jaco_ex.rightCols<3>() =
@@ -105,10 +109,10 @@ bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *resid
     jacobian_ex_pose.leftCols<6>() = reduce * jaco_ex;
     jacobian_ex_pose.rightCols<1>().setZero();
 
-    Eigen::Matrix3d r = reduce * ric.transpose() * Rj.transpose() * Ri * ric;
-    Eigen::Map <Eigen::Matrix<double, 2, 1, Eigen::RowMajor>> jacobian_feature(jacobians[3]);
+    mat23 r = reduce * ric.transpose() * Rj.transpose() * Ri * ric;
+    Eigen::Map <Eigen::Vector2d> jacobian_feature(jacobians[3]);
     jacobian_feature = r * pts_i_td * -1.0 / (inv_dep_i * inv_dep_i);
-    Eigen::Map <Eigen::Matrix<double, 2, 1, Eigen::RowMajor>> jacobian_td(jacobians[4]);
+    Eigen::Map <Eigen::Vector2d> jacobian_td(jacobians[4]);
     jacobian_td = r * velocity_i / inv_dep_i * -1.0 + sqrt_info * velocity_j.head(2);
 
     return true;

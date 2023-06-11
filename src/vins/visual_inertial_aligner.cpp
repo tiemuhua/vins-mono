@@ -3,9 +3,10 @@
 //
 
 #include "visual_inertial_aligner.h"
-#include <stdlib.h>
+#include <cstdlib>
 #include "parameters.h"
 #include "log.h"
+#include "vins_utils.h"
 
 namespace vins {
     static Eigen::Vector3d solveGyroscopeBias(const std::vector<ImageFrame> &all_image_frame) {
@@ -207,7 +208,7 @@ namespace vins {
             return false;
         }
 
-        Eigen::Matrix3d R0 = std::find(all_frames.begin(),all_frames.end(),[](const ImageFrame& it){
+        Eigen::Matrix3d R0 = std::find_if(all_frames.begin(),all_frames.end(),[](auto it){
             return it.is_key_frame_;
         })->R;
         Eigen::Matrix3d rot_diff = rotGravityToZAxis(gravity, R0);
@@ -216,8 +217,8 @@ namespace vins {
             if (!all_frames[frame_id].is_key_frame_) {
                 continue;
             }
-            pos_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).R;
-            rot_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).T;
+            rot_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).R;
+            pos_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).T;
             vel_window.at(key_frame_id) = rot_diff * velocities.at(key_frame_id);
             key_frame_id++;
         }

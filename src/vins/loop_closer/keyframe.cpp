@@ -1,7 +1,7 @@
 #include "keyframe.h"
 #include <opencv2/imgproc/types_c.h>
-#include "../vins_utils.h"
 #include "vins/vins_run_info.h"
+#include "vins/vins_utils.h"
 
 using namespace vins;
 using namespace Eigen;
@@ -46,7 +46,7 @@ void KeyFrame::getVioPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) cons
 
 void KeyFrame::getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
                               Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) const {
-    double yaw_drift = euler.x() - utils::rot2ypr(vio_T_i_w_).x();
+    double yaw_drift = euler.x() - utils::rot2ypr(vio_R_i_w_).x();
     rot_drift = utils::ypr2rot(Vector3d(yaw_drift, 0, 0));
     pos_drift = pos - rot_drift * vio_T_i_w_;
 }

@@ -28,11 +28,11 @@ namespace vins {
         int id = -1;
         map<int, cv::Point2f> frame_id_2_point_;
         Eigen::Vector3d position;
-        double depth;
+        double depth = -1.0;
     };
 
     struct ReProjectionError3D {
-        ReProjectionError3D(const cv::Point2f &observed_point)
+        explicit ReProjectionError3D(const cv::Point2f &observed_point)
                 : observed_point_(observed_point) {}
 
         template<typename T>
@@ -55,7 +55,7 @@ namespace vins {
         cv::Point2f observed_point_;
     };
 
-    static bool isAccVariantIsBigEnough(const vector<ImageFrame> &all_image_frame_) {
+    static bool isAccVariantBigEnough(const vector<ImageFrame> &all_image_frame_) {
         //check imu observability
         Eigen::Vector3d sum_acc;
         // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
@@ -78,8 +78,7 @@ namespace vins {
     }
 
     static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2_vector, const vector<cv::Point3f> &pts_3_vector,
-                                const bool use_extrinsic_guess,
-                                Eigen::Matrix3d &R_initial, Eigen::Vector3d &P_initial);
+                                bool use_extrinsic_guess, Eigen::Matrix3d &R, Eigen::Vector3d &T);
 
     static double getAverageParallax(const vector<pair<cv::Point2f , cv::Point2f>>& correspondences) {
         double sum_parallax = 0;
@@ -98,7 +97,7 @@ namespace vins {
     bool VisualInitiator::initialStructure(const FeatureManager& feature_manager_,
                                            const int key_frame_num,
                                            vector<ImageFrame> &all_image_frame_) {
-        if (!isAccVariantIsBigEnough(all_image_frame_)) {
+        if (!isAccVariantBigEnough(all_image_frame_)) {
             return false;
         }
 
@@ -207,19 +206,18 @@ namespace vins {
     }
 
     static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2_vector, const vector<cv::Point3f> &pts_3_vector,
-                                const bool use_extrinsic_guess,
-                                Eigen::Matrix3d &R_initial, Eigen::Vector3d &P_initial) {
+                                const bool use_extrinsic_guess, Eigen::Matrix3d &R, Eigen::Vector3d &T) {
         cv::Mat r, rvec, t, D, tmp_r;
-        cv::eigen2cv(R_initial, tmp_r);
+        cv::eigen2cv(R, tmp_r);
         cv::Rodrigues(tmp_r, rvec);
-        cv::eigen2cv(P_initial, t);
+        cv::eigen2cv(T, t);
         cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
         if (!cv::solvePnP(pts_3_vector, pts_2_vector, K, D, rvec, t, use_extrinsic_guess)) {
             return false;
         }
         cv::Rodrigues(rvec, r);
-        cv::cv2eigen(r, R_initial);
-        cv::cv2eigen(t, P_initial);
+        cv::cv2eigen(r, R);
+        cv::cv2eigen(t, T);
         return true;
     }
 

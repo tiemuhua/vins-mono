@@ -3,6 +3,7 @@
 #include <ceres/ceres.h>
 #include <Eigen/Dense>
 #include "vins/vins_define_internal.h"
+#include "vins/vins_run_info.h"
 
 namespace vins{
     class ProjectionTdFactor : public ceres::SizedCostFunction<2, 7, 7, 7, 1, 1>

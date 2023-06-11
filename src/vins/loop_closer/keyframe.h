@@ -1,12 +1,15 @@
 #pragma once
 
 #include <vector>
+
 #include <eigen3/Eigen/Dense>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
+
 #include "ThirdParty/DBoW/DBoW2.h"
 #include "ThirdParty/DVision/DVision.h"
-#include "../vins_define_internal.h"
+
+#include "vins/vins_define_internal.h"
 
 namespace vins{
 

@@ -3,6 +3,7 @@
 //
 
 #include "match_frame.h"
+#include "vins/vins_utils.h"
 
 using namespace vins::MatchFrame;
 using namespace vins;
@@ -36,7 +37,7 @@ static void searchByBRIEFDes(ConstKeyFramePtr old_kf,
                              const std::vector<BRIEF::bitset> &descriptors,
                              std::vector<cv::Point2f> &pts2d_in_old_frame,
                              std::vector<uchar> &status) {
-    for (auto & descriptor : descriptors) {
+    for (const auto & descriptor : descriptors) {
         cv::Point2f pt(0.f, 0.f);
         if (searchInArea(descriptor, old_kf, pt))
             status.push_back(1);
@@ -80,13 +81,13 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
     cv::cv2eigen(t_cv, T_pnp);
 }
 
-constexpr int min_loop_key_points_num = 25;
+static constexpr int min_loop_key_points_num = 25;
 bool findLoop(ConstKeyFramePtr old_kf,
               const int old_kf_id,
               ConstKeyFramePtr new_kf,
               LoopInfo &loop_info) {
     vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_pts3d_;
-    vector<uchar> status;
+    vector<uint8_t> status;
     vector<cv::Point2f> pts2d_in_old_frame;
     searchByBRIEFDes(old_kf, new_kf->descriptors_, pts2d_in_old_frame, status);
     utils::reduceVector(pts2d_in_old_frame, status);

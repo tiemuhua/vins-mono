@@ -6,7 +6,7 @@
 #define VINS_IMU_INTEGRATOR_H
 
 #include <Eigen/Eigen>
-#include "vins_utils.h"
+#include "vins_define_internal.h"
 
 namespace vins {
     enum StateOrder {
@@ -34,13 +34,13 @@ namespace vins {
 
         ImuIntegrator() = delete;
         ImuIntegrator(double ACC_N,double ACC_W, double GYR_N, double GYR_W,
-                      const double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr,
-                      ConstVec3dRef ba, ConstVec3dRef bg, ConstVec3dRef gravity);
+                      double time_stamp, Eigen::Vector3d acc, Eigen::Vector3d gyr,
+                      Eigen::Vector3d ba, Eigen::Vector3d bg, Eigen::Vector3d gravity);
 
         void predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr);
         void rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg);
-        State evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
-                       ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
+        [[nodiscard]] State evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
+                                     ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
 
         [[nodiscard]] const Eigen::Vector3d& deltaPos() const {
             return pre_pos;

@@ -4,16 +4,18 @@
 
 #include "imu_integrator.h"
 
+#include "vins_utils.h"
+
 using namespace Eigen;
 namespace vins {
     ImuIntegrator::ImuIntegrator(double ACC_N,double ACC_W, double GYR_N, double GYR_W,
-                                 double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr,
-                                 ConstVec3dRef ba, ConstVec3dRef bg, ConstVec3dRef gravity):
-            ba_{ba},
-            bg_{bg},
-            gravity_(gravity) {
-        acc_buf.emplace_back(acc);
-        gyr_buf.emplace_back(gyr);
+                                 double time_stamp, Eigen::Vector3d acc, Eigen::Vector3d gyr,
+                                 Eigen::Vector3d ba, Eigen::Vector3d bg, Eigen::Vector3d gravity):
+            ba_{std::move(ba)},
+            bg_{std::move(bg)},
+            gravity_(std::move(gravity)) {
+        acc_buf.emplace_back(std::move(acc));
+        gyr_buf.emplace_back(std::move(gyr));
         time_stamp_buf.emplace_back(time_stamp);
 
         noise.block<3, 3>(0, 0) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
@@ -42,7 +44,7 @@ namespace vins {
         Eigen::Vector3d corrected_vel = pre_vel + dv_dba * dba + dv_dbg * dbg;
         Eigen::Vector3d corrected_pos = pre_pos + dp_dba * dba + dp_dbg * dbg;
 
-        Eigen::Matrix<double, 15, 1> residuals;
+        State residuals;
         double sum_dt = time_stamp_buf.back() - time_stamp_buf.front();
         residuals.block<3, 1>(O_P, 0) =
                 Qi.inverse() * (0.5 * gravity_ * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_pos;

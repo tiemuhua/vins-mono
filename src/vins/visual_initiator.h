@@ -9,9 +9,9 @@
 namespace vins{
     class VisualInitiator {
     public:
-        bool initialStructure(const FeatureManager& feature_manager_,
-                              const int key_frame_num,
-                              std::vector<ImageFrame> &all_image_frame_);
+        static bool initialStructure(const FeatureManager& feature_manager_,
+                                     int key_frame_num,
+                                     std::vector<ImageFrame> &all_image_frame_);
     };
 }
 

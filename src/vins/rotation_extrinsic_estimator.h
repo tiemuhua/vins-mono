@@ -31,7 +31,7 @@ namespace vins {
         std::vector<Eigen::Matrix3d> rot_visual_que_;
         std::vector<Eigen::Matrix3d> rot_imu_que_;
         std::vector<Eigen::Matrix3d> rot_imu_in_world_frame_que_;
-        Eigen::Matrix3d ric_ = Matrix3d::Identity();
+        Eigen::Matrix3d ric_ = Eigen::Matrix3d::Identity();
         int window_size_ = 10;
     };
 }

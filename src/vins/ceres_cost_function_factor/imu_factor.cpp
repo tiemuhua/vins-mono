@@ -1,4 +1,5 @@
 #include "imu_factor.h"
+#include "vins/vins_utils.h"
 
 namespace vins{
     bool IMUFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
@@ -17,12 +18,12 @@ namespace vins{
         Eigen::Vector3d Baj(parameters[3][3], parameters[3][4], parameters[3][5]);
         Eigen::Vector3d Bgj(parameters[3][6], parameters[3][7], parameters[3][8]);
 
-        Eigen::Map<Eigen::Matrix<double, 15, 1>> residual(residuals);
+        Eigen::Map<ImuIntegrator::State> residual(residuals);
         residual = pre_integration.evaluate(Pi, Qi, Vi, Bai, Bgi,
                                              Pj, Qj, Vj, Baj, Bgj);
 
         Eigen::Matrix<double, 15, 15> sqrt_info =
-                Eigen::LLT<Eigen::Matrix<double, 15, 15>>(pre_integration.getCovariance().inverse()).matrixL().transpose();
+                Eigen::LLT<ImuIntegrator::Covariance>(pre_integration.getCovariance().inverse()).matrixL().transpose();
         residual = sqrt_info * residual;
 
         assert(jacobians);

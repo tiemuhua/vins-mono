@@ -6,32 +6,29 @@
 #define VINS_UTILS_H
 #include <cmath>
 #include <Eigen/Eigen>
+#include <opencv2/opencv.hpp>
+#include "vins_define_internal.h"
 
 namespace vins {
-
-    typedef const Eigen::Matrix3d & ConstMat3dRef;
-    typedef const Eigen::Vector3d & ConstVec3dRef;
-    typedef const Eigen::Quaterniond & ConstQuatRef;
-    typedef Eigen::Matrix3d & Mat3dRef;
-    typedef Eigen::Vector3d & Vec3dRef;
-    typedef Eigen::Quaterniond & QuatRef;
 
     namespace utils {
         /**
          * C数组的向量运算 todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
          * */
-        inline void arrayMinus(const double * first, const double * second, double * target, int length) {
-            Eigen::Map<const Eigen::VectorXd> first_vec(first, length);
-            Eigen::Map<const Eigen::VectorXd> second_vec(second, length);
-            Eigen::Map<const Eigen::VectorXd> target_vec(target, length);
-            target_vec = first_vec - second_vec;
+        template<typename T>
+        inline void arrayMinus(const T * first, const T * second, T * target, int length) {
+            for (int i = 0; i < length; ++i) {
+                target[i] = first[i] - second[i];
+            }
         }
-        inline void arrayPlus(const double * first, const double * second, double * target, int length) {
+        template<typename T>
+        inline void arrayPlus(const T * first, const T * second, T * target, int length) {
             for (int i = 0; i < length; ++i) {
                 target[i] = first[i] + second[i];
             }
         }
-        inline void arrayMultiply(const double* first, double * target, const double k, int length) {
+        template<typename T>
+        inline void arrayMultiply(const T* first, T * target, const T k, int length) {
             for (int i = 0; i < length; ++i) {
                 target[i] = first[i] * k;
             }
@@ -51,7 +48,6 @@ namespace vins {
         };
         template<typename T>
         T normalizeAnglePi(const T &angle_degrees) {
-            constexpr T pi = 3.1415926575;
             if (angle_degrees > pi)
                 return angle_degrees - 2*pi;
             else if (angle_degrees < -pi)
@@ -61,7 +57,7 @@ namespace vins {
         };
 
         template<typename Derived>
-        static void reduceVector(vector<Derived> &v, const vector<uchar> &status) {
+        void reduceVector(std::vector<Derived> &v, const std::vector<uint8_t> &status) {
             int j = 0;
             for (int i = 0; i < int(v.size()); i++)
                 if (status[i])
@@ -121,16 +117,31 @@ namespace vins {
         }
 
         // todo tiemuhuaguo 感觉顺序搞错了
+        // T: ceres::Jet<double, 8>
+        template<class T>
+        inline Eigen::Matrix<T, 3, 1> rot2rpy(const Eigen::Matrix<T, 3, 3>& R) {
+            return R.eulerAngles(2,1,0);
+        }
         inline Eigen::Vector3d rot2rpy(ConstMat3dRef R) {
             return R.eulerAngles(2,1,0);
+        }
+        template<class T>
+        inline Eigen::Matrix<T, 3, 1> rot2ypr(const Eigen::Matrix<T, 3, 3>& R) {
+            return R.eulerAngles(0,1,2);
         }
         inline Eigen::Vector3d rot2ypr(ConstMat3dRef R) {
             return R.eulerAngles(0,1,2);
         }
         inline Eigen::Matrix3d ypr2rot(ConstVec3dRef ypr) {
-            return  Eigen::AngleAxisd(ypr.z(), Eigen::Vector3d::UnitZ()).toRotationMatrix() *
-                    Eigen::AngleAxisd(ypr.y(), Eigen::Vector3d::UnitY()).toRotationMatrix() *
-                    Eigen::AngleAxisd(ypr.x(), Eigen::Vector3d::UnitX()).toRotationMatrix();
+            return Eigen::AngleAxisd(ypr.z(), Eigen::Vector3d::UnitZ()).toRotationMatrix() *
+                   Eigen::AngleAxisd(ypr.y(), Eigen::Vector3d::UnitY()).toRotationMatrix() *
+                   Eigen::AngleAxisd(ypr.x(), Eigen::Vector3d::UnitX()).toRotationMatrix();
+        }
+        template<class T>
+        inline Eigen::Matrix<T, 3, 3> ypr2rot(const Eigen::Matrix<T, 3, 1> & ypr) {
+            return  Eigen::AngleAxis<T>(ypr.z(), Eigen::Matrix<T, 3, 1>::UnitZ()).toRotationMatrix() *
+                    Eigen::AngleAxis<T>(ypr.y(), Eigen::Matrix<T, 3, 1>::UnitY()).toRotationMatrix() *
+                    Eigen::AngleAxis<T>(ypr.x(), Eigen::Matrix<T, 3, 1>::UnitX()).toRotationMatrix();
         }
 
         template<size_t N>
@@ -174,7 +185,7 @@ namespace vins {
         }
 
         inline cv::Point3f eigenVec2CVVec(const Eigen::Vector3d &vec) {
-            return cv::Point3f(vec(0), vec(1), vec(2));
+            return {static_cast<float>(vec(0)), static_cast<float>(vec(1)), static_cast<float>(vec(2))};
         }
     };
 }

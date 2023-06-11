@@ -31,12 +31,12 @@ namespace vins{
 
         ~LoopCloser();
 
-        void addKeyFrame(KeyFramePtr cur_kf, bool flag_detect_loop);
+        void addKeyFrame(const KeyFramePtr& cur_kf, bool flag_detect_loop);
 
         void loadVocabulary(const std::string &voc_path);
 
     private:
-        int _detectLoop(ConstKeyFramePtr keyframe, int frame_index) const;
+        int _detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const;
 
         void optimize4DoF();
 

@@ -1,6 +1,7 @@
 #include "rotation_extrinsic_estimator.h"
 #include "log.h"
 #include "vins_utils.h"
+#include "vins_define_internal.h"
 
 namespace vins {
     using namespace Eigen;
@@ -13,7 +14,7 @@ namespace vins {
         rot_imu_que_.emplace_back(delta_q_imu.toRotationMatrix());
         rot_imu_in_world_frame_que_.emplace_back(ric_.inverse() * delta_q_imu * ric_);
 
-        int frame_count = rot_visual_que_.size();
+        int frame_count = (int )rot_visual_que_.size();
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(frame_count * 4, 4);
         for (int i = 0; i < frame_count; i++) {

@@ -1,13 +1,14 @@
 add_rules("mode.debug", "mode.release")
 
+set_languages("cxx17", "c17")
+
 add_includedirs("/usr/local/include")
 add_includedirs("/usr/local/include/eigen3")
 add_includedirs("$(projectdir)/src/")
-add_includedirs("/usr/local/include/folly")
+add_includedirs("$(projectdir)/src/vins/camera_model/include")
 
 target("vins")
     set_kind("static")
-    set_languages("cxx17", "c17")
     add_files("$(projectdir)/src/vins/**.cpp")
 
 

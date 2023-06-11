@@ -10,6 +10,7 @@
 #include <opencv/cv.h>
 
 #include "vins_define_internal.h"
+#include "vins_run_info.h"
 
 namespace vins {
     class FeatureManager {
