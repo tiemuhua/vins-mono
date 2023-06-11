@@ -13,6 +13,28 @@ namespace vins {
 
     namespace utils {
         /**
+         * C数组的向量运算 todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
+         * */
+        template<typename T>
+        inline void arrayMinus(const T * first, const T * second, T * target, int length) {
+            for (int i = 0; i < length; ++i) {
+                target[i] = first[i] - second[i];
+            }
+        }
+        template<typename T>
+        inline void arrayPlus(const T * first, const T * second, T * target, int length) {
+            for (int i = 0; i < length; ++i) {
+                target[i] = first[i] + second[i];
+            }
+        }
+        template<typename T>
+        inline void arrayMultiply(const T* first, T * target, const T k, int length) {
+            for (int i = 0; i < length; ++i) {
+                target[i] = first[i] * k;
+            }
+        }
+
+        /**
          * 角度运算
          * */
         template<typename T>

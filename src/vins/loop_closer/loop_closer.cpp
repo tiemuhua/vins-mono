@@ -34,22 +34,21 @@ public:
 };
 
 struct SequentialEdge {
-    SequentialEdge(Vector3d relative_t, double relative_yaw, double pitch_i, double roll_i)
-            : relative_t_(std::move(relative_t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
+    SequentialEdge(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
+            : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
 
     //.T为ceres::Jet<double, 8>，Jet.a为数据，Jet.v为导数.
     template<class T>
     bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
         typedef Matrix<T, 3, 3> Mat3T;
         typedef Matrix<T, 3, 1> Vec3T;
-        Eigen::Map<Vec3T> ti_vec(ti), tj_vec(tj);
-        Vec3T t_w_ij = ti_vec - tj_vec;
+        Vec3T t_w_ij;
+        utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
         Vec3T euler(yaw_i[0], (T)pitch_i, (T)roll_i);
         Mat3T w_R_i = utils::ypr2rot(euler);
         Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
-        Vec3T relative_t_vec((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
-        Eigen::Map<Vec3T> residuals_vec(residuals);
-        residuals = t_i_ij - relative_t_vec;
+        Vec3T t((T)t_(0), (T)t_(1), (T)t_(2));
+        utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
         residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw));
         return true;
     }
@@ -60,7 +59,7 @@ struct SequentialEdge {
                 new SequentialEdge(t, relative_yaw, pitch_i, roll_i)));
     }
 
-    Vector3d relative_t_;
+    Vector3d t_;
     double relative_yaw, pitch_i, roll_i;
 };
 
@@ -74,14 +73,13 @@ struct LoopEdge {
     bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
         typedef Matrix<T, 3, 3> Mat3T;
         typedef Matrix<T, 3, 1> Vec3T;
-        Eigen::Map<Vec3T> ti_vec(ti), tj_vec(tj);
-        Vec3T t_w_ij = ti_vec - tj_vec;
+        Vec3T t_w_ij;
+        utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
         Vec3T euler(yaw_i[0], (T)pitch_i, (T)roll_i);
         Mat3T w_R_i = utils::ypr2rot(euler);
         Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
-        Vec3T relative_t_vec((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
-        Eigen::Map<Vec3T> residuals_vec(residuals);
-        residuals = t_i_ij - relative_t_vec;
+        Vec3T t((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
+        utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
         // todo tiemuhua 论文里面没有说明这里为什么要除10
         residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw)) / 10.0;
         return true;
