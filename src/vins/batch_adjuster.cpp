@@ -7,7 +7,6 @@
 #include <ceres/ceres.h>
 
 #include "log.h"
-#include "vins_define_internal.h"
 #include "vins_utils.h"
 
 #include "ceres_cost_function_factor/imu_factor.h"

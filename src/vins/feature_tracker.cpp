@@ -22,7 +22,7 @@ FeatureTracker::FeatureTracker(const string &calib_file) {
     m_camera_ = CameraFactory::instance()->generateCameraFromYamlFile(calib_file);
 }
 
-cv::Point2f FeatureTracker::rawPoint2UniformedPoint(cv::Point2f p) {
+cv::Point2f FeatureTracker::rawPoint2UniformedPoint(const cv::Point2f& p) {
     Eigen::Vector3d tmp_p;
     m_camera_->liftProjective(Eigen::Vector2d(p.x, p.y), tmp_p);
     float col = Param::Instance().camera.focal * tmp_p.x() / tmp_p.z() + Param::Instance().camera.col / 2.0;
@@ -30,21 +30,13 @@ cv::Point2f FeatureTracker::rawPoint2UniformedPoint(cv::Point2f p) {
     return {col, row};
 }
 
-FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, double _cur_time, bool equalize, bool publish){
-    cv::Mat img;
+FeatureTracker::FeaturesPerImage FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time){
     int COL = Param::Instance().camera.col;
     int ROW = Param::Instance().camera.row;
-    double FOCAL_LENGTH = Param::Instance().camera.focal;
 
-    if (equalize) {
-        cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
-        clahe->apply(_img, img);
-    } else
-        img = _img;
-
-    cv::Mat next_img = img;
+    cv::Mat next_img = _img;
     if (prev_img_.empty()) {
-        prev_img_ = img;
+        prev_img_ = _img;
     }
 
     vector<cv::Point2f> next_pts;
@@ -69,38 +61,36 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
         next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
     }
 
-    if (publish) {
-        if (next_pts.size() >= 8) {
-            vector<uchar> mask;
-            cv::findFundamentalMat(prev_uniformed_pts_, next_uniformed_pts, cv::FM_RANSAC,
-                                   Param::Instance().frame_tracker.fundamental_threshold, 0.99, mask);
-            size_t size_a = prev_pts_.size();
-            utils::reduceVector(prev_pts_, mask);
-            utils::reduceVector(next_pts, mask);
-            utils::reduceVector(prev_uniformed_pts_, mask);
-            utils::reduceVector(next_uniformed_pts, mask);
-            utils::reduceVector(feature_ids_, mask);
-            LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
-        }
+    if (next_pts.size() >= 8) {
+        vector<uchar> mask;
+        cv::findFundamentalMat(prev_uniformed_pts_, next_uniformed_pts, cv::FM_RANSAC,
+                               Param::Instance().frame_tracker.fundamental_threshold, 0.99, mask);
+        size_t size_a = prev_pts_.size();
+        utils::reduceVector(prev_pts_, mask);
+        utils::reduceVector(next_pts, mask);
+        utils::reduceVector(prev_uniformed_pts_, mask);
+        utils::reduceVector(next_uniformed_pts, mask);
+        utils::reduceVector(feature_ids_, mask);
+        LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
+    }
 
-        // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
-        cv::Mat mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
-        for (const cv::Point2f & p: next_pts) {
-            if (mask.at<uchar>(p.x, p.y) == 255) {
-                cv::circle(mask, p, Param::Instance().frame_tracker.min_dist, 0, -1);
-            }
+    // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
+    cv::Mat mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
+    for (const cv::Point2f & p: next_pts) {
+        if (mask.at<uchar>(p.x, p.y) == 255) {
+            cv::circle(mask, p, Param::Instance().frame_tracker.min_dist, 0, -1);
         }
+    }
 
-        int max_new_pnt_num = Param::Instance().frame_tracker.max_cnt - static_cast<int>(next_pts.size());
-        if (max_new_pnt_num > 0) {
-            vector<cv::Point2f> new_pts;
-            constexpr double qualityLevel = 0.01;
-            cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, Param::Instance().frame_tracker.min_dist, mask);
-            for (auto &p: new_pts) {
-                next_pts.push_back(p);
-                next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
-                feature_ids_.push_back(s_feature_id_cnt_++);
-            }
+    int max_new_pnt_num = Param::Instance().frame_tracker.max_cnt - static_cast<int>(next_pts.size());
+    if (max_new_pnt_num > 0) {
+        vector<cv::Point2f> new_pts;
+        constexpr double qualityLevel = 0.01;
+        cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, Param::Instance().frame_tracker.min_dist, mask);
+        for (auto &p: new_pts) {
+            next_pts.push_back(p);
+            next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
+            feature_ids_.push_back(s_feature_id_cnt_++);
         }
     }
 
@@ -117,7 +107,7 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
         }
         pts_velocity.emplace_back(cv::Point2f(0, 0));
     }
-    map<int, cv::Point2f> next_feature_id_2_uniformed_points_map;
+    unordered_map<int, cv::Point2f> next_feature_id_2_uniformed_points_map;
     for (unsigned int i = 0; i < next_uniformed_pts.size(); i++) {
         next_feature_id_2_uniformed_points_map[feature_ids_[i]] = next_uniformed_pts[i];
     }
@@ -133,30 +123,4 @@ FeatureTracker::FeaturesPerImage FeatureTracker::readImage(const cv::Mat &_img, 
     features.points_velocity = std::move(pts_velocity);
     features.unified_points = prev_uniformed_pts_;
     features.feature_ids = feature_ids_;
-}
-
-void FeatureTracker::showUndistortion(const string &name) {
-    int COL = Param::Instance().camera.col;
-    int ROW = Param::Instance().camera.row;
-    double FOCAL_LENGTH = Param::Instance().camera.focal;
-    cv::Mat undistortedImg(ROW + 600, COL + 600, CV_8UC1, cv::Scalar(0));
-    vector<Eigen::Vector2d> distorted_p, un_distorted_p;
-    for (int i = 0; i < COL; i++)
-        for (int j = 0; j < ROW; j++) {
-            Eigen::Vector2d a(i, j);
-            Eigen::Vector3d b;
-            m_camera_->liftProjective(a, b);
-            distorted_p.push_back(a);
-            un_distorted_p.emplace_back(Eigen::Vector2d(b.x() / b.z(), b.y() / b.z()));
-        }
-    for (int i = 0; i < int(un_distorted_p.size()); i++) {
-        float col = un_distorted_p[i].x() * FOCAL_LENGTH + COL / 2;
-        float row = un_distorted_p[i].y() * FOCAL_LENGTH + ROW / 2;
-        if (col + 300 >= 0 && col < COL + 300 && row + 300 >= 0 && row < ROW + 300) {
-            undistortedImg.at<uchar>(row + 300, col + 300) =
-                    prev_img_.at<uchar>(distorted_p[i].y(), distorted_p[i].x());
-        }
-    }
-    cv::imshow(name, undistortedImg);
-    cv::waitKey(0);
 }

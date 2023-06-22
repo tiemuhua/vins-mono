@@ -4,13 +4,19 @@ set_languages("cxx17", "c17")
 
 add_includedirs("/usr/local/include")
 add_includedirs("/usr/local/include/eigen3")
+add_includedirs("~/3rd/ceres-solver-2.1.0/build/packages/c/ceres/android/arm64-v8a/release/include")
 add_includedirs("$(projectdir)/src/")
 add_includedirs("$(projectdir)/src/vins/camera_model/include")
+add_defines("CERES_EXPORT= ")
 
-target("vins")
+target("vins-mac")
     set_kind("static")
     add_files("$(projectdir)/src/vins/**.cpp")
 
+--target("vins-ios")
+--    add_rules("xcode.application")
+--    set_kind("static")
+--    add_files("$(projectdir)/src/vins/**.cpp")
 
 --
 -- If you want to known more usage about xmake, please see https://xmake.io

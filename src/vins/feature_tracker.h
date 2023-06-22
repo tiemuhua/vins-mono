@@ -34,20 +34,16 @@ namespace vins{
             std::vector<int> feature_ids;
         };
 
-        FeaturesPerImage readImage(const cv::Mat &_img, double _cur_time, bool equalize, bool publish);
+        FeaturesPerImage extractFeatures(const cv::Mat &_img, double _cur_time);
 
     private:
-        void readIntrinsicParameter(const string &calib_file);
-
-        void showUndistortion(const string &name);
-
-        cv::Point2f rawPoint2UniformedPoint(cv::Point2f p);
+        cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
 
         cv::Mat prev_img_;
         vector<cv::Point2f> prev_pts_;
         vector<cv::Point2f> prev_uniformed_pts_;
         double prev_time_{};
-        map<int, cv::Point2f> prev_feature_id_2_uniformed_points_map_;
+        unordered_map<int, cv::Point2f> prev_feature_id_2_uniformed_points_map_;
         vector<int> feature_ids_;
         camodocal::CameraPtr m_camera_;
 
