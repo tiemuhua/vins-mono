@@ -12,16 +12,12 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "ThirdParty/DBoW/DBoW2.h"
-#include "ThirdParty/DVision/DVision.h"
-#include "ThirdParty/DBoW/TemplatedDatabase.h"
-#include "ThirdParty/DBoW/TemplatedVocabulary.h"
+#include "DBoW2/DBoW2.h"
+#include "DVision/DVision.h"
+#include "DBoW2/TemplatedDatabase.h"
+#include "DBoW2/TemplatedVocabulary.h"
 
 #include "keyframe.h"
-
-#define SHOW_S_EDGE false
-#define SHOW_L_EDGE true
-#define SAVE_LOOP_PATH true
 
 namespace vins{
 
@@ -36,7 +32,7 @@ namespace vins{
         void loadVocabulary(const std::string &voc_path);
 
     private:
-        int _detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const;
+        [[nodiscard]] int _detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const;
 
         void optimize4DoF();
 
