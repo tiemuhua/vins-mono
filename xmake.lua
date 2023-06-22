@@ -7,6 +7,7 @@ add_includedirs("/usr/local/include/eigen3")
 add_includedirs("~/3rd/ceres-solver-2.1.0/build/packages/c/ceres/android/arm64-v8a/release/include")
 add_includedirs("~/3rd/DBoW2/install_mac_m1_dir/include")
 add_includedirs("$(projectdir)/src/")
+add_includedirs("$(projectdir)/src/vins")
 add_includedirs("$(projectdir)/src/vins/camera_model/include")
 add_defines("CERES_EXPORT= ")
 

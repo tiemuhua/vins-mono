@@ -1,5 +1,4 @@
 #include "motion_estimator.h"
-#include "vins_define_internal.h"
 
 namespace cv {
     void decomposeEssentialMat(InputArray _E, OutputArray _R1, OutputArray _R2, OutputArray _t) {
