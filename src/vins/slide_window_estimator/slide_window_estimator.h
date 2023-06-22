@@ -5,8 +5,8 @@
 #ifndef VINS_BATCH_ADJUSTER_H
 #define VINS_BATCH_ADJUSTER_H
 
-#include "vins_define_internal.h"
-#include "feature_manager.h"
+#include "vins/vins_define_internal.h"
+#include "vins/feature_manager.h"
 
 namespace vins{
 
@@ -16,7 +16,7 @@ namespace vins{
         int max_iter_num = 100;
     };
 
-    class BatchAdjuster {
+    class SlideWindowEstimator {
     public:
         void optimize(const BatchAdjustParam &param,
                       const FeatureManager &feature_manager,

@@ -2,17 +2,18 @@
 // Created by gjt on 5/14/23.
 //
 
-#include "batch_adjuster.h"
+#include "slide_window_estimator.h"
 
 #include <ceres/ceres.h>
 
 #include "log.h"
-#include "vins_utils.h"
+#include "vins/vins_utils.h"
 
-#include "ceres_cost_function_factor/imu_factor.h"
-#include "ceres_cost_function_factor/marginal_factor.h"
-#include "ceres_cost_function_factor/projection_factor.h"
-#include "ceres_cost_function_factor/projection_td_factor.h"
+#include "cost_functions/imu_factor.h"
+#include "cost_functions/marginal_factor.h"
+#include "cost_functions/projection_factor.h"
+#include "cost_functions/projection_td_factor.h"
+#include "vins/feature_manager.h"
 
 constexpr int WINDOW_SIZE = 10;
 constexpr int FeaturePointSize = 100;
@@ -73,9 +74,9 @@ namespace vins{
 
     }
 
-    void BatchAdjuster::optimize(const BatchAdjustParam &param,
-                                 const FeatureManager &feature_manager,
-                                 BundleAdjustWindow &window) {
+    void SlideWindowEstimator::optimize(const BatchAdjustParam &param,
+                                        const FeatureManager &feature_manager,
+                                        BundleAdjustWindow &window) {
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
         for (int i = 0; i < WINDOW_SIZE + 1; i++) {

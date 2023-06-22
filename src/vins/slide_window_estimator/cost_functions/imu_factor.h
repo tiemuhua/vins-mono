@@ -6,7 +6,7 @@
 #include <ceres/ceres.h>
 
 #include "log.h"
-#include "../imu_integrator.h"
+#include "vins/imu_integrator.h"
 
 namespace vins {
     class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9> {
