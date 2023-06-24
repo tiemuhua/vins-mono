@@ -13,12 +13,14 @@
 namespace vins {
     class VisualInertialAligner {
     public:
-        static bool visualInitialAlign(const double gravity_norm, ConstVec3dRef TIC, ConstMat3dRef RIC,
-                                       Window<Eigen::Vector3d> &bg_window, Window<Eigen::Vector3d>& pos_window,
-                                       Window<Eigen::Matrix3d> &rot_window, Window<Eigen::Vector3d> &vel_window,
-                                       Window<ImuIntegrator> &pre_integrate_window,
-                                       std::vector<ImageFrame> &all_frames, Eigen::Vector3d& gravity,
-                                       FeatureManager &feature_manager);
+        static bool visualInitialAlignImpl(ConstVec3dRef TIC,
+                                           ConstMat3dRef RIC,
+                                           std::vector<ImageFrame> &all_frames,
+                                           Eigen::Vector3d& gravity,
+                                           Eigen::Vector3d& delta_bg,
+                                           Eigen::Matrix3d& rot_diff,
+                                           std::vector<Eigen::Vector3d> &velocities,
+                                           double &scale);
     };
 }
 

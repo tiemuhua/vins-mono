@@ -24,6 +24,7 @@ namespace vins {
         CameraParam camera;
         FrameTrackerParam frame_tracker;
 
+        double gravity_norm;
         double time_rolling_shatter;
         int window_size;
         std::string pattern_file;

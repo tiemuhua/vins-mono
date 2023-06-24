@@ -3,42 +3,68 @@
 //
 
 #include "initiate.h"
+#include <vector>
+#include "vins_define_internal.h"
+#include "parameters.h"
+#include "vins_run_info.h"
 #include "impl/visual_inertial_aligner.h"
+#include "impl/visual_initiator.h"
 
-bool visualInitialAlign(const double gravity_norm, ConstVec3dRef TIC, ConstMat3dRef RIC,
-                                               Window<Eigen::Vector3d> &bg_window, Window<Eigen::Vector3d>& pos_window,
-                                               Window<Eigen::Matrix3d> &rot_window, Window<Eigen::Vector3d> &vel_window,
-                                               Window<ImuIntegrator> &pre_integrate_window,
-                                               std::vector<ImageFrame> &all_frames, Eigen::Vector3d& gravity,
-                                               FeatureManager &feature_manager) {
+using namespace vins;
+bool initiateSlideWindowAndFeatureDepthAndGravity(const int frame_cnt,
+                                                  ConstVec3dRef TIC,
+                                                  ConstMat3dRef RIC,
+                                                  BundleAdjustWindow& window,
+                                                  std::vector<ImageFrame> &all_frames,
+                                                  Eigen::Vector3d& gravity,
+                                                  FeatureManager &feature_manager) {
+    VisualInitiator::initialStructure(feature_manager, frame_cnt, all_frames);
 
-    for (int i = 0; i < bg_window.size(); ++i) {
-        bg_window.at(i) = bg_window.at(i) + delta_bg;
+    Eigen::Vector3d delta_bg;
+    Eigen::Matrix3d rot_diff;
+    std::vector<Eigen::Vector3d> velocities;
+    double scale;
+    VisualInertialAligner::visualInitialAlignImpl(TIC,
+                                                  RIC,
+                                                  all_frames,
+                                                  gravity,
+                                                  delta_bg,
+                                                  rot_diff,
+                                                  velocities,
+                                                  scale);
+
+    for (int i = 0; i < window.bg_window.size(); ++i) {
+        window.bg_window.at(i) = window.bg_window.at(i) + delta_bg;
     }
+    int frame_size = (int )all_frames.size();
     for (int frame_id = 0, key_frame_id = 0; frame_id < frame_size; frame_id++) {
         if (!all_frames[frame_id].is_key_frame_) {
             continue;
         }
-        rot_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).R;
-        pos_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).T;
-        vel_window.at(key_frame_id) = rot_diff * velocities.at(key_frame_id);
+        window.rot_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).R;
+        window.pos_window.at(key_frame_id) = rot_diff * all_frames.at(key_frame_id).T;
+        window.vel_window.at(key_frame_id) = rot_diff * velocities.at(key_frame_id);
         key_frame_id++;
     }
-    for (int i = 0; i < (int) pos_window.size(); ++i) {
-        pos_window.at(i) = s * pos_window.at(i) - rot_window.at(i) * TIC - (s * pos_window.at(i) - rot_window.at(i) * TIC);
+    for (int i = 0; i < (int) window.pos_window.size(); ++i) {
+        window.pos_window.at(i) =
+                scale * window.pos_window.at(i)
+                - window.rot_window.at(i) * TIC
+                - scale * window.pos_window.at(0)
+                + window.rot_window.at(0) * TIC;
     }
 
-    for (int i = 0; i < (int) pre_integrate_window.size(); ++i) {
-        pre_integrate_window.at(i).rePredict(Eigen::Vector3d::Zero(), bg_window.at(i));
+    for (int i = 0; i < (int) window.pre_int_window.size(); ++i) {
+        window.pre_int_window.at(i).rePredict(Eigen::Vector3d::Zero(), window.bg_window.at(i));
     }
 
     //triangulate on cam pose , no tic
     feature_manager.clearDepth();
-    feature_manager.triangulate(pos_window, rot_window, Eigen::Vector3d::Zero(), RIC);
+    feature_manager.triangulate(window.pos_window, window.rot_window, Eigen::Vector3d::Zero(), RIC);
     for (FeaturesOfId &features_of_id: feature_manager.features_) {
         if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= Param::Instance().window_size - 2) {
             continue;
         }
-        features_of_id.inv_depth *= s; // todo tiemuhuaguo 这里是乘还是除？？
+        features_of_id.inv_depth *= scale; // todo tiemuhuaguo 这里是乘还是除？？
     }
 }

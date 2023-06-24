@@ -180,35 +180,35 @@ namespace vins {
         return reverse_yaw_rot2 * rot_gravity_to_z_axis_in_R0_frame;
     }
 
-    bool VisualInertialAligner::visualInitialAlign(const double gravity_norm, ConstVec3dRef TIC, ConstMat3dRef RIC,
-                                                   Window<Eigen::Vector3d> &bg_window, Window<Eigen::Vector3d>& pos_window,
-                                                   Window<Eigen::Matrix3d> &rot_window, Window<Eigen::Vector3d> &vel_window,
-                                                   Window<ImuIntegrator> &pre_integrate_window,
-                                                   std::vector<ImageFrame> &all_frames, Eigen::Vector3d& gravity,
-                                                   FeatureManager &feature_manager) {
+    bool VisualInertialAligner::visualInitialAlignImpl(ConstVec3dRef TIC,
+                                                       ConstMat3dRef RIC,
+                                                       std::vector<ImageFrame> &all_frames,
+                                                       Eigen::Vector3d& gravity,
+                                                       Eigen::Vector3d& delta_bg,
+                                                       Eigen::Matrix3d& rot_diff,
+                                                       std::vector<Eigen::Vector3d> &velocities,
+                                                       double &scale) {
         int frame_size = (int) all_frames.size();
 
         // todo solveGyroscopeBias求出来的是bg的值还是bg的变化值？
-        Eigen::Vector3d delta_bg = solveGyroscopeBias(all_frames);
+        delta_bg = solveGyroscopeBias(all_frames);
 
         for (int i = 0; i < frame_size - 1; ++i) {
             all_frames[i].pre_integrate_.rePredict(Eigen::Vector3d::Zero(), delta_bg);
         }
 
-        if (!linearAlignment(all_frames, TIC, gravity_norm, gravity)) {
+        if (!linearAlignment(all_frames, TIC, Param::Instance().gravity_norm, gravity)) {
             return false;
         }
-        double s;
-        std::vector<Eigen::Vector3d> velocities;
-        refineGravity(all_frames, gravity_norm, TIC, gravity, s, velocities);
-        if (s < 1e-4) {
+        refineGravity(all_frames, Param::Instance().gravity_norm, TIC, gravity, scale, velocities);
+        if (scale < 1e-4) {
             return false;
         }
 
         Eigen::Matrix3d R0 = std::find_if(all_frames.begin(),all_frames.end(),[](auto it){
             return it.is_key_frame_;
         })->R;
-        Eigen::Matrix3d rot_diff = rotGravityToZAxis(gravity, R0);
+        rot_diff = rotGravityToZAxis(gravity, R0);
         gravity = rot_diff * gravity;
 
         return true;
