@@ -51,12 +51,12 @@ void KeyFrame::getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d 
     pos_drift = pos - rot_drift * vio_T_i_w_;
 }
 
-void KeyFrame::getPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {
+void KeyFrame::getLoopedPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {
     _T_i_w = T_i_w_;
     _R_i_w = R_i_w_;
 }
 
-void KeyFrame::updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i) {
+void KeyFrame::updateLoopedPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i) {
     T_i_w_ = _T_w_i;
     R_i_w_ = _R_w_i;
 }

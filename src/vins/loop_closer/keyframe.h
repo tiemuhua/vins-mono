@@ -23,12 +23,12 @@ namespace vins{
         KeyFrame(double _time_stamp, Eigen::Vector3d &t, Eigen::Matrix3d &r, cv::Mat &_image,
                  std::vector<cv::Point3f> &_point_3d, std::vector<cv::Point2f> &_point_2d_uv);
 
-        void getPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
+        void getLoopedPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
                             Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) const;
 
-        void updatePose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
+        void updateLoopedPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
         void updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
 
@@ -39,11 +39,11 @@ namespace vins{
         Eigen::Matrix3d R_i_w_;
 
         // pnp匹配的时候新帧提供key_pts3d_和descriptors_
-        vector<cv::Point3f> key_pts3d_;
-        vector<DVision::BRIEF::bitset> descriptors_;
+        std::vector<cv::Point3f> key_pts3d_;
+        std::vector<DVision::BRIEF::bitset> descriptors_;
         // pnp匹配的时候老帧提供external_key_pts2d_和external_descriptors_
-        vector<cv::KeyPoint> external_key_pts2d_;
-        vector<DVision::BRIEF::bitset> external_descriptors_;
+        std::vector<cv::KeyPoint> external_key_pts2d_;
+        std::vector<DVision::BRIEF::bitset> external_descriptors_;
 
         LoopInfo loop_info_;
     };
