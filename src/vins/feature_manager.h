@@ -7,7 +7,7 @@
 #include <numeric>
 
 #include <Eigen/Dense>
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 #include "vins_define_internal.h"
 #include "vins_run_info.h"
@@ -25,7 +25,7 @@ namespace vins {
 
         void clearDepth();
 
-        std::vector<double> getInvDepth() const;
+        [[nodiscard]] std::vector<double> getInvDepth() const;
 
         void setInvDepth(const Eigen::VectorXd &x);
 

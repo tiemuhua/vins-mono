@@ -42,9 +42,10 @@ static std::shared_ptr<vins::MarginalInfo> sp_marginal_info;
 
 namespace vins{
 
-    void c2eigen(const BundleAdjustWindow& window,
+    void eigen2c(const BundleAdjustWindow& window,
                  const FeatureManager& feature_manager,
-                 const Eigen::Vector3d& tic, const Eigen::Matrix3d &ric){
+                 const Eigen::Vector3d& tic,
+                 const Eigen::Matrix3d &ric){
         for (int i = 0; i < window.pos_window.size(); ++i) {
             utils::vec3d2array(window.pos_window.at(i), c_pos[i]);
         }
@@ -70,13 +71,18 @@ namespace vins{
         utils::quat2array(Eigen::Quaterniond(ric), c_ric);
     }
 
-    void eigen2c() {
+    void c2eigen(BundleAdjustWindow &window,
+                 FeatureManager &feature_manager,
+                 Eigen::Vector3d& tic,
+                 Eigen::Matrix3d &ric) {
 
     }
 
     void SlideWindowEstimator::optimize(const BatchAdjustParam &param,
                                         const FeatureManager &feature_manager,
                                         BundleAdjustWindow &window) {
+        eigen2c(window, feature_manager, RunInfo::Instance().tic, RunInfo::Instance().ric);
+
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
         for (int i = 0; i < WINDOW_SIZE + 1; i++) {
@@ -149,5 +155,7 @@ namespace vins{
         options.max_num_iterations = param.max_iter_num;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
+
+        eigen2c(window, feature_manager, RunInfo::Instance().tic, RunInfo::Instance().ric);
     }
 }

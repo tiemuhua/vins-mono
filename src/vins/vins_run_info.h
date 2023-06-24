@@ -7,9 +7,9 @@
 
 #include <string>
 #include <opencv2/opencv.hpp>
-#include <eigen3/Eigen/Eigen>
-#include "loop_closer/ThirdParty/DVision/BRIEF.h"
-#include <vins/camera_model/include/camodocal/camera_models/Camera.h>
+#include <Eigen/Eigen>
+#include "DVision/BRIEF.h"
+#include <camodocal/camera_models/Camera.h>
 #include "imu_integrator.h"
 
 namespace vins {
