@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <opencv2/opencv.hpp>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include "vins_define_internal.h"
 

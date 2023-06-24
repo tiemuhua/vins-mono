@@ -8,7 +8,7 @@
 #include <string>
 
 #include <opencv2/opencv.hpp>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 

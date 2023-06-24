@@ -3,7 +3,7 @@
 #include "vins_define_internal.h"
 #include <vector>
 #include <opencv2/opencv.hpp>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 namespace vins {
     typedef std::pair<cv::Point2f, cv::Point2f> PointCorrespondence;
