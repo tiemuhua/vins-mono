@@ -4,34 +4,37 @@
 
 #include "initiate.h"
 #include <vector>
-#include "vins_define_internal.h"
-#include "parameters.h"
-#include "vins_run_info.h"
 #include "impl/visual_inertial_aligner.h"
 #include "impl/visual_initiator.h"
 
 using namespace vins;
-bool initiateSlideWindowAndFeatureDepthAndGravity(const int frame_cnt,
-                                                  ConstVec3dRef TIC,
-                                                  ConstMat3dRef RIC,
-                                                  BundleAdjustWindow& window,
-                                                  std::vector<ImageFrame> &all_frames,
-                                                  Eigen::Vector3d& gravity,
-                                                  FeatureManager &feature_manager) {
-    VisualInitiator::initialStructure(feature_manager, frame_cnt, all_frames);
+bool Initiate::initiate(const int frame_cnt,
+                        ConstVec3dRef TIC,
+                        ConstMat3dRef RIC,
+                        BundleAdjustWindow& window,
+                        std::vector<ImageFrame> &all_frames,
+                        Eigen::Vector3d& gravity,
+                        FeatureManager &feature_manager) {
+    bool visual_succ = VisualInitiator::initialStructure(feature_manager, frame_cnt, all_frames);
+    if (!visual_succ) {
+        return false;
+    }
 
     Eigen::Vector3d delta_bg;
     Eigen::Matrix3d rot_diff;
     std::vector<Eigen::Vector3d> velocities;
     double scale;
-    VisualInertialAligner::visualInitialAlignImpl(TIC,
-                                                  RIC,
-                                                  all_frames,
-                                                  gravity,
-                                                  delta_bg,
-                                                  rot_diff,
-                                                  velocities,
-                                                  scale);
+    bool align_succ = VisualInertialAligner::visualInitialAlignImpl(TIC,
+                                                                    RIC,
+                                                                    all_frames,
+                                                                    gravity,
+                                                                    delta_bg,
+                                                                    rot_diff,
+                                                                    velocities,
+                                                                    scale);
+    if (!align_succ) {
+        return false;
+    }
 
     for (int i = 0; i < window.bg_window.size(); ++i) {
         window.bg_window.at(i) = window.bg_window.at(i) + delta_bg;
@@ -67,4 +70,5 @@ bool initiateSlideWindowAndFeatureDepthAndGravity(const int frame_cnt,
         }
         features_of_id.inv_depth *= scale; // todo tiemuhuaguo 这里是乘还是除？？
     }
+    return true;
 }
