@@ -18,6 +18,11 @@ namespace vins {
         int min_dist;
         int max_cnt;
     };
+    struct SlideWindowEstimatorParam{
+        bool fix_extrinsic = false;
+        bool estimate_time_delay = true;
+        int max_iter_num = 100;
+    };
 
     class Param{
     public:

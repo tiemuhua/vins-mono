@@ -6,23 +6,15 @@
 #define VINS_BATCH_ADJUSTER_H
 
 #include "vins/vins_define_internal.h"
-#include "vins/feature_manager.h"
+#include "vins/vins_run_info.h"
+#include "vins/parameters.h"
 
-namespace vins{
-
-    struct BatchAdjustParam{
-        bool fix_extrinsic = false;
-        bool estimate_time_delay = true;
-        int max_iter_num = 100;
-    };
-
-    class SlideWindowEstimator {
-    public:
-        void optimize(const BatchAdjustParam &param,
-                      const FeatureManager &feature_manager,
-                      BundleAdjustWindow &window);
-    };
+namespace vins::SlideWindowEstimator{
+    void optimize(const SlideWindowEstimatorParam &param,
+                  std::vector<FeaturesOfId> &features_,
+                  BundleAdjustWindow &window,
+                  Eigen::Vector3d &tic,
+                  Eigen::Matrix3d &ric);
 }
-
 
 #endif //VINS_BATCH_ADJUSTER_H

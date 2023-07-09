@@ -13,7 +13,6 @@
 #include "cost_functions/marginal_factor.h"
 #include "cost_functions/projection_factor.h"
 #include "cost_functions/projection_td_factor.h"
-#include "vins/feature_manager.h"
 
 constexpr int WINDOW_SIZE = 10;
 constexpr int FeaturePointSize = 100;
@@ -43,7 +42,7 @@ static std::shared_ptr<vins::MarginalInfo> sp_marginal_info;
 namespace vins{
 
     void eigen2c(const BundleAdjustWindow& window,
-                 const FeatureManager& feature_manager,
+                 const std::vector<FeaturesOfId> &features_,
                  const Eigen::Vector3d& tic,
                  const Eigen::Matrix3d &ric){
         for (int i = 0; i < window.pos_window.size(); ++i) {
@@ -62,9 +61,11 @@ namespace vins{
             utils::vec3d2array(window.bg_window.at(i), c_bg[i]);
         }
 
-        std::vector<double> inv_depth_vec = feature_manager.getInvDepth();
-        for (int i = 0; i < inv_depth_vec.size(); ++i) {
-            c_inv_depth[i][0] = inv_depth_vec[i];
+        for (int i = 0; i < features_.size(); ++i) {
+            if (features_[i].feature_points_.size() < 2 || features_[i].start_frame_ >= WINDOW_SIZE - 2) {
+                continue;
+            }
+            c_inv_depth[i][0] = features_[i].inv_depth;
         }
 
         utils::vec3d2array(tic, c_tic);
@@ -72,16 +73,18 @@ namespace vins{
     }
 
     void c2eigen(BundleAdjustWindow &window,
-                 FeatureManager &feature_manager,
+                 std::vector<FeaturesOfId> &features_,
                  Eigen::Vector3d& tic,
                  Eigen::Matrix3d &ric) {
 
     }
 
-    void SlideWindowEstimator::optimize(const BatchAdjustParam &param,
-                                        const FeatureManager &feature_manager,
-                                        BundleAdjustWindow &window) {
-        eigen2c(window, feature_manager, RunInfo::Instance().tic, RunInfo::Instance().ric);
+    void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
+                                        std::vector<FeaturesOfId> &features_,
+                                        BundleAdjustWindow &window,
+                                        Eigen::Vector3d &tic,
+                                        Eigen::Matrix3d &ric) {
+        eigen2c(window, features_, tic, ric);
 
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
@@ -124,8 +127,8 @@ namespace vins{
         }
 
         /*************** 3:特征点 **************************/
-        for (int feature_id = 0; feature_id < feature_manager.features_.size(); ++feature_id) {
-            const FeaturesOfId &features_of_id = feature_manager.features_[feature_id];
+        for (int feature_id = 0; feature_id < features_.size(); ++feature_id) {
+            const FeaturesOfId &features_of_id = features_[feature_id];
             if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2)
                 continue;
             int start_frame_id = features_of_id.start_frame_;
@@ -156,6 +159,6 @@ namespace vins{
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
 
-        eigen2c(window, feature_manager, RunInfo::Instance().tic, RunInfo::Instance().ric);
+        eigen2c(window, features_, RunInfo::Instance().tic, RunInfo::Instance().ric);
     }
 }
