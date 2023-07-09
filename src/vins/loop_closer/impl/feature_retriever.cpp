@@ -2,13 +2,15 @@
 // Created by gjt on 6/9/23.
 //
 
-#include "match_frame.h"
+#include "feature_retriever.h"
+#include <vector>
 #include "vins/vins_utils.h"
 
-using namespace vins::MatchFrame;
+using namespace vins::FeatureRetriever;
 using namespace vins;
 using namespace DVision;
 using namespace Eigen;
+using namespace std;
 
 inline int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
     return (a ^ b).count();

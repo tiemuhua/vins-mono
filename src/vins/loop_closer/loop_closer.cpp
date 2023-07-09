@@ -1,6 +1,6 @@
 #include "loop_closer.h"
 #include "log.h"
-#include "match_frame.h"
+#include "impl/feature_retriever.h"
 #include "vins/vins_utils.h"
 
 using namespace vins;
@@ -125,7 +125,7 @@ void LoopCloser::addKeyFrame(const KeyFramePtr& cur_kf, bool flag_detect_loop) {
         return;
     }
     LoopInfo loop_info;
-    bool find_loop = MatchFrame::findLoop(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf, loop_info);
+    bool find_loop = FeatureRetriever::findLoop(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf, loop_info);
     if (!find_loop) {
         return;
     }
