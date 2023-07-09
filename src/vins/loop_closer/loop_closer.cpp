@@ -34,40 +34,10 @@ public:
     }
 };
 
-struct SequentialEdge {
-    SequentialEdge(Vector3d t, double relative_yaw, double pitch_i, double roll_i)
-            : t_(std::move(t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {}
-
-    //.T为ceres::Jet<double, 8>，Jet.a为数据，Jet.v为导数.
-    template<class T>
-    bool operator()(const T *const yaw_i, const T *ti, const T *yaw_j, const T *tj, T *residuals) const {
-        typedef Matrix<T, 3, 3> Mat3T;
-        typedef Matrix<T, 3, 1> Vec3T;
-        Vec3T t_w_ij;
-        utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
-        Vec3T euler(yaw_i[0], (T)pitch_i, (T)roll_i);
-        Mat3T w_R_i = utils::ypr2rot(euler);
-        Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
-        Vec3T t((T)t_(0), (T)t_(1), (T)t_(2));
-        utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
-        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw));
-        return true;
-    }
-
-    static ceres::CostFunction *Create(const Vector3d &t,
-                                       const double relative_yaw, const double pitch_i, const double roll_i) {
-        return (new ceres::AutoDiffCostFunction<SequentialEdge, 4, 1, 3, 1, 3>(
-                new SequentialEdge(t, relative_yaw, pitch_i, roll_i)));
-    }
-
-    Vector3d t_;
-    double relative_yaw, pitch_i, roll_i;
-};
-
-struct LoopEdge {
-    LoopEdge(Vector3d relative_t, double relative_yaw, double pitch_i, double roll_i)
+struct Edge4Dof {
+    Edge4Dof(Vector3d relative_t, double relative_yaw, double pitch_i, double roll_i, double yaw_weight = 1.0)
             : relative_t_(std::move(relative_t)), relative_yaw(relative_yaw), pitch_i(pitch_i), roll_i(roll_i) {
-        weight = 1;
+        yaw_weight_ = yaw_weight;
     }
 
     template<class T>
@@ -81,20 +51,20 @@ struct LoopEdge {
         Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
         Vec3T t((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
         utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
-        // todo tiemuhua 论文里面没有说明这里为什么要除10
-        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw)) / 10.0;
+        // todo tiemuhua 论文里面没有说明为什么loop edge这里要除10
+        residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw)) * yaw_weight_;
         return true;
     }
 
     static ceres::CostFunction *Create(const Vector3d &relative_t, const double relative_yaw,
                                        const double pitch_i, const double roll_i) {
-        return (new ceres::AutoDiffCostFunction<LoopEdge, 4, 1, 3, 1, 3>(
-                new LoopEdge(relative_t, relative_yaw, pitch_i, roll_i)));
+        return (new ceres::AutoDiffCostFunction<Edge4Dof, 4, 1, 3, 1, 3>(
+                new Edge4Dof(relative_t, relative_yaw, pitch_i, roll_i)));
     }
 
     Vector3d relative_t_;
     double relative_yaw, pitch_i, roll_i;
-    double weight;
+    double yaw_weight_;
 };
 
 LoopCloser::LoopCloser() {
@@ -181,7 +151,7 @@ void LoopCloser::optimize4DoFImpl() {
             Vector3d relative_t = r_array[peer_id].transpose() * (t_array[frame_id] - t_array[peer_id]);
             double relative_yaw = euler_array[frame_id].x() - euler_array[peer_id].x();
             ceres::CostFunction *cost_function =
-                    SequentialEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
+                    Edge4Dof::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
             problem.AddResidualBlock(cost_function, nullptr,
                                      euler_array[peer_id].data(), t_array[peer_id].data(),
                                      euler_array[frame_id].data(), t_array[frame_id].data());
@@ -195,7 +165,7 @@ void LoopCloser::optimize4DoFImpl() {
             Vector3d relative_t = kf->loop_relative_pose_.relative_pos;
             double relative_yaw = kf->loop_relative_pose_.relative_yaw;
             ceres::CostFunction *cost_function =
-                    LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
+                    Edge4Dof::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
             problem.AddResidualBlock(cost_function, loss_function,
                                      euler_array[peer_frame_id].data(), t_array[peer_frame_id].data(),
                                      euler_array[frame_id].data(), t_array[frame_id].data());
