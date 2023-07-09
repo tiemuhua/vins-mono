@@ -1,6 +1,7 @@
 #include "loop_closer.h"
 #include "log.h"
 #include "impl/feature_retriever.h"
+#include "impl/loop_detector.h"
 #include "vins/vins_utils.h"
 
 using namespace vins;
@@ -104,65 +105,19 @@ LoopCloser::~LoopCloser() {
     thread_optimize_.join();
 }
 
-void LoopCloser::loadVocabulary(const std::string &voc_path) {
-    voc = new BriefVocabulary(voc_path);
-    db.setVocabulary(*voc, false, 0);
-}
-
 void LoopCloser::addKeyFrame(const KeyFramePtr& cur_kf) {
     Synchronized(key_frame_buffer_mutex_) {
         key_frame_buffer_.emplace_back(cur_kf);
     }
 }
 
-void LoopCloser::addKeyFrame(const KeyFramePtr& cur_kf, bool flag_detect_loop) {
-    int peer_loop_id = -1;
-    if (flag_detect_loop) {
-        peer_loop_id = _detectLoop(cur_kf, key_frame_list_.size());
-    }
-    db.add(cur_kf->external_descriptors_);
+bool LoopCloser::findLoop(const KeyFramePtr& cur_kf, int& peer_loop_id) {
+    peer_loop_id = loop_detector_->detectLoop(cur_kf->external_descriptors_, key_frame_list_.size());
+    loop_detector_->addDescriptors(cur_kf->external_descriptors_);
     if (peer_loop_id == -1) {
-        return;
+        return false;
     }
-    LoopInfo loop_info;
-    bool find_loop = FeatureRetriever::findLoop(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf, loop_info);
-    if (!find_loop) {
-        return;
-    }
-    cur_kf->loop_info_ = loop_info;
-    loop_interval_upper_bound_ = key_frame_list_.size() - 1;
-    if (loop_interval_lower_bound_ > peer_loop_id || loop_interval_lower_bound_ == -1) {
-        loop_interval_lower_bound_ = peer_loop_id;
-    }
-}
-
-int LoopCloser::_detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const {
-    if (frame_index < 50) {
-        return -1;
-    }
-    QueryResults ret;
-    db.query(keyframe->external_descriptors_, ret, 4, frame_index - 50);
-    cv::Mat loop_result;
-    // a good match with its neighbour
-    if (ret.size() < 2 || ret[0].Score < 0.05) {
-        return -1;
-    }
-    bool find_loop = false;
-    for (unsigned int i = 1; i < ret.size(); i++) {
-        if (ret[i].Score > 0.015) {
-            find_loop = true;
-        }
-    }
-    if (!find_loop) {
-        return -1;
-    }
-    int min_index = 0x3f3f3f3f;
-    assert(ret.size() < min_index);
-    for (unsigned int i = 1; i < ret.size(); i++) {
-        if (ret[i].Id < min_index && ret[i].Score > 0.015)
-            min_index = ret[i].Id;
-    }
-    return min_index;
+    return FeatureRetriever::calculate4DofLoopDrift(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf);
 }
 
 [[noreturn]] void LoopCloser::optimize4DoF() {
@@ -176,11 +131,18 @@ int LoopCloser::_detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const {
 void LoopCloser::optimize4DoFImpl() {
     std::vector<KeyFramePtr> tmp_key_frame_buffer;
     Synchronized(key_frame_buffer_mutex_) {
-        tmp_key_frame_buffer = std::move(key_frame_buffer_);
+        std::swap(key_frame_buffer_, tmp_key_frame_buffer);
     }
 
     for (const KeyFramePtr& kf:tmp_key_frame_buffer) {
         kf->updatePoseByDrift(t_drift, r_drift);
+        int peer_loop_id = -1;
+        if (findLoop(kf, peer_loop_id)) {
+            loop_interval_upper_bound_ = (int )key_frame_list_.size();
+            if (loop_interval_lower_bound_ > peer_loop_id || loop_interval_lower_bound_ == -1) {
+                loop_interval_lower_bound_ = peer_loop_id;
+            }
+        }
         key_frame_list_.emplace_back(kf);
     }
 
@@ -226,12 +188,12 @@ void LoopCloser::optimize4DoFImpl() {
         }
 
         //add loop edge
-        if (kf->loop_info_.peer_frame_id != -1) {
-            int peer_frame_id = kf->loop_info_.peer_frame_id;
+        if (kf->loop_relative_pose_.peer_frame_id != -1) {
+            int peer_frame_id = kf->loop_relative_pose_.peer_frame_id;
             assert(peer_frame_id >= loop_interval_lower_bound_);
             Vector3d peer_euler = utils::rot2ypr(r_array[peer_frame_id]);
-            Vector3d relative_t = kf->loop_info_.relative_pos;
-            double relative_yaw = kf->loop_info_.relative_yaw;
+            Vector3d relative_t = kf->loop_relative_pose_.relative_pos;
+            double relative_yaw = kf->loop_relative_pose_.relative_yaw;
             ceres::CostFunction *cost_function =
                     LoopEdge::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
             problem.AddResidualBlock(cost_function, loss_function,
@@ -256,4 +218,6 @@ void LoopCloser::optimize4DoFImpl() {
     for (int frame_id = loop_interval_upper_bound_ + 1; frame_id < key_frame_list_.size(); ++frame_id) {
         key_frame_list_[frame_id]->updatePoseByDrift(t_drift, r_drift);
     }
+
+    // todo 更新滑动窗口中的位姿，vio中提供了关键帧之间的相对关系，利用drift更新位姿时应当利用相对位姿更新，而不是直接更新绝对位姿
 }

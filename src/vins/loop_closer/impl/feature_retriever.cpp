@@ -84,10 +84,9 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
 }
 
 static constexpr int min_loop_key_points_num = 25;
-bool findLoop(ConstKeyFramePtr old_kf,
-              const int old_kf_id,
-              ConstKeyFramePtr new_kf,
-              LoopInfo &loop_info) {
+bool calculate4DofLoopRelativePose(ConstKeyFramePtr& old_kf,
+                                   const int old_kf_id,
+                                   KeyFramePtr& new_kf) {
     vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_pts3d_;
     vector<uint8_t> status;
     vector<cv::Point2f> pts2d_in_old_frame;
@@ -114,12 +113,12 @@ bool findLoop(ConstKeyFramePtr old_kf,
         return false;
     }
 
-    loop_info.relative_pos = T_o_n_pnp;
+    new_kf->loop_relative_pose_.relative_pos = T_o_n_pnp;
     double old_yaw = utils::rot2ypr(R_o_n_vio * new_kf->vio_R_i_w_).x();
     double new_yaw = utils::rot2ypr(new_kf->vio_R_i_w_).x();
-    loop_info.relative_yaw = utils::normalizeAnglePi(old_yaw - new_yaw);
-    if (abs(loop_info.relative_yaw) < pi/6 && loop_info.relative_pos.norm() < 20.0) {
-        loop_info.peer_frame_id = old_kf_id;
+    new_kf->loop_relative_pose_.relative_yaw = utils::normalizeAnglePi(old_yaw - new_yaw);
+    if (abs(new_kf->loop_relative_pose_.relative_yaw) < pi / 6 && new_kf->loop_relative_pose_.relative_pos.norm() < 20.0) {
+        new_kf->loop_relative_pose_.peer_frame_id = old_kf_id;
         return true;
     }
     return false;

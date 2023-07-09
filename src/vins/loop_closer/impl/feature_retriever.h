@@ -8,10 +8,13 @@
 
 namespace vins{
     namespace FeatureRetriever{
-        bool findLoop(ConstKeyFramePtr old_kf,
-                      int old_kf_id,
-                      ConstKeyFramePtr new_kf,
-                      LoopInfo &loop_info);
+        /**
+         * 若成功建立回环，返回true并设置new_kf->loop_relative_pose_
+         * 否则返回false
+         * */
+        bool calculate4DofLoopDrift(ConstKeyFramePtr old_kf,
+                                    int old_kf_id,
+                                    KeyFramePtr new_kf);
     }
 }
 

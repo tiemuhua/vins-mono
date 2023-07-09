@@ -13,7 +13,7 @@
 
 namespace vins{
 
-    struct LoopInfo {
+    struct LoopRelativePose {
         int peer_frame_id = -1;
         Eigen::Vector3d relative_pos = Eigen::Vector3d::Zero();
         double relative_yaw = 0.0;
@@ -47,7 +47,7 @@ namespace vins{
         std::vector<cv::KeyPoint> external_key_pts2d_;
         std::vector<DVision::BRIEF::bitset> external_descriptors_;
 
-        LoopInfo loop_info_;
+        LoopRelativePose loop_relative_pose_;
     };
     typedef std::shared_ptr<KeyFrame> KeyFramePtr;
     typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;

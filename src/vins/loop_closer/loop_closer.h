@@ -12,30 +12,24 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "DBoW2/DBoW2.h"
-#include "DVision/DVision.h"
-#include "DBoW2/TemplatedDatabase.h"
-#include "DBoW2/TemplatedVocabulary.h"
-
 #include "keyframe.h"
 
 namespace vins{
 
+    class LoopDetector;
+    class BriefExtractor;
     class LoopCloser {
     public:
         LoopCloser();
 
         ~LoopCloser();
 
-        void addKeyFrame(const KeyFramePtr& cur_kf, bool flag_detect_loop);
-
-        void loadVocabulary(const std::string &voc_path);
+        void addKeyFrame(const KeyFramePtr& cur_kf);
 
     private:
-        [[nodiscard]] int _detectLoop(ConstKeyFramePtr& keyframe, int frame_index) const;
-
         [[noreturn]] void optimize4DoF();
         void optimize4DoFImpl();
+        bool findLoop(const KeyFramePtr& cur_kf, int& peer_loop_id);
 
         std::vector<KeyFramePtr> key_frame_list_;
         std::vector<KeyFramePtr> key_frame_buffer_;
@@ -48,8 +42,8 @@ namespace vins{
         int loop_interval_lower_bound_ = -1;
         int loop_interval_upper_bound_ = -1;
 
-        BriefDatabase db;
-        BriefVocabulary *voc{};
+        LoopDetector* loop_detector_;
+        BriefExtractor* brief_extractor_;
     };
 
 }
