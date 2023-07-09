@@ -44,11 +44,13 @@ void KeyFrame::getVioPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) cons
     _R_i_w = vio_R_i_w_;
 }
 
-void KeyFrame::getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
-                              Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) const {
-    double yaw_drift = euler.x() - utils::rot2ypr(vio_R_i_w_).x();
+void calculatePoseRotDrift(
+        const Eigen::Vector3d &pos1, const Eigen::Vector3d &euler1,
+        const Eigen::Vector3d &pos2, const Eigen::Vector3d &euler2,
+        Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) {
+    double yaw_drift = euler1.x() - euler2.x();
     rot_drift = utils::ypr2rot(Vector3d(yaw_drift, 0, 0));
-    pos_drift = pos - rot_drift * vio_T_i_w_;
+    pos_drift = pos1 - pos2;
 }
 
 void KeyFrame::getLoopedPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {

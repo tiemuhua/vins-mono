@@ -25,8 +25,10 @@ namespace vins{
 
         void getLoopedPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
-        void getPosRotDrift(const Eigen::Vector3d &pos, const Eigen::Vector3d &euler,
-                            Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) const;
+        static void calculatePoseRotDrift(
+                const Eigen::Vector3d &pos1, const Eigen::Vector3d &euler1,
+                const Eigen::Vector3d &pos2, const Eigen::Vector3d &euler2,
+                Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift);
 
         void updateLoopedPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
