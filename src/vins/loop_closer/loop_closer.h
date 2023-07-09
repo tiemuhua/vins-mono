@@ -12,19 +12,21 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "keyframe.h"
-
 namespace vins{
 
     class LoopDetector;
     class BriefExtractor;
+    class KeyFrame;
+    typedef std::shared_ptr<KeyFrame> KeyFramePtr;
+    typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;
+
     class LoopCloser {
     public:
         LoopCloser();
 
         ~LoopCloser();
 
-        void addKeyFrame(const double _time_stamp,
+        void addKeyFrame(double _time_stamp,
                          const Eigen::Vector3d &t,
                          const Eigen::Matrix3d &r,
                          const cv::Mat &_image,

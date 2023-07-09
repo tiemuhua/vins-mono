@@ -1,9 +1,10 @@
 #include "loop_closer.h"
 #include "log.h"
-#include "impl/feature_retriever.h"
-#include "impl/loop_detector.h"
 #include "vins/vins_utils.h"
 #include "vins/vins_run_info.h"
+#include "impl/feature_retriever.h"
+#include "impl/loop_detector.h"
+#include "impl/keyframe.h"
 
 using namespace vins;
 using namespace DVision;
@@ -86,13 +87,13 @@ void LoopCloser::addKeyFrame(const double _time_stamp, const Vector3d &t, const 
         key_points.push_back(key);
     }
     std::vector<DVision::BRIEF::bitset> descriptors;
-    brief_extractor_->m_brief.compute(_image, key_points, descriptors);
+    brief_extractor_->brief_.compute(_image, key_points, descriptors);
 
     const int fast_th = 20; // corner detector response threshold
     std::vector<cv::KeyPoint> external_key_points_un_normalized;
     cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
     std::vector<DVision::BRIEF::bitset> external_descriptors;
-    brief_extractor_->m_brief.compute(_image, external_key_points_un_normalized, external_descriptors);
+    brief_extractor_->brief_.compute(_image, external_key_points_un_normalized, external_descriptors);
     std::vector<cv::KeyPoint> external_key_pts2d;
     for (auto & keypoint : external_key_points_un_normalized) {
         Eigen::Vector3d tmp_p;

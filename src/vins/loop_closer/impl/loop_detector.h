@@ -44,9 +44,9 @@ namespace vins{
             fs["y1"] >> y1;
             fs["y2"] >> y2;
 
-            m_brief.importPairs(x1, y1, x2, y2);
+            brief_.importPairs(x1, y1, x2, y2);
         }
-        DVision::BRIEF m_brief;
+        DVision::BRIEF brief_;
     };
 }
 
