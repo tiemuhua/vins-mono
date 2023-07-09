@@ -10,12 +10,10 @@ namespace vins {
         features_.clear();
     }
 
-    bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
+    bool FeatureManager::addFeaturesAndCheckIsKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features_.size());
-        double parallax_sum = 0;
-        int parallax_num = 0;
-        last_track_num = 0;
 
+        int last_track_num = 0;
         for (const FeaturePoint2D &point: feature_points) {
             auto it = find_if(features_.begin(), features_.end(), [point](const FeaturesOfId &it)->bool {
                 return it.feature_id_ == point.feature_id;
@@ -33,6 +31,8 @@ namespace vins {
         if (frame_id < 2 || last_track_num < 20)
             return true;
 
+        int parallax_num = 0;
+        double parallax_sum = 0;
         for (const FeaturesOfId &feature_per_id: features_) {
             if (feature_per_id.start_frame_ <= frame_id - 2 &&
                 feature_per_id.start_frame_ + int(feature_per_id.feature_points_.size()) >= frame_id) {

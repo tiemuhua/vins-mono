@@ -17,7 +17,7 @@ namespace vins {
     public:
         void clearState();
 
-        bool addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint2D> &feature_points);
+        bool addFeaturesAndCheckIsKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points);
 
         [[nodiscard]] std::vector<std::pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r) const;
 
@@ -32,7 +32,6 @@ namespace vins {
         void removeOutlier();
 
         std::vector<FeaturesOfId> features_;
-        int last_track_num{};
 
     private:
         static double compensatedParallax2(const FeaturesOfId &it_per_id, int frame_count);

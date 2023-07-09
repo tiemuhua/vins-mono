@@ -33,9 +33,10 @@ namespace vins{
             point.point = image.points[i];
             point.velocity = image.points_velocity[i];
             point.feature_id = image.feature_ids[i];
-            feature_points.emplace_back(std::move(point));
+            feature_points.emplace_back(point);
         }
-        bool is_key_frame = feature_manager_.addFeatureCheckParallax((int) all_frames_.size(), feature_points);
+        // all_frames_.size()不要-1
+        bool is_key_frame = feature_manager_.addFeaturesAndCheckIsKeyFrame((int) all_frames_.size(), feature_points);
         all_frames_.emplace_back(std::move(feature_points),
                                  time_stamp,
                                  std::move(imu_integrator),
