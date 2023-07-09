@@ -21,21 +21,14 @@ namespace vins {
 
         [[nodiscard]] std::vector<std::pair<cv::Point2f, cv::Point2f>> getCorresponding(int frame_count_l, int frame_count_r) const;
 
+        void triangulate(const Window<Eigen::Vector3d>& pos_window,
+                         const Window<Eigen::Matrix3d>& rot_window,
+                         ConstVec3dRef tic,
+                         ConstMat3dRef ric);
+
         void removeFailures();
-
-        void clearDepth();
-
-        [[nodiscard]] std::vector<double> getInvDepth() const;
-
-        void setInvDepth(const Eigen::VectorXd &x);
-
-        void triangulate(const Window<Eigen::Vector3d>& pos_window, const Window<Eigen::Matrix3d>& rot_window
-                         , ConstVec3dRef tic, ConstMat3dRef ric);
-
         void removeBackShiftDepth();
-
         void removeFront();
-
         void removeOutlier();
 
         std::vector<FeaturesOfId> features_;

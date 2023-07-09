@@ -10,7 +10,6 @@ namespace vins {
         features_.clear();
     }
 
-    // todo 前端建图的关键帧和后端回环的关键帧不是一个东西
     bool FeatureManager::addFeatureCheckParallax(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features_.size());
         double parallax_sum = 0;
@@ -65,16 +64,6 @@ namespace vins {
         return corres;
     }
 
-    void FeatureManager::setInvDepth(const VectorXd &x) {
-        for (int i = 0; i < features_.size(); ++i) {
-            features_[i].inv_depth = x(i);
-            if (features_[i].inv_depth < 0) {
-                features_[i].solve_flag_ = FeaturesOfId::FeatureSolveFail;
-            } else
-                features_[i].solve_flag_ = FeaturesOfId::FeatureSolvedSucc;
-        }
-    }
-
     void FeatureManager::removeFailures() {
         for (auto it = features_.begin(), it_next = features_.begin();
              next(it) != features_.end(); it = it_next) {
@@ -84,22 +73,12 @@ namespace vins {
         }
     }
 
-    void FeatureManager::clearDepth() {
+    void FeatureManager::triangulate(const Window<Eigen::Vector3d>& pos_window, const Window<Eigen::Matrix3d>& rot_window,
+                                     const Vector3d& tic, const Matrix3d &ric) {
         for (FeaturesOfId &it_per_id: features_) {
             it_per_id.inv_depth = -1.0;
         }
-    }
 
-    std::vector<double> FeatureManager::getInvDepth() const {
-        std::vector<double> dep_vec(features_.size());
-        for (int i = 0; i < features_.size(); ++i) {
-            dep_vec[i] = features_[i].inv_depth;
-        }
-        return dep_vec;
-    }
-
-    void FeatureManager::triangulate(const Window<Eigen::Vector3d>& pos_window, const Window<Eigen::Matrix3d>& rot_window,
-                                     const Vector3d& tic, const Matrix3d &ric) {
         for (FeaturesOfId &it_per_id: features_) {
             if (!(it_per_id.feature_points_.size() >= 2 && it_per_id.start_frame_ < WINDOW_SIZE - 2))
                 continue;
