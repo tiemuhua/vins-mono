@@ -20,8 +20,13 @@ namespace vins{
     };
 
     struct KeyFrame {
-        KeyFrame(double _time_stamp, Eigen::Vector3d &t, Eigen::Matrix3d &r, cv::Mat &_image,
-                 std::vector<cv::Point3f> &_point_3d, std::vector<cv::Point2f> &_point_2d_uv);
+        KeyFrame(double _time_stamp,
+                 const Eigen::Vector3d &t,
+                 const Eigen::Matrix3d &r,
+                 const std::vector<cv::Point3f> &_point_3d,
+                 const std::vector<DVision::BRIEF::bitset> &descriptors,
+                 const std::vector<cv::KeyPoint> &external_key_pts2d,
+                 const std::vector<DVision::BRIEF::bitset> &external_descriptors);
 
         void getLoopedPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;

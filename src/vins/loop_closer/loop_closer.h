@@ -24,7 +24,12 @@ namespace vins{
 
         ~LoopCloser();
 
-        void addKeyFrame(const KeyFramePtr& cur_kf);
+        void addKeyFrame(const double _time_stamp,
+                         const Eigen::Vector3d &t,
+                         const Eigen::Matrix3d &r,
+                         const cv::Mat &_image,
+                         const std::vector<cv::Point3f> &_point_3d,
+                         const std::vector<cv::Point2f> &_point_2d_uv);
 
     private:
         [[noreturn]] void optimize4DoF();

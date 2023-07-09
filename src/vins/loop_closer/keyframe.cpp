@@ -6,37 +6,24 @@
 using namespace vins;
 using namespace Eigen;
 using namespace std;
-using namespace DVision;
 
 // create keyframe online
-KeyFrame::KeyFrame(double _time_stamp, Vector3d &t, Matrix3d &r, cv::Mat &_image,
-                   vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv) {
+KeyFrame::KeyFrame(double _time_stamp,
+                   const Eigen::Vector3d &t,
+                   const Eigen::Matrix3d &r,
+                   const std::vector<cv::Point3f> &_point_3d,
+                   const std::vector<DVision::BRIEF::bitset> &descriptors,
+                   const std::vector<cv::KeyPoint> &external_key_pts2d,
+                   const std::vector<DVision::BRIEF::bitset> &external_descriptors) {
     time_stamp = _time_stamp;
     vio_T_i_w_ = t;
     vio_R_i_w_ = r;
     T_i_w_ = vio_T_i_w_;
     R_i_w_ = vio_R_i_w_;
     key_pts3d_ = _point_3d;
-
-    vector<cv::KeyPoint> key_points;
-    for (auto & i : _point_2d_uv) {
-        cv::KeyPoint key;
-        key.pt = i;
-        key_points.push_back(key);
-    }
-    RunInfo::Instance().extractor.m_brief.compute(_image, key_points, descriptors_);
-
-    const int fast_th = 20; // corner detector response threshold
-    vector<cv::KeyPoint> external_key_points_un_normalized;
-    cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
-    RunInfo::Instance().extractor.m_brief.compute(_image, external_key_points_un_normalized, external_descriptors_);
-    for (auto & keypoint : external_key_points_un_normalized) {
-        Eigen::Vector3d tmp_p;
-        RunInfo::Instance().camera_ptr->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
-        cv::KeyPoint tmp_norm;
-        tmp_norm.pt = cv::Point2f(tmp_p.x() / tmp_p.z(), tmp_p.y() / tmp_p.z());
-        external_key_pts2d_.push_back(tmp_norm);
-    }
+    descriptors_ = descriptors;
+    external_descriptors_ = external_descriptors;
+    external_key_pts2d_ = external_key_pts2d;
 }
 
 void KeyFrame::getVioPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {

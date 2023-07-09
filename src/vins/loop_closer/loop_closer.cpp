@@ -3,6 +3,7 @@
 #include "impl/feature_retriever.h"
 #include "impl/loop_detector.h"
 #include "vins/vins_utils.h"
+#include "vins/vins_run_info.h"
 
 using namespace vins;
 using namespace DVision;
@@ -75,7 +76,33 @@ LoopCloser::~LoopCloser() {
     thread_optimize_.join();
 }
 
-void LoopCloser::addKeyFrame(const KeyFramePtr& cur_kf) {
+// todo 若使用sift等耗时较长的描述字，可将提取描述子过程放入单独任务队列执行
+void LoopCloser::addKeyFrame(const double _time_stamp, const Vector3d &t, const Matrix3d &r, const cv::Mat &_image,
+                             const std::vector<cv::Point3f> &_point_3d, const std::vector<cv::Point2f> &_point_2d_uv) {
+    std::vector<cv::KeyPoint> key_points;
+    for (auto & i : _point_2d_uv) {
+        cv::KeyPoint key;
+        key.pt = i;
+        key_points.push_back(key);
+    }
+    std::vector<DVision::BRIEF::bitset> descriptors;
+    brief_extractor_->m_brief.compute(_image, key_points, descriptors);
+
+    const int fast_th = 20; // corner detector response threshold
+    std::vector<cv::KeyPoint> external_key_points_un_normalized;
+    cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
+    std::vector<DVision::BRIEF::bitset> external_descriptors;
+    brief_extractor_->m_brief.compute(_image, external_key_points_un_normalized, external_descriptors);
+    std::vector<cv::KeyPoint> external_key_pts2d;
+    for (auto & keypoint : external_key_points_un_normalized) {
+        Eigen::Vector3d tmp_p;
+        RunInfo::Instance().camera_ptr->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
+        cv::KeyPoint tmp_norm;
+        tmp_norm.pt = cv::Point2f(tmp_p.x() / tmp_p.z(), tmp_p.y() / tmp_p.z());
+        external_key_pts2d.push_back(tmp_norm);
+    }
+    auto cur_kf = std::make_shared<KeyFrame>(_time_stamp, t, r, _point_3d, descriptors, external_key_pts2d, external_descriptors);
+
     Synchronized(key_frame_buffer_mutex_) {
         key_frame_buffer_.emplace_back(cur_kf);
     }
