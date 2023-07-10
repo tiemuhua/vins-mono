@@ -8,6 +8,13 @@
 namespace vins {
 
     typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> JacobianType;
+
+    /**
+     * MarginalFactor中的核心数据储存在MarginalInfo中。
+     * MarginalInfo由多个多个ResidualBlockInfo组成。
+     * ResidualBlockInfo包括当前帧的预积分信息、视觉信息和之前帧的边缘化信息，分别对应不同的cost_function_
+     * */
+
     struct ResidualBlockInfo {
         ResidualBlockInfo(ceres::CostFunction *_cost_function,
                           ceres::LossFunction *_loss_function,
