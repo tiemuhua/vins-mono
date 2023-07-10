@@ -203,13 +203,14 @@ std::vector<double *> MarginalInfo::getParameterBlocks(std::unordered_map<double
     keep_block_idx_.clear();
     keep_block_data_.clear();
 
-    for (const std::pair<double *const, long> it: parameter_block_idx_) {
-        if (it.second >= m) {
-            keep_block_size_.emplace_back(parameter_block_size_[it.first]);
-            keep_block_idx_.emplace_back(parameter_block_idx_[it.first]);
-            keep_block_data_.emplace_back(parameter_block_data_[it.first]);
-            keep_block_addr.emplace_back(addr_shift[it.first]);
+    for (const std::pair<double *const, int> it: parameter_block_idx_) {
+        if (it.second < m) {
+            continue;
         }
+        keep_block_size_.emplace_back(parameter_block_size_[it.first]);
+        keep_block_idx_.emplace_back(parameter_block_idx_[it.first]);
+        keep_block_data_.emplace_back(parameter_block_data_[it.first]);
+        keep_block_addr.emplace_back(addr_shift[it.first]);
     }
 
     return keep_block_addr;
