@@ -41,6 +41,9 @@ namespace vins {
         }
     };
 
+    typedef std::unordered_map<double*, int> DoublePtr2Int;
+    typedef std::unordered_map<double*, double *> DoublePtr2DoublePtr;
+
     class MarginalInfo
     {
     public:
@@ -49,13 +52,13 @@ namespace vins {
         void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
         void preMarginalize();
         void marginalize();
-        std::vector<double *> getParameterBlocks(std::unordered_map<double*, double *> &addr_shift);
+        std::vector<double *> getParameterBlocks(const DoublePtr2DoublePtr &addr_shift);
 
         std::vector<ResidualBlockInfo> factors_;
         int m, n;
-        std::unordered_map<double*, int> parameter_block_size_; //global size
-        std::unordered_map<double*, int> parameter_block_idx_; //local size
-        std::unordered_map<double*, double *> parameter_block_data_;
+        DoublePtr2Int parameter_block_size_; //global size
+        DoublePtr2Int parameter_block_idx_; //local size
+        DoublePtr2DoublePtr parameter_block_data_;
 
         std::vector<int> keep_block_size_; //global size
         std::vector<int> keep_block_idx_;  //local size
@@ -69,7 +72,7 @@ namespace vins {
     class MarginalFactor : public ceres::CostFunction
     {
     public:
-        explicit MarginalFactor(const std::shared_ptr<MarginalInfo>& _marginal_info);
+        explicit MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
         std::shared_ptr<MarginalInfo> marginal_info_;

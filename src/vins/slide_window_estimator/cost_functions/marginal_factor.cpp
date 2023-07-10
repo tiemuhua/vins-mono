@@ -1,4 +1,5 @@
 #include <thread>
+#include <utility>
 #include "log.h"
 #include "vins_utils.h"
 #include "marginal_factor.h"
@@ -197,26 +198,27 @@ void MarginalInfo::marginalize() {
     linearized_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
 }
 
-std::vector<double *> MarginalInfo::getParameterBlocks(std::unordered_map<double*, double *> &addr_shift) {
+std::vector<double *> MarginalInfo::getParameterBlocks(const DoublePtr2DoublePtr &addr_shift) {
     std::vector<double *> keep_block_addr;
     keep_block_size_.clear();
     keep_block_idx_.clear();
     keep_block_data_.clear();
 
-    for (const std::pair<double *const, int> it: parameter_block_idx_) {
+    for (const auto& it: parameter_block_idx_) {
         if (it.second < m) {
             continue;
         }
         keep_block_size_.emplace_back(parameter_block_size_[it.first]);
         keep_block_idx_.emplace_back(parameter_block_idx_[it.first]);
         keep_block_data_.emplace_back(parameter_block_data_[it.first]);
-        keep_block_addr.emplace_back(addr_shift[it.first]);
+        keep_block_addr.emplace_back(addr_shift.at(it.first));
     }
 
     return keep_block_addr;
 }
 
-MarginalFactor::MarginalFactor(const std::shared_ptr<MarginalInfo>& _marginal_info) : marginal_info_(_marginal_info) {
+MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
+ : marginal_info_(std::move(_marginal_info)) {
     for (auto it: marginal_info_->keep_block_size_) {
         mutable_parameter_block_sizes()->push_back(it);
     }
