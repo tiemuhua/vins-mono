@@ -34,21 +34,14 @@ namespace vins {
 
         std::vector<JacobianType> jacobians_;
         Eigen::VectorXd residuals_;
-
-        int localSize(int size)
-        {
-            return size == 7 ? 6 : size;
-        }
     };
 
     typedef std::unordered_map<double*, int> DoublePtr2Int;
     typedef std::unordered_map<double*, double *> DoublePtr2DoublePtr;
 
-    class MarginalInfo
-    {
+    class MarginalInfo {
     public:
         ~MarginalInfo();
-        static int localSize(int size) ;
         void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
         void preMarginalize();
         void marginalize();
@@ -69,8 +62,7 @@ namespace vins {
         static constexpr double EPS = 1e-8;
     };
 
-    class MarginalFactor : public ceres::CostFunction
-    {
+    class MarginalFactor : public ceres::CostFunction {
     public:
         explicit MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;

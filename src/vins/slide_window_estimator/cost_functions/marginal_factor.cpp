@@ -6,6 +6,10 @@
 
 using namespace vins;
 
+static int localSize(int size) {
+    return size == 7 ? 6 : size;
+}
+
 void ResidualBlockInfo::Evaluate() {
     residuals_.resize(cost_function_->num_residuals());
 
@@ -93,10 +97,6 @@ void MarginalInfo::preMarginalize() {
     }
 }
 
-int MarginalInfo::localSize(int size) {
-    return size == 7 ? 6 : size;
-}
-
 struct ThreadsStruct {
     std::vector<ResidualBlockInfo> sub_factors;
     Eigen::MatrixXd A;
@@ -109,15 +109,11 @@ void ThreadsConstructA(ThreadsStruct *p) {
     for (const ResidualBlockInfo& it: p->sub_factors) {
         for (int i = 0; i < static_cast<int>(it.parameter_blocks_.size()); i++) {
             int idx_i = p->parameter_block_idx[it.parameter_blocks_[i]];
-            int size_i = p->parameter_block_size[it.parameter_blocks_[i]];
-            if (size_i == 7)
-                size_i = 6;
+            int size_i = localSize(p->parameter_block_size[it.parameter_blocks_[i]]);
             Eigen::MatrixXd jacobian_i = it.jacobians_[i].leftCols(size_i);
             for (int j = i; j < static_cast<int>(it.parameter_blocks_.size()); j++) {
                 int idx_j = p->parameter_block_idx[it.parameter_blocks_[j]];
-                int size_j = p->parameter_block_size[it.parameter_blocks_[j]];
-                if (size_j == 7)
-                    size_j = 6;
+                int size_j = localSize(p->parameter_block_size[it.parameter_blocks_[j]]);
                 Eigen::MatrixXd jacobian_j = it.jacobians_[j].leftCols(size_j);
                 p->A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
                 if(i != j) {
@@ -251,7 +247,7 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
     for (int i = 0; i < static_cast<int>(marginal_info_->keep_block_size_.size()); i++) {
         assert(jacobians[i]);
         int size = marginal_info_->keep_block_size_[i];
-        int local_size = marginal_info_->localSize(size);
+        int local_size = localSize(size);
         int idx = marginal_info_->keep_block_idx_[i] - m;
         Eigen::Map<JacobianType> jacobian(jacobians[i], n, size);
         jacobian.setZero();
