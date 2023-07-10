@@ -131,25 +131,25 @@ void ThreadsConstructA(ThreadsStruct *p) {
 }
 
 void MarginalInfo::marginalize() {
-    int pos = 0;
+    int total_dim = 0;
     for (auto &it: parameter_block_idx_) {
-        it.second = pos;
-        pos += localSize(parameter_block_size_[it.first]);
+        it.second = total_dim;
+        total_dim += localSize(parameter_block_size_[it.first]);
     }
 
-    m = pos;
+    old_param_dim_ = total_dim;
 
     for (const std::pair<double * const, int> &it: parameter_block_size_) {
         if (parameter_block_idx_.find(it.first) == parameter_block_idx_.end()) {
-            parameter_block_idx_[it.first] = pos;
-            pos += localSize(it.second);
+            parameter_block_idx_[it.first] = total_dim;
+            total_dim += localSize(it.second);
         }
     }
 
-    n = pos - m;
+    new_param_dim_ = total_dim - old_param_dim_;
 
-    Eigen::MatrixXd A = Eigen::MatrixXd::Zero(pos, pos);
-    Eigen::VectorXd b = Eigen::VectorXd::Zero(pos);
+    Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
+    Eigen::VectorXd b = Eigen::VectorXd::Zero(total_dim);
 
     std::vector<std::thread> threads;
     constexpr int NUM_THREADS = 4;
@@ -158,8 +158,8 @@ void MarginalInfo::marginalize() {
         thread_structs[j % NUM_THREADS].sub_factors.emplace_back(factors_[j]);
     }
     for (ThreadsStruct & thread_struct : thread_structs) {
-        thread_struct.A = Eigen::MatrixXd::Zero(pos, pos);
-        thread_struct.b = Eigen::VectorXd::Zero(pos);
+        thread_struct.A = Eigen::MatrixXd::Zero(total_dim, total_dim);
+        thread_struct.b = Eigen::VectorXd::Zero(total_dim);
         thread_struct.parameter_block_size = parameter_block_size_;
         thread_struct.parameter_block_idx = parameter_block_idx_;
         threads.emplace_back(&ThreadsConstructA, &thread_struct);
@@ -170,19 +170,18 @@ void MarginalInfo::marginalize() {
         b += thread_structs[i].b;
     }
 
-
-    const Eigen::MatrixXd &Amm = A.block(0, 0, m, m);
+    const Eigen::MatrixXd &Amm = A.block(0, 0, old_param_dim_, old_param_dim_);
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
     auto eigen_values = saes.eigenvalues().array();
     Eigen::VectorXd eigen_val_inv_vec = (eigen_values > EPS).select(eigen_values.inverse(), 0);
     Eigen::MatrixXd eigen_val_inv_mat = eigen_val_inv_vec.asDiagonal();
     Eigen::MatrixXd Amm_inv = saes.eigenvectors() * eigen_val_inv_mat * saes.eigenvectors().transpose();
 
-    Eigen::VectorXd bmm = b.segment(0, m);
-    Eigen::MatrixXd Amr = A.block(0, m, m, n);
-    Eigen::MatrixXd Arm = A.block(m, 0, n, m);
-    Eigen::MatrixXd Arr = A.block(m, m, n, n);
-    Eigen::VectorXd brr = b.segment(m, n);
+    Eigen::VectorXd bmm = b.segment(0, old_param_dim_);
+    Eigen::MatrixXd Amr = A.block(0, old_param_dim_, old_param_dim_, new_param_dim_);
+    Eigen::MatrixXd Arm = A.block(old_param_dim_, 0, new_param_dim_, old_param_dim_);
+    Eigen::MatrixXd Arr = A.block(old_param_dim_, old_param_dim_, new_param_dim_, new_param_dim_);
+    Eigen::VectorXd brr = b.segment(old_param_dim_, new_param_dim_);
     A = Arr - Arm * Amm_inv * Amr;
     b = brr - Arm * Amm_inv * bmm;
 
@@ -205,7 +204,7 @@ std::vector<double *> MarginalInfo::getParameterBlocks(const DoublePtr2DoublePtr
     keep_block_data_.clear();
 
     for (const auto& it: parameter_block_idx_) {
-        if (it.second < m) {
+        if (it.second < old_param_dim_) {
             continue;
         }
         keep_block_size_.emplace_back(parameter_block_size_[it.first]);
@@ -222,12 +221,12 @@ MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
     for (auto it: marginal_info_->keep_block_size_) {
         mutable_parameter_block_sizes()->push_back(it);
     }
-    set_num_residuals(marginal_info_->n);
+    set_num_residuals(marginal_info_->new_param_dim_);
 }
 
 bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
-    int n = marginal_info_->n;
-    int m = marginal_info_->m;
+    int n = marginal_info_->new_param_dim_;
+    int m = marginal_info_->old_param_dim_;
     Eigen::VectorXd dx(n);
     for (int i = 0; i < static_cast<int>(marginal_info_->keep_block_size_.size()); i++) {
         int size = marginal_info_->keep_block_size_[i];
