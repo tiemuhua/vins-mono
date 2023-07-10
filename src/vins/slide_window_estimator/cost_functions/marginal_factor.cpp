@@ -1,5 +1,6 @@
 #include <thread>
-#include "../vins_utils.h"
+#include "log.h"
+#include "vins_utils.h"
 #include "marginal_factor.h"
 
 using namespace vins;
@@ -17,30 +18,33 @@ void ResidualBlockInfo::Evaluate() {
     }
     cost_function_->Evaluate(parameter_blocks_.data(), residuals_.data(), raw_jacobians.data());
 
-    if (loss_function_) {
-        double rho[3];
-        double sq_norm = residuals_.squaredNorm();
-        loss_function_->Evaluate(sq_norm, rho);
-        double sqrt_rho1 = sqrt(rho[1]);
-
-        double residual_scaling, alpha_sq_norm;
-        if (abs(sq_norm) < MarginalInfo::EPS || (rho[2] <= 0.0)) {
-            residual_scaling = sqrt_rho1;
-            alpha_sq_norm = 0.0;
-        } else {
-            const double D = 1.0 + 2.0 * sq_norm * rho[2] / rho[1];
-            const double alpha = 1.0 - sqrt(D);
-            residual_scaling = sqrt_rho1 / (1 - alpha);
-            alpha_sq_norm = alpha / sq_norm;
-        }
-
-        for (int i = 0; i < static_cast<int>(parameter_blocks_.size()); i++) {
-            jacobians_[i] =
-                    sqrt_rho1 * (jacobians_[i] - alpha_sq_norm * residuals_ * residuals_.transpose() * jacobians_[i]);
-        }
-
-        residuals_ *= residual_scaling;
+    if (!loss_function_) {
+        LOG_I("marginal factor not set loss function");
+        return;
     }
+    double rho[3];
+    double sq_norm = residuals_.squaredNorm();
+    loss_function_->Evaluate(sq_norm, rho);
+    double sqrt_rho1 = sqrt(rho[1]);
+
+    double residual_scaling, alpha_sq_norm;
+    if (abs(sq_norm) < MarginalInfo::EPS || (rho[2] <= 0.0)) {
+        residual_scaling = sqrt_rho1;
+        alpha_sq_norm = 0.0;
+    } else {
+        const double D = 1.0 + 2.0 * sq_norm * rho[2] / rho[1];
+        const double alpha = 1.0 - sqrt(D);
+        residual_scaling = sqrt_rho1 / (1 - alpha);
+        alpha_sq_norm = alpha / sq_norm;
+    }
+
+    const Eigen::MatrixXd identity = Eigen::MatrixXd::Identity(residuals_.size(), residuals_.size());
+    const Eigen::MatrixXd k = sqrt_rho1 * (identity - alpha_sq_norm * residuals_ * residuals_.transpose());
+    for (int i = 0; i < static_cast<int>(parameter_blocks_.size()); i++) {
+        jacobians_[i] = k * jacobians_[i];
+    }
+
+    residuals_ *= residual_scaling;
 }
 
 MarginalInfo::~MarginalInfo() {
