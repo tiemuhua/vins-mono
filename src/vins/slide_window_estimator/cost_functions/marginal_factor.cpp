@@ -166,28 +166,29 @@ void MarginalInfo::marginalize() {
         b += thread_structs[i].b;
     }
 
-    const Eigen::MatrixXd &Amm = A.block(0, 0, old_param_dim_, old_param_dim_);
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
-    auto eigen_values = saes.eigenvalues().array();
-    Eigen::VectorXd eigen_val_inv_vec = (eigen_values > EPS).select(eigen_values.inverse(), 0);
-    Eigen::MatrixXd eigen_val_inv_mat = eigen_val_inv_vec.asDiagonal();
-    Eigen::MatrixXd Amm_inv = saes.eigenvectors() * eigen_val_inv_mat * saes.eigenvectors().transpose();
+    const Eigen::VectorXd bmm = b.segment(0, old_param_dim_);
+    const Eigen::VectorXd brr = b.segment(old_param_dim_, new_param_dim_);
+    const Eigen::MatrixXd Amm = A.block(0, 0, old_param_dim_, old_param_dim_);
+    const Eigen::MatrixXd Amr = A.block(0, old_param_dim_, old_param_dim_, new_param_dim_);
+    const Eigen::MatrixXd Arm = A.block(old_param_dim_, 0, new_param_dim_, old_param_dim_);
+    const Eigen::MatrixXd Arr = A.block(old_param_dim_, old_param_dim_, new_param_dim_, new_param_dim_);
 
-    Eigen::VectorXd bmm = b.segment(0, old_param_dim_);
-    Eigen::MatrixXd Amr = A.block(0, old_param_dim_, old_param_dim_, new_param_dim_);
-    Eigen::MatrixXd Arm = A.block(old_param_dim_, 0, new_param_dim_, old_param_dim_);
-    Eigen::MatrixXd Arr = A.block(old_param_dim_, old_param_dim_, new_param_dim_, new_param_dim_);
-    Eigen::VectorXd brr = b.segment(old_param_dim_, new_param_dim_);
+    const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
+    const auto eigen_values = saes.eigenvalues().array();
+    const Eigen::VectorXd eigen_val_inv_vec = (eigen_values > EPS).select(eigen_values.inverse(), 0);
+    const Eigen::MatrixXd eigen_val_inv_mat = eigen_val_inv_vec.asDiagonal();
+    const Eigen::MatrixXd Amm_inv = saes.eigenvectors() * eigen_val_inv_mat * saes.eigenvectors().transpose();
+
     A = Arr - Arm * Amm_inv * Amr;
     b = brr - Arm * Amm_inv * bmm;
 
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(A);
-    auto eigen_values2 = saes2.eigenvalues().array();
-    Eigen::VectorXd S = (eigen_values2 > EPS).select(eigen_values2, 0);
-    Eigen::VectorXd S_inv = (eigen_values2 > EPS).select(eigen_values2.inverse(), 0);
+    const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(A);
+    const auto eigen_values2 = saes2.eigenvalues().array();
+    const Eigen::VectorXd S = (eigen_values2 > EPS).select(eigen_values2, 0);
+    const Eigen::VectorXd S_inv = (eigen_values2 > EPS).select(eigen_values2.inverse(), 0);
 
-    Eigen::VectorXd S_sqrt = S.cwiseSqrt();
-    Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
+    const Eigen::VectorXd S_sqrt = S.cwiseSqrt();
+    const Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
 
     linearized_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     linearized_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
