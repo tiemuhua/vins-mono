@@ -221,16 +221,15 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
         int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->reserve_block_data_frozen_[i], size);
-        // todo 7维要改成4维
-        if (size != 7)
+        if (size != 4)
             dx.segment(idx, size) = x - x0;
         else {
-            Eigen::Quaterniond q1 = Eigen::Quaterniond(x0(6), x0(3), x0(4), x0(5)).inverse();
-            Eigen::Quaterniond q2 = Eigen::Quaterniond(x(6), x(3), x(4), x(5));
-            dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();
-            dx.segment<3>(idx + 3) = 2.0 * utils::positify(q1 * q2).vec();
+            Eigen::Quaterniond q1 = Eigen::Quaterniond(x0(3), x0(0), x0(1), x0(2)).inverse();
+            Eigen::Quaterniond q2 = Eigen::Quaterniond(x(3), x(0), x(1), x(2));
             if ((q1 * q2).w() < 0) {
-                dx.segment<3>(idx + 3) = 2.0 * -utils::positify(q1 * q2).vec();
+                dx.segment<3>(idx) = 2.0 * -utils::positify(q1 * q2).vec();
+            } else {
+                dx.segment<3>(idx) = 2.0 * utils::positify(q1 * q2).vec();
             }
         }
     }
