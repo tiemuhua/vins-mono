@@ -7,7 +7,7 @@
 
 using namespace vins;
 
-static int localSize(int size) {
+inline int tangentSpaceDimensionSize(int size) {
     return size == 4 ? 3 : size;
 }
 
@@ -78,11 +78,11 @@ void ThreadsConstructA(ThreadsStruct *p) {
     for (const ResidualBlockInfo& it: p->sub_factors) {
         for (int i = 0; i < static_cast<int>(it.parameter_blocks_.size()); i++) {
             int idx_i = p->parameter_block_idx[it.parameter_blocks_[i]];
-            int size_i = localSize(p->parameter_block_size[it.parameter_blocks_[i]]);
+            int size_i = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[i]]);
             Eigen::MatrixXd jacobian_i = it.jacobians_[i].leftCols(size_i);
             for (int j = i; j < static_cast<int>(it.parameter_blocks_.size()); j++) {
                 int idx_j = p->parameter_block_idx[it.parameter_blocks_[j]];
-                int size_j = localSize(p->parameter_block_size[it.parameter_blocks_[j]]);
+                int size_j = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[j]]);
                 Eigen::MatrixXd jacobian_j = it.jacobians_[j].leftCols(size_j);
                 p->A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
                 if(i != j) {
@@ -107,7 +107,7 @@ void MarginalInfo::marginalize() {
         const std::vector<double *> &parameter_blocks = factor.parameter_blocks_;
         for (const int discard_block_id:factor.drop_set_) {
             int cur_discard_param_dim_raw = factor.cost_function_->parameter_block_sizes()[discard_block_id];
-            discard_param_dim_ += localSize(cur_discard_param_dim_raw);
+            discard_param_dim_ += tangentSpaceDimensionSize(cur_discard_param_dim_raw);
             param_should_discard.insert(parameter_blocks[discard_block_id]);
         }
     }
@@ -121,10 +121,10 @@ void MarginalInfo::marginalize() {
             param_block_size[block_addr] = size;
             if (param_should_discard.count(block_addr) == 0) {
                 param_block_idx[block_addr] = reserve_idx;
-                reserve_idx += localSize(size);
+                reserve_idx += tangentSpaceDimensionSize(size);
             } else {
                 param_block_idx[block_addr] = discard_idx;
-                discard_idx += localSize(size);
+                discard_idx += tangentSpaceDimensionSize(size);
             }
         }
     }
@@ -240,7 +240,7 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
     for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
         assert(jacobians[i]);
         int size = marginal_info_->reserve_block_sizes_[i];
-        int local_size = localSize(size);
+        int local_size = tangentSpaceDimensionSize(size);
         int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
         Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_param_dim, size);
         jacobian.setZero();
