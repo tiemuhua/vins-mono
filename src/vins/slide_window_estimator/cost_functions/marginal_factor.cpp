@@ -1,4 +1,5 @@
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include "log.h"
 #include "vins_utils.h"
@@ -7,7 +8,7 @@
 using namespace vins;
 
 static int localSize(int size) {
-    return size == 7 ? 6 : size;
+    return size == 4 ? 3 : size;
 }
 
 void ResidualBlockInfo::Evaluate() {
@@ -53,9 +54,8 @@ void ResidualBlockInfo::Evaluate() {
 }
 
 MarginalInfo::~MarginalInfo() {
-
-    for (auto & it : parameter_block_data_)
-        delete[] it.second;
+    for (auto & addr : reserve_block_data_frozen_)
+        delete[] addr;
 
     for (auto & factor : factors_) {
         delete factor.cost_function_;
@@ -64,37 +64,6 @@ MarginalInfo::~MarginalInfo() {
 
 void MarginalInfo::addResidualBlockInfo(const ResidualBlockInfo &residual_block_info) {
     factors_.emplace_back(residual_block_info);
-
-    const std::vector<double *> &parameter_blocks = residual_block_info.parameter_blocks_;
-    std::vector<int> parameter_block_sizes = residual_block_info.cost_function_->parameter_block_sizes();
-
-    for (int i = 0; i < static_cast<int>(parameter_blocks.size()); i++) {
-        double *addr = parameter_blocks[i];
-        int size = parameter_block_sizes[i];
-        parameter_block_size_[addr] = size;
-    }
-
-    for (int i : residual_block_info.drop_set_) {
-        double *addr = parameter_blocks[i];
-        parameter_block_idx_[addr] = 0;
-    }
-}
-
-void MarginalInfo::preMarginalize() {
-    for (ResidualBlockInfo &it: factors_) {
-        it.Evaluate();
-
-        std::vector<int> block_sizes = it.cost_function_->parameter_block_sizes();
-        for (int i = 0; i < static_cast<int>(block_sizes.size()); i++) {
-            double *addr = it.parameter_blocks_[i];
-            int size = block_sizes[i];
-            if (parameter_block_data_.find(addr) == parameter_block_data_.end()) {
-                auto *data = new double[size];
-                memcpy(data, it.parameter_blocks_[i], sizeof(double) * size);
-                parameter_block_data_[addr] = data;
-            }
-        }
-    }
 }
 
 struct ThreadsStruct {
@@ -127,22 +96,60 @@ void ThreadsConstructA(ThreadsStruct *p) {
 }
 
 void MarginalInfo::marginalize() {
-    int total_dim = 0;
-    // addResidualBlockInfo中已经将要丢掉的状态对应的parameter_block_idx_设置成0
-    // 这时候遍历parameter_block_idx_得到的都是要丢掉的状态
-    for (auto &it: parameter_block_idx_) {
-        it.second = total_dim;
-        total_dim += localSize(parameter_block_size_[it.first]);
+    for (ResidualBlockInfo &it: factors_) {
+        it.Evaluate();
     }
-    discard_param_dim_ = total_dim;
-    for (const std::pair<double * const, int> &it: parameter_block_size_) {
-        if (parameter_block_idx_.find(it.first) == parameter_block_idx_.end()) {
-            parameter_block_idx_[it.first] = total_dim;
-            total_dim += localSize(it.second);
+
+    std::unordered_map<double*, int> param_block_size;      //原始数据维度，旋转为4维
+    std::unordered_map<double*, int> param_block_idx;       //切空间维度，旋转为3维
+    std::set<double*> param_should_discard;
+    for (const auto &factor:factors_) {
+        const std::vector<double *> &parameter_blocks = factor.parameter_blocks_;
+        for (const int discard_block_id:factor.drop_set_) {
+            int cur_discard_param_dim_raw = factor.cost_function_->parameter_block_sizes()[discard_block_id];
+            discard_param_dim_ += localSize(cur_discard_param_dim_raw);
+            param_should_discard.insert(parameter_blocks[discard_block_id]);
         }
     }
-    reserve_param_dim_ = total_dim - discard_param_dim_;
+    int discard_idx = 0, reserve_idx = discard_param_dim_;
+    for (const auto &factor:factors_) {
+        const std::vector<double *> &param_blocks = factor.parameter_blocks_;
+        const std::vector<int> &param_sizes = factor.cost_function_->parameter_block_sizes();
+        for (int i = 0; i < static_cast<int>(param_blocks.size()); i++) {
+            double *block_addr = param_blocks[i];
+            int size = param_sizes[i];
+            param_block_size[block_addr] = size;
+            if (param_should_discard.count(block_addr) == 0) {
+                param_block_idx[block_addr] = reserve_idx;
+                reserve_idx += localSize(size);
+            } else {
+                param_block_idx[block_addr] = discard_idx;
+                discard_idx += localSize(size);
+            }
+        }
+    }
+    reserve_param_dim_ = reserve_idx - discard_param_dim_;
 
+    reserve_block_sizes_.clear();
+    reserve_block_ids_.clear();
+    reserve_block_data_frozen_.clear();
+    reserve_block_addr_origin_.clear();
+    for (const auto& it: param_block_idx) {
+        double * addr = it.first;
+        if (param_should_discard.count(addr)) {
+            continue;
+        }
+        int size = param_block_size[addr];
+        int idx = it.second;
+        auto *frozen_data = new double [size];
+        memcpy(frozen_data, it.first, sizeof(double) * size);
+        reserve_block_data_frozen_.emplace_back(frozen_data);
+        reserve_block_addr_origin_.emplace_back(addr);
+        reserve_block_sizes_.emplace_back(size);
+        reserve_block_ids_.emplace_back(idx);
+    }
+
+    int total_dim = reserve_param_dim_ + discard_param_dim_;
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
     Eigen::VectorXd b = Eigen::VectorXd::Zero(total_dim);
 
@@ -155,8 +162,8 @@ void MarginalInfo::marginalize() {
     for (ThreadsStruct & thread_struct : thread_structs) {
         thread_struct.A = Eigen::MatrixXd::Zero(total_dim, total_dim);
         thread_struct.b = Eigen::VectorXd::Zero(total_dim);
-        thread_struct.parameter_block_size = parameter_block_size_;
-        thread_struct.parameter_block_idx = parameter_block_idx_;
+        thread_struct.parameter_block_size = param_block_size;
+        thread_struct.parameter_block_idx = param_block_idx;
         threads.emplace_back(&ThreadsConstructA, &thread_struct);
     }
     for (int i = NUM_THREADS - 1; i >= 0; i--) {
@@ -191,32 +198,10 @@ void MarginalInfo::marginalize() {
 
     linearized_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     linearized_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
-
-    reserve_block_sizes_.clear();
-    reserve_block_ids_.clear();
-    reserve_block_datas_frozen_.clear();
-
-    for (const auto& it: parameter_block_idx_) {
-        if (it.second < discard_param_dim_) {
-            // 丢弃的参数it.second都应该是0
-            continue;
-        }
-        reserve_block_sizes_.emplace_back(parameter_block_size_[it.first]);
-        reserve_block_ids_.emplace_back(parameter_block_idx_[it.first]);
-        reserve_block_datas_frozen_.emplace_back(parameter_block_data_[it.first]);
-    }
 }
 
-std::vector<double *> MarginalInfo::getParameterBlocks(const DoublePtr2DoublePtr &addr_shift) const {
-    std::vector<double *> reserve_block_addrs;
-    for (const auto& it: parameter_block_idx_) {
-        if (it.second < discard_param_dim_) {
-            // 丢弃的参数it.second都应该是0
-            continue;
-        }
-        reserve_block_addrs.emplace_back(addr_shift.at(it.first));
-    }
-    return reserve_block_addrs;
+std::vector<double *> MarginalInfo::getReserveParamBlocksWithCertainOrder() const {
+    return reserve_block_addr_origin_;
 }
 
 MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
@@ -235,7 +220,8 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
         int size = marginal_info_->reserve_block_sizes_[i];
         int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
-        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->reserve_block_datas_frozen_[i], size);
+        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->reserve_block_data_frozen_[i], size);
+        // todo 7维要改成4维
         if (size != 7)
             dx.segment(idx, size) = x - x0;
         else {

@@ -2,7 +2,6 @@
 
 #include <cstdlib>
 #include <ceres/ceres.h>
-#include <unordered_map>
 #include <utility>
 
 namespace vins {
@@ -36,26 +35,20 @@ namespace vins {
         Eigen::VectorXd residuals_;
     };
 
-    typedef std::unordered_map<double*, int> DoublePtr2Int;
-    typedef std::unordered_map<double*, double *> DoublePtr2DoublePtr;
-
     class MarginalInfo {
     public:
         ~MarginalInfo();
         void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
-        void preMarginalize();
         void marginalize();
-        std::vector<double *> getParameterBlocks(const DoublePtr2DoublePtr &addr_shift) const;
+        std::vector<double *> getReserveParamBlocksWithCertainOrder() const;
 
         std::vector<ResidualBlockInfo> factors_;
         int discard_param_dim_ = 0, reserve_param_dim_ = 0;
-        DoublePtr2Int parameter_block_size_; //global size
-        DoublePtr2Int parameter_block_idx_; //local size
-        DoublePtr2DoublePtr parameter_block_data_;
 
-        std::vector<int> reserve_block_sizes_; //global size
-        std::vector<int> reserve_block_ids_;  //local size
-        std::vector<double *> reserve_block_datas_frozen_;
+        std::vector<int> reserve_block_sizes_;      //原始数据维度，旋转为4维
+        std::vector<int> reserve_block_ids_;        //切空间维度，旋转为3维
+        std::vector<double *> reserve_block_data_frozen_;
+        std::vector<double *> reserve_block_addr_origin_;
 
         Eigen::MatrixXd linearized_jacobians_;
         Eigen::VectorXd linearized_residuals_;
