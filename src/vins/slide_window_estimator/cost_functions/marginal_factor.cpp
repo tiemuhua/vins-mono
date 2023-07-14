@@ -70,8 +70,8 @@ struct ThreadsStruct {
     std::vector<ResidualBlockInfo> sub_factors;
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
-    std::unordered_map<double*, int> parameter_block_size; //global size
-    std::unordered_map<double*, int> parameter_block_idx; //local size
+    std::unordered_map<double*, int> parameter_block_size;  //原始数据维度，旋转为4维
+    std::unordered_map<double*, int> parameter_block_idx;   //切空间维度，旋转为3维
 };
 
 void ThreadsConstructA(ThreadsStruct *p) {
