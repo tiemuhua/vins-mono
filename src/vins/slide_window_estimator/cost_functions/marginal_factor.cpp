@@ -191,30 +191,37 @@ void MarginalInfo::marginalize() {
 
     linearized_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     linearized_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
-}
 
-std::vector<double *> MarginalInfo::getParameterBlocks(const DoublePtr2DoublePtr &addr_shift) {
-    std::vector<double *> keep_block_addr;
-    keep_block_size_.clear();
-    keep_block_idx_.clear();
-    keep_block_data_.clear();
+    reserve_block_sizes_.clear();
+    reserve_block_ids_.clear();
+    reserve_block_datas_frozen_.clear();
 
     for (const auto& it: parameter_block_idx_) {
         if (it.second < discard_param_dim_) {
+            // 丢弃的参数it.second都应该是0
             continue;
         }
-        keep_block_size_.emplace_back(parameter_block_size_[it.first]);
-        keep_block_idx_.emplace_back(parameter_block_idx_[it.first]);
-        keep_block_data_.emplace_back(parameter_block_data_[it.first]);
-        keep_block_addr.emplace_back(addr_shift.at(it.first));
+        reserve_block_sizes_.emplace_back(parameter_block_size_[it.first]);
+        reserve_block_ids_.emplace_back(parameter_block_idx_[it.first]);
+        reserve_block_datas_frozen_.emplace_back(parameter_block_data_[it.first]);
     }
+}
 
-    return keep_block_addr;
+std::vector<double *> MarginalInfo::getParameterBlocks(const DoublePtr2DoublePtr &addr_shift) const {
+    std::vector<double *> reserve_block_addrs;
+    for (const auto& it: parameter_block_idx_) {
+        if (it.second < discard_param_dim_) {
+            // 丢弃的参数it.second都应该是0
+            continue;
+        }
+        reserve_block_addrs.emplace_back(addr_shift.at(it.first));
+    }
+    return reserve_block_addrs;
 }
 
 MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
  : marginal_info_(std::move(_marginal_info)) {
-    for (auto it: marginal_info_->keep_block_size_) {
+    for (auto it: marginal_info_->reserve_block_sizes_) {
         mutable_parameter_block_sizes()->push_back(it);
     }
     set_num_residuals(marginal_info_->reserve_param_dim_);
@@ -224,11 +231,11 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
     int reserve_param_dim = marginal_info_->reserve_param_dim_;
     int discard_param_dim = marginal_info_->discard_param_dim_;
     Eigen::VectorXd dx(reserve_param_dim);
-    for (int i = 0; i < static_cast<int>(marginal_info_->keep_block_size_.size()); i++) {
-        int size = marginal_info_->keep_block_size_[i];
-        int idx = marginal_info_->keep_block_idx_[i] - discard_param_dim;
+    for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
+        int size = marginal_info_->reserve_block_sizes_[i];
+        int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
-        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->keep_block_data_[i], size);
+        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->reserve_block_datas_frozen_[i], size);
         if (size != 7)
             dx.segment(idx, size) = x - x0;
         else {
@@ -244,11 +251,11 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
     Eigen::Map<Eigen::VectorXd>(residuals, reserve_param_dim) =
             marginal_info_->linearized_residuals_ + marginal_info_->linearized_jacobians_ * dx;
     assert(jacobians);
-    for (int i = 0; i < static_cast<int>(marginal_info_->keep_block_size_.size()); i++) {
+    for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
         assert(jacobians[i]);
-        int size = marginal_info_->keep_block_size_[i];
+        int size = marginal_info_->reserve_block_sizes_[i];
         int local_size = localSize(size);
-        int idx = marginal_info_->keep_block_idx_[i] - discard_param_dim;
+        int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
         Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_param_dim, size);
         jacobian.setZero();
         jacobian.leftCols(local_size) =

@@ -45,7 +45,7 @@ namespace vins {
         void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
         void preMarginalize();
         void marginalize();
-        std::vector<double *> getParameterBlocks(const DoublePtr2DoublePtr &addr_shift);
+        std::vector<double *> getParameterBlocks(const DoublePtr2DoublePtr &addr_shift) const;
 
         std::vector<ResidualBlockInfo> factors_;
         int discard_param_dim_ = 0, reserve_param_dim_ = 0;
@@ -53,9 +53,9 @@ namespace vins {
         DoublePtr2Int parameter_block_idx_; //local size
         DoublePtr2DoublePtr parameter_block_data_;
 
-        std::vector<int> keep_block_size_; //global size
-        std::vector<int> keep_block_idx_;  //local size
-        std::vector<double *> keep_block_data_;
+        std::vector<int> reserve_block_sizes_; //global size
+        std::vector<int> reserve_block_ids_;  //local size
+        std::vector<double *> reserve_block_datas_frozen_;
 
         Eigen::MatrixXd linearized_jacobians_;
         Eigen::VectorXd linearized_residuals_;
