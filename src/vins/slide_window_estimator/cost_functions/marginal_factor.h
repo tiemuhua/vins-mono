@@ -48,7 +48,7 @@ namespace vins {
         std::vector<double *> getParameterBlocks(const DoublePtr2DoublePtr &addr_shift);
 
         std::vector<ResidualBlockInfo> factors_;
-        int old_param_dim_ = 0, new_param_dim_ = 0;
+        int discard_param_dim_ = 0, reserve_param_dim_ = 0;
         DoublePtr2Int parameter_block_size_; //global size
         DoublePtr2Int parameter_block_idx_; //local size
         DoublePtr2DoublePtr parameter_block_data_;

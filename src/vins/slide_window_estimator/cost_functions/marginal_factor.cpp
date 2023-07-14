@@ -128,12 +128,14 @@ void ThreadsConstructA(ThreadsStruct *p) {
 
 void MarginalInfo::marginalize() {
     int total_dim = 0;
+    // addResidualBlockInfo中已经将要丢掉的状态对应的parameter_block_idx_设置成0
+    // 这时候遍历parameter_block_idx_得到的都是要丢掉的状态
     for (auto &it: parameter_block_idx_) {
         it.second = total_dim;
         total_dim += localSize(parameter_block_size_[it.first]);
     }
 
-    old_param_dim_ = total_dim;
+    discard_param_dim_ = total_dim;
 
     for (const std::pair<double * const, int> &it: parameter_block_size_) {
         if (parameter_block_idx_.find(it.first) == parameter_block_idx_.end()) {
@@ -142,7 +144,7 @@ void MarginalInfo::marginalize() {
         }
     }
 
-    new_param_dim_ = total_dim - old_param_dim_;
+    reserve_param_dim_ = total_dim - discard_param_dim_;
 
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
     Eigen::VectorXd b = Eigen::VectorXd::Zero(total_dim);
@@ -166,12 +168,12 @@ void MarginalInfo::marginalize() {
         b += thread_structs[i].b;
     }
 
-    const Eigen::VectorXd bmm = b.segment(0, old_param_dim_);
-    const Eigen::VectorXd brr = b.segment(old_param_dim_, new_param_dim_);
-    const Eigen::MatrixXd Amm = A.block(0, 0, old_param_dim_, old_param_dim_);
-    const Eigen::MatrixXd Amr = A.block(0, old_param_dim_, old_param_dim_, new_param_dim_);
-    const Eigen::MatrixXd Arm = A.block(old_param_dim_, 0, new_param_dim_, old_param_dim_);
-    const Eigen::MatrixXd Arr = A.block(old_param_dim_, old_param_dim_, new_param_dim_, new_param_dim_);
+    const Eigen::VectorXd bmm = b.segment(0, discard_param_dim_);
+    const Eigen::VectorXd brr = b.segment(discard_param_dim_, reserve_param_dim_);
+    const Eigen::MatrixXd Amm = A.block(0, 0, discard_param_dim_, discard_param_dim_);
+    const Eigen::MatrixXd Amr = A.block(0, discard_param_dim_, discard_param_dim_, reserve_param_dim_);
+    const Eigen::MatrixXd Arm = A.block(discard_param_dim_, 0, reserve_param_dim_, discard_param_dim_);
+    const Eigen::MatrixXd Arr = A.block(discard_param_dim_, discard_param_dim_, reserve_param_dim_, reserve_param_dim_);
 
     const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
     const auto eigen_values = saes.eigenvalues().array();
@@ -201,7 +203,7 @@ std::vector<double *> MarginalInfo::getParameterBlocks(const DoublePtr2DoublePtr
     keep_block_data_.clear();
 
     for (const auto& it: parameter_block_idx_) {
-        if (it.second < old_param_dim_) {
+        if (it.second < discard_param_dim_) {
             continue;
         }
         keep_block_size_.emplace_back(parameter_block_size_[it.first]);
@@ -218,16 +220,16 @@ MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
     for (auto it: marginal_info_->keep_block_size_) {
         mutable_parameter_block_sizes()->push_back(it);
     }
-    set_num_residuals(marginal_info_->new_param_dim_);
+    set_num_residuals(marginal_info_->reserve_param_dim_);
 }
 
 bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
-    int n = marginal_info_->new_param_dim_;
-    int m = marginal_info_->old_param_dim_;
-    Eigen::VectorXd dx(n);
+    int reserve_param_dim = marginal_info_->reserve_param_dim_;
+    int discard_param_dim = marginal_info_->discard_param_dim_;
+    Eigen::VectorXd dx(reserve_param_dim);
     for (int i = 0; i < static_cast<int>(marginal_info_->keep_block_size_.size()); i++) {
         int size = marginal_info_->keep_block_size_[i];
-        int idx = marginal_info_->keep_block_idx_[i] - m;
+        int idx = marginal_info_->keep_block_idx_[i] - discard_param_dim;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->keep_block_data_[i], size);
         if (size != 7)
@@ -242,15 +244,15 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
             }
         }
     }
-    Eigen::Map<Eigen::VectorXd>(residuals, n) =
+    Eigen::Map<Eigen::VectorXd>(residuals, reserve_param_dim) =
             marginal_info_->linearized_residuals_ + marginal_info_->linearized_jacobians_ * dx;
     assert(jacobians);
     for (int i = 0; i < static_cast<int>(marginal_info_->keep_block_size_.size()); i++) {
         assert(jacobians[i]);
         int size = marginal_info_->keep_block_size_[i];
         int local_size = localSize(size);
-        int idx = marginal_info_->keep_block_idx_[i] - m;
-        Eigen::Map<JacobianType> jacobian(jacobians[i], n, size);
+        int idx = marginal_info_->keep_block_idx_[i] - discard_param_dim;
+        Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_param_dim, size);
         jacobian.setZero();
         jacobian.leftCols(local_size) =
                 marginal_info_->linearized_jacobians_.middleCols(idx, local_size);
