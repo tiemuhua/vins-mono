@@ -80,26 +80,28 @@ void ThreadsConstructA(ThreadsStruct *p) {
             int idx_i = p->parameter_block_idx[it.parameter_blocks_[i]];
             int size_i = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[i]]);
             Eigen::MatrixXd jacobian_i = it.jacobians_[i].leftCols(size_i);
-            for (int j = i; j < static_cast<int>(it.parameter_blocks_.size()); j++) {
+            for (int j = i + 1; j < static_cast<int>(it.parameter_blocks_.size()); j++) {
                 int idx_j = p->parameter_block_idx[it.parameter_blocks_[j]];
                 int size_j = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[j]]);
                 Eigen::MatrixXd jacobian_j = it.jacobians_[j].leftCols(size_j);
                 p->A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
-                if(i != j) {
-                    p->A.block(idx_j, idx_i, size_j, size_i) =
-                            p->A.block(idx_i, idx_j, size_i, size_j).transpose();
-                }
+                p->A.block(idx_j, idx_i, size_j, size_i) = p->A.block(idx_i, idx_j, size_i, size_j).transpose();
             }
+            p->A.block(idx_i, idx_i, size_i, idx_i) += jacobian_i.transpose() * jacobian_i;
             p->b.segment(idx_i, size_i) += jacobian_i.transpose() * it.residuals_;
         }
     }
 }
 
 void MarginalInfo::marginalize() {
-    for (ResidualBlockInfo &it: factors_) {
-        it.Evaluate();
-    }
-
+    /**
+     * STEP 1:
+     * 将所有参数整体视作一个待优化向量，求出每个参数块在该向量中的位置和长度，
+     * 即@param param_block_idx 和 @param param_block_size
+     * 注意将要被丢弃的参数块在该向量的前面，要保留的参数块在后面。
+     * @param discard_param_dim_ 所有要丢弃的参数块的长度的和
+     * @param reserve_param_dim_ 所有要保留的参数块的长度的和
+     * */
     std::unordered_map<double*, int> param_block_size;      //原始数据维度，旋转为4维
     std::unordered_map<double*, int> param_block_idx;       //切空间维度，旋转为3维
     std::set<double*> param_should_discard;
@@ -130,6 +132,11 @@ void MarginalInfo::marginalize() {
     }
     reserve_param_dim_ = reserve_idx - discard_param_dim_;
 
+    /**
+     * STEP 2:
+     * 在后面的优化
+     * @param frozen_data 即为当前参数的值，在后面的优化过程中冻结不变
+     * */
     reserve_block_sizes_.clear();
     reserve_block_ids_.clear();
     reserve_block_data_frozen_.clear();
@@ -149,6 +156,18 @@ void MarginalInfo::marginalize() {
         reserve_block_ids_.emplace_back(idx);
     }
 
+    /**
+     * STEP 1:
+     *
+     * */
+    for (ResidualBlockInfo &it: factors_) {
+        it.Evaluate();
+    }
+
+    /**
+     * STEP 1:
+     *
+     * */
     int total_dim = reserve_param_dim_ + discard_param_dim_;
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
     Eigen::VectorXd b = Eigen::VectorXd::Zero(total_dim);
@@ -172,6 +191,10 @@ void MarginalInfo::marginalize() {
         b += thread_structs[i].b;
     }
 
+    /**
+     * STEP 1:
+     *
+     * */
     const Eigen::VectorXd bmm = b.segment(0, discard_param_dim_);
     const Eigen::VectorXd brr = b.segment(discard_param_dim_, reserve_param_dim_);
     const Eigen::MatrixXd Amm = A.block(0, 0, discard_param_dim_, discard_param_dim_);
