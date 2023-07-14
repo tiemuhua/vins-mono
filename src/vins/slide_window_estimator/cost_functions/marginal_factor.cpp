@@ -238,6 +238,7 @@ MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
 bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     int reserve_param_dim = marginal_info_->reserve_param_dim_;
     int discard_param_dim = marginal_info_->discard_param_dim_;
+
     Eigen::VectorXd dx(reserve_param_dim);
     for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
         int size = marginal_info_->reserve_block_sizes_[i];
@@ -258,6 +259,7 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
     }
     Eigen::Map<Eigen::VectorXd>(residuals, reserve_param_dim) =
             marginal_info_->linearized_residuals_ + marginal_info_->linearized_jacobians_ * dx;
+
     assert(jacobians);
     for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
         assert(jacobians[i]);
