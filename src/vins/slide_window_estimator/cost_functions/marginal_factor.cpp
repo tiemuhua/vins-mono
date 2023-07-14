@@ -28,19 +28,19 @@ void ResidualBlockInfo::Evaluate() {
         return;
     }
     double rho[3];
-    double sq_norm = residuals_.squaredNorm();
-    loss_function_->Evaluate(sq_norm, rho);
+    double residuals_norm2 = residuals_.squaredNorm();
+    loss_function_->Evaluate(residuals_norm2, rho);
     double sqrt_rho1 = sqrt(rho[1]);
 
     double residual_scaling, alpha_sq_norm;
-    if (abs(sq_norm) < MarginalInfo::EPS || (rho[2] <= 0.0)) {
+    if (abs(residuals_norm2) < MarginalInfo::EPS || (rho[2] <= 0.0)) {
         residual_scaling = sqrt_rho1;
         alpha_sq_norm = 0.0;
     } else {
-        const double D = 1.0 + 2.0 * sq_norm * rho[2] / rho[1];
+        const double D = 1.0 + 2.0 * residuals_norm2 * rho[2] / rho[1];
         const double alpha = 1.0 - sqrt(D);
         residual_scaling = sqrt_rho1 / (1 - alpha);
-        alpha_sq_norm = alpha / sq_norm;
+        alpha_sq_norm = alpha / residuals_norm2;
     }
 
     const Eigen::MatrixXd identity = Eigen::MatrixXd::Identity(residuals_.size(), residuals_.size());
@@ -134,16 +134,13 @@ void MarginalInfo::marginalize() {
         it.second = total_dim;
         total_dim += localSize(parameter_block_size_[it.first]);
     }
-
     discard_param_dim_ = total_dim;
-
     for (const std::pair<double * const, int> &it: parameter_block_size_) {
         if (parameter_block_idx_.find(it.first) == parameter_block_idx_.end()) {
             parameter_block_idx_[it.first] = total_dim;
             total_dim += localSize(it.second);
         }
     }
-
     reserve_param_dim_ = total_dim - discard_param_dim_;
 
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
