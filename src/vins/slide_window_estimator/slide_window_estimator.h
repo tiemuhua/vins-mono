@@ -11,11 +11,12 @@
 
 namespace vins::SlideWindowEstimator{
     void optimize(const SlideWindowEstimatorParam &param,
-                  std::vector<FeaturesOfId> &features_,
+                  std::vector<FeaturesOfId> &features,
                   BundleAdjustWindow &window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
-    void marginalize(std::vector<FeaturesOfId> &features_,
+    void marginalize(const SlideWindowEstimatorParam &param,
+                     std::vector<FeaturesOfId> &features,
                      BundleAdjustWindow &window);
 }
 

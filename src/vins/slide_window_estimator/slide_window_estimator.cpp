@@ -40,6 +40,7 @@ static std::vector<double*> s_marginal_param_blocks;
 static vins::MarginalInfo *sp_marginal_info;
 
 using namespace vins;
+using namespace std;
 
 static void eigen2c(const BundleAdjustWindow& window,
                     const std::vector<FeaturesOfId> &features_,
@@ -80,11 +81,11 @@ static void c2eigen(BundleAdjustWindow &window,
 }
 
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
-                                    std::vector<FeaturesOfId> &features_,
+                                    std::vector<FeaturesOfId> &features,
                                     BundleAdjustWindow &window,
                                     Eigen::Vector3d &tic,
                                     Eigen::Matrix3d &ric) {
-    eigen2c(window, features_, tic, ric);
+    eigen2c(window, features, tic, ric);
 
     ceres::Problem problem;
     ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
@@ -111,7 +112,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     /*************** 1:边缘化 **************************/
     if (sp_marginal_info) {
         // todo tiemuhuaguo last_marginal_param_blocks和sp_marginal_info是怎么维护的
-        auto *cost_function = new MarginalFactor(sp_marginal_info);
+        auto *cost_function = new MarginalCost(sp_marginal_info);
         problem.AddResidualBlock(cost_function, nullptr, s_marginal_param_blocks);
     }
 
@@ -120,15 +121,15 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
         int j = i + 1;
         if (window.pre_int_window.at(i).deltaTime() > 10.0)// todo why???
             continue;
-        auto *cost_function = new IMUFactor(window.pre_int_window.at(i));
+        auto *cost_function = new IMUCost(window.pre_int_window.at(i));
         problem.AddResidualBlock(cost_function, nullptr,
                                  c_pos[i], c_quat[i], c_vel[i], c_ba[i], c_bg[i],
                                  c_pos[j], c_quat[j], c_vel[j], c_ba[j], c_bg[j]);
     }
 
     /*************** 3:特征点 **************************/
-    for (int feature_id = 0; feature_id < features_.size(); ++feature_id) {
-        const FeaturesOfId &features_of_id = features_[feature_id];
+    for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
+        const FeaturesOfId &features_of_id = features[feature_id];
         if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= WINDOW_SIZE - 2)
             continue;
         int start_frame_id = features_of_id.start_frame_;
@@ -137,13 +138,13 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
             const FeaturePoint2D &point = features_of_id.feature_points_[frame_bias];
             int cur_frame_id = start_frame_id + frame_bias;
             if (param.estimate_time_delay) {
-                auto *cost_function = new ProjectionTdFactor(point0, point);
+                auto *cost_function = new ProjectTdCost(point0, point);
                 problem.AddResidualBlock(cost_function, loss_function,
                                          c_pos[start_frame_id], c_quat[start_frame_id],
                                          c_pos[cur_frame_id], c_quat[cur_frame_id],
                                          c_tic, c_ric, c_inv_depth[feature_id], c_time_delay);
             } else {
-                auto *cost_function = new ProjectionFactor(point0.point, point.point);
+                auto *cost_function = new ProjectCost(point0.point, point.point);
                 problem.AddResidualBlock(cost_function, loss_function,
                                          c_pos[start_frame_id], c_quat[start_frame_id],
                                          c_pos[cur_frame_id], c_quat[cur_frame_id],
@@ -159,9 +160,72 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 
-    eigen2c(window, features_, RunInfo::Instance().tic, RunInfo::Instance().ric);
+    eigen2c(window, features, RunInfo::Instance().tic, RunInfo::Instance().ric);
 }
 
-void SlideWindowEstimator::marginalize(std::vector<FeaturesOfId> &features_, BundleAdjustWindow &window) {
+void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
+                                       std::vector<FeaturesOfId> &features,
+                                       BundleAdjustWindow &window) {
+    auto *marginal_info = new MarginalInfo();
 
+    // 之前的边缘化约束
+    if (sp_marginal_info) {
+        std::vector<int> marginal_drop_set;
+        for (int i = 0; i < static_cast<int>(s_marginal_param_blocks.size()); i++) {
+            if (s_marginal_param_blocks[i] == c_pos[0] || s_marginal_param_blocks[i] == c_vel[0])
+                marginal_drop_set.push_back(i);
+        }
+        auto *marginal_cost = new MarginalCost(sp_marginal_info);
+        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, s_marginal_param_blocks, marginal_drop_set);
+        marginal_info->addMetaFactor(marginal_factor);
+    }
+
+    // 最老帧的imu约束
+    auto *imu_cost = new IMUCost(window.pre_int_window.at(0));
+    vector<double *> imu_param_blocks = {
+            c_pos[0], c_vel[0], c_ba[0], c_bg[0],
+            c_pos[1], c_vel[1], c_ba[1], c_bg[1],
+    };
+    const vector<int> imu_drop_set = {0, 1};// todo 这里为什么不丢弃ba和bg
+    MarginalMetaFactor imu_factor(imu_cost, nullptr, imu_param_blocks, imu_drop_set);
+    marginal_info->addMetaFactor(imu_factor);
+
+    // 最老帧的视觉约束
+    const vector<int> visual_drop_set = {0, 1, 6};
+    for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
+        const FeaturesOfId& feature = features[feature_id];
+        if (feature.start_frame_ != window.frame_id_window.at(0)) {
+            continue;
+        }
+        const FeaturePoint2D & point0 = feature.feature_points_[0];
+        for (int i = 1; i < feature.feature_points_.size(); ++i) {
+            const FeaturePoint2D & point = feature.feature_points_[i];
+            ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
+            if (param.estimate_time_delay) {
+                auto *project_td_cost = new ProjectTdCost(point0, point);
+                std::vector<double *> parameter_blocks = {
+                        c_pos[0], c_quat[0],
+                        c_pos[i], c_quat[i],
+                        c_tic, c_ric,
+                        c_inv_depth[feature_id],
+                        c_time_delay
+                };
+                MarginalMetaFactor project_td_factor(project_td_cost, loss_function, parameter_blocks, visual_drop_set);
+                marginal_info->addMetaFactor(project_td_factor);
+            } else {
+                auto *project_cost = new ProjectCost(point0.point, point.point);
+                std::vector<double *> parameter_blocks = {
+                        c_pos[0], c_quat[0],
+                        c_pos[i], c_quat[i],
+                        c_tic, c_ric,
+                        c_inv_depth[feature_id],
+                };
+                MarginalMetaFactor project_factor(project_cost, loss_function, parameter_blocks, visual_drop_set);
+                marginal_info->addMetaFactor(project_factor);
+            }
+        }
+    }
+
+    delete sp_marginal_info;
+    sp_marginal_info = marginal_info;
 }

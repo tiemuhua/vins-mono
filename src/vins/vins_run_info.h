@@ -111,7 +111,7 @@ namespace vins {
         Window<Eigen::Vector3d> pos_window;
         Window<Eigen::Vector3d> vel_window;
         Window<Eigen::Matrix3d> rot_window;
-        int start_frame_id = -1;
+        Window<int> frame_id_window;
     };
 
 }
