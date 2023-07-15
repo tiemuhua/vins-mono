@@ -50,8 +50,8 @@ namespace vins {
         std::vector<double *> reserve_block_data_frozen_;
         std::vector<double *> reserve_block_addr_origin_;
 
-        Eigen::MatrixXd linearized_jacobians_;
-        Eigen::VectorXd linearized_residuals_;
+        Eigen::MatrixXd reserve_param_jacobians_;
+        Eigen::VectorXd reserve_param_residuals_;
         static constexpr double EPS = 1e-8;
     };
 

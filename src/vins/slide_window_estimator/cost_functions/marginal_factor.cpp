@@ -66,6 +66,7 @@ void MarginalInfo::addResidualBlockInfo(const ResidualBlockInfo &residual_block_
     factors_.emplace_back(residual_block_info);
 }
 
+namespace {
 struct ThreadsStruct {
     std::vector<ResidualBlockInfo> sub_factors;
     Eigen::MatrixXd A;
@@ -91,6 +92,7 @@ void ThreadsConstructA(ThreadsStruct *p) {
             p->b.segment(idx_i, size_i) += jacobian_i.transpose() * it.residuals_;
         }
     }
+}
 }
 
 void MarginalInfo::marginalize() {
@@ -134,8 +136,10 @@ void MarginalInfo::marginalize() {
 
     /**
      * STEP 2:
-     * 在后面的优化
-     * @param frozen_data 即为当前参数的值，在后面的优化过程中冻结不变
+     * @param reserve_block_addr_origin_ 要保留的参数，外部负责new/delete，在后面的优化过程中不断更新
+     * @param reserve_block_data_frozen_ 要保留的参数在边缘化时刻的值，MarginalInfo负责new/delete，在后面的优化过程中冻结不变
+     * 在MarginalFactor::Evaluate中通过更新后参数与冻结参数的差来近似计算残差
+     * 因此需要保证reserve_block_xxxx中的参数地址一一对应
      * */
     reserve_block_sizes_.clear();
     reserve_block_ids_.clear();
@@ -157,16 +161,16 @@ void MarginalInfo::marginalize() {
     }
 
     /**
-     * STEP 1:
-     *
+     * STEP 3:
+     * 求解边缘化时刻各个子factor的雅可比与残差
      * */
     for (ResidualBlockInfo &it: factors_) {
         it.Evaluate();
     }
 
     /**
-     * STEP 1:
-     *
+     * STEP 4:
+     * 多线程计算边缘化之前的最小二乘方程Ax=b
      * */
     int total_dim = reserve_param_dim_ + discard_param_dim_;
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
@@ -192,8 +196,10 @@ void MarginalInfo::marginalize() {
     }
 
     /**
-     * STEP 1:
-     *
+     * STEP 5:
+     * 边缘化，计算残差和雅可比
+     * @param reserve_param_residuals_ 边缘化时刻要保留的参数对应的b-Ax
+     * @param reserve_param_jacobians_ 边缘化时刻要保留的参数相对于residual的雅可比
      * */
     const Eigen::VectorXd bmm = b.segment(0, discard_param_dim_);
     const Eigen::VectorXd brr = b.segment(discard_param_dim_, reserve_param_dim_);
@@ -219,8 +225,8 @@ void MarginalInfo::marginalize() {
     const Eigen::VectorXd S_sqrt = S.cwiseSqrt();
     const Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
 
-    linearized_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
-    linearized_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
+    reserve_param_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
+    reserve_param_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
 }
 
 std::vector<double *> MarginalInfo::getReserveParamBlocksWithCertainOrder() const {
@@ -229,8 +235,8 @@ std::vector<double *> MarginalInfo::getReserveParamBlocksWithCertainOrder() cons
 
 MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
  : marginal_info_(std::move(_marginal_info)) {
-    for (auto it: marginal_info_->reserve_block_sizes_) {
-        mutable_parameter_block_sizes()->push_back(it);
+    for (auto reserve_block_size: marginal_info_->reserve_block_sizes_) {
+        mutable_parameter_block_sizes()->push_back(reserve_block_size);
     }
     set_num_residuals(marginal_info_->reserve_param_dim_);
 }
@@ -258,7 +264,7 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
         }
     }
     Eigen::Map<Eigen::VectorXd>(residuals, reserve_param_dim) =
-            marginal_info_->linearized_residuals_ + marginal_info_->linearized_jacobians_ * dx;
+            marginal_info_->reserve_param_residuals_ + marginal_info_->reserve_param_jacobians_ * dx;
 
     assert(jacobians);
     for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
@@ -269,7 +275,7 @@ bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals
         Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_param_dim, size);
         jacobian.setZero();
         jacobian.leftCols(local_size) =
-                marginal_info_->linearized_jacobians_.middleCols(idx, local_size);
+                marginal_info_->reserve_param_jacobians_.middleCols(idx, local_size);
     }
     return true;
 }
