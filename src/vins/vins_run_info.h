@@ -15,7 +15,6 @@
 namespace vins {
     class RunInfo {
     public:
-        BriefExtractor extractor;
         Eigen::Vector3d tic;
         Eigen::Matrix3d ric;
         camodocal::CameraPtr camera_ptr;
@@ -35,12 +34,12 @@ namespace vins {
 
     class FeaturesOfId {
     public:
-        int feature_id_;
-        int start_frame_;
+        int feature_id_         = -1;
+        int start_frame_        = -1;
+        bool is_outlier_        = false;
+        double inv_depth        = -1;
         std::vector<FeaturePoint2D> feature_points_;
 
-        bool is_outlier_{};
-        double inv_depth;
         enum {
             FeatureHaveNotSolved,
             FeatureSolvedSucc,
@@ -112,6 +111,7 @@ namespace vins {
         Window<Eigen::Vector3d> pos_window;
         Window<Eigen::Vector3d> vel_window;
         Window<Eigen::Matrix3d> rot_window;
+        int start_frame_id = -1;
     };
 
 }

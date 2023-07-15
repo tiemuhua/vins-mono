@@ -37,7 +37,7 @@ static arr3d c_loop_peer_pos;
 static arr4d c_loop_peer_quat;
 
 static std::vector<double*> s_marginal_param_blocks;
-static std::shared_ptr<vins::MarginalInfo> sp_marginal_info;
+static vins::MarginalInfo *sp_marginal_info;
 
 using namespace vins;
 
@@ -162,3 +162,6 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     eigen2c(window, features_, RunInfo::Instance().tic, RunInfo::Instance().ric);
 }
 
+void SlideWindowEstimator::marginalize(std::vector<FeaturesOfId> &features_, BundleAdjustWindow &window) {
+
+}

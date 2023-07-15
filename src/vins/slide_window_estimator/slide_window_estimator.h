@@ -15,6 +15,8 @@ namespace vins::SlideWindowEstimator{
                   BundleAdjustWindow &window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
+    void marginalize(std::vector<FeaturesOfId> &features_,
+                     BundleAdjustWindow &window);
 }
 
 #endif //VINS_BATCH_ADJUSTER_H

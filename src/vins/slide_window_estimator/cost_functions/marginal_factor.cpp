@@ -233,8 +233,9 @@ std::vector<double *> MarginalInfo::getReserveParamBlocksWithCertainOrder() cons
     return reserve_block_addr_origin_;
 }
 
-MarginalFactor::MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info)
- : marginal_info_(std::move(_marginal_info)) {
+// marginal_info_生命周期由SlideWindowEstimator负责维护
+MarginalFactor::MarginalFactor(MarginalInfo* _marginal_info)
+ : marginal_info_(_marginal_info) {
     for (auto reserve_block_size: marginal_info_->reserve_block_sizes_) {
         mutable_parameter_block_sizes()->push_back(reserve_block_size);
     }

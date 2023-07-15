@@ -57,9 +57,10 @@ namespace vins {
 
     class MarginalFactor : public ceres::CostFunction {
     public:
-        explicit MarginalFactor(std::shared_ptr<MarginalInfo>  _marginal_info);
+        explicit MarginalFactor(MarginalInfo* _marginal_info);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
-        std::shared_ptr<MarginalInfo> marginal_info_;
+        // marginal_info_生命周期由SlideWindowEstimator负责维护
+        MarginalInfo* marginal_info_;
     };
 }
