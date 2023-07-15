@@ -1,4 +1,4 @@
-#include "imu_factor.h"
+#include "imu_cost.h"
 #include "vins/vins_utils.h"
 
 namespace vins{

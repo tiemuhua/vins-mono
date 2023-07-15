@@ -3,7 +3,7 @@
 #include <utility>
 #include "log.h"
 #include "vins_utils.h"
-#include "marginal_factor.h"
+#include "marginal_cost.h"
 
 using namespace vins;
 
