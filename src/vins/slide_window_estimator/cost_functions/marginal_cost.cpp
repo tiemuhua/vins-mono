@@ -11,7 +11,7 @@ inline int tangentSpaceDimensionSize(int size) {
     return size == 4 ? 3 : size;
 }
 
-void ResidualBlockInfo::Evaluate() {
+void MarginalMetaFactor::Evaluate() {
     residuals_.resize(cost_function_->num_residuals());
 
     std::vector<int> block_sizes = cost_function_->parameter_block_sizes();
@@ -62,13 +62,13 @@ MarginalInfo::~MarginalInfo() {
     }
 }
 
-void MarginalInfo::addResidualBlockInfo(const ResidualBlockInfo &residual_block_info) {
+void MarginalInfo::addMetaFactor(const MarginalMetaFactor &residual_block_info) {
     factors_.emplace_back(residual_block_info);
 }
 
 namespace {
 struct ThreadsStruct {
-    std::vector<ResidualBlockInfo> sub_factors;
+    std::vector<MarginalMetaFactor> sub_factors;
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
     std::unordered_map<double*, int> parameter_block_size;  //原始数据维度，旋转为4维
@@ -76,7 +76,7 @@ struct ThreadsStruct {
 };
 
 void ThreadsConstructA(ThreadsStruct *p) {
-    for (const ResidualBlockInfo& it: p->sub_factors) {
+    for (const MarginalMetaFactor& it: p->sub_factors) {
         for (int i = 0; i < static_cast<int>(it.parameter_blocks_.size()); i++) {
             int idx_i = p->parameter_block_idx[it.parameter_blocks_[i]];
             int size_i = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[i]]);
@@ -164,7 +164,7 @@ void MarginalInfo::marginalize() {
      * STEP 3:
      * 求解边缘化时刻各个子factor的雅可比与残差
      * */
-    for (ResidualBlockInfo &it: factors_) {
+    for (MarginalMetaFactor &it: factors_) {
         it.Evaluate();
     }
 
@@ -234,7 +234,7 @@ std::vector<double *> MarginalInfo::getReserveParamBlocksWithCertainOrder() cons
 }
 
 // marginal_info_生命周期由SlideWindowEstimator负责维护
-MarginalFactor::MarginalFactor(MarginalInfo* _marginal_info)
+MarginalCost::MarginalCost(MarginalInfo* _marginal_info)
  : marginal_info_(_marginal_info) {
     for (auto reserve_block_size: marginal_info_->reserve_block_sizes_) {
         mutable_parameter_block_sizes()->push_back(reserve_block_size);
@@ -242,7 +242,7 @@ MarginalFactor::MarginalFactor(MarginalInfo* _marginal_info)
     set_num_residuals(marginal_info_->reserve_param_dim_);
 }
 
-bool MarginalFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+bool MarginalCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     int reserve_param_dim = marginal_info_->reserve_param_dim_;
     int discard_param_dim = marginal_info_->discard_param_dim_;
 

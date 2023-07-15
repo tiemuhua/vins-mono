@@ -9,10 +9,10 @@
 #include "log.h"
 #include "vins/vins_utils.h"
 
-#include "cost_functions/imu_factor.h"
-#include "cost_functions/marginal_factor.h"
-#include "cost_functions/projection_factor.h"
-#include "cost_functions/projection_td_factor.h"
+#include "cost_functions/imu_cost.h"
+#include "cost_functions/marginal_cost.h"
+#include "cost_functions/project_cost.h"
+#include "cost_functions/project_td_cost.h"
 
 constexpr int WINDOW_SIZE = 10;
 constexpr int FeaturePointSize = 100;

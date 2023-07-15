@@ -4,10 +4,10 @@
 
 using namespace vins;
 
-Eigen::Matrix2d ProjectionFactor::sqrt_info;
-double ProjectionFactor::sum_t;
+Eigen::Matrix2d ProjectCost::sqrt_info;
+double ProjectCost::sum_t;
 
-ProjectionFactor::ProjectionFactor(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j) {
+ProjectCost::ProjectCost(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j) {
     pts_i = Eigen::Vector3d(_pts_i.x, _pts_i.y, 1.0);
     pts_j = Eigen::Vector3d(_pts_j.x, _pts_j.y, 1.0);
 #ifdef UNIT_SPHERE_ERROR
@@ -23,7 +23,7 @@ ProjectionFactor::ProjectionFactor(const cv::Point2f &_pts_i, const cv::Point2f 
 #endif
 };
 
-bool ProjectionFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
@@ -103,7 +103,7 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
     return true;
 }
 
-void ProjectionFactor::check(double **parameters) {
+void ProjectCost::check(double **parameters) {
     double *res = new double[15];
     double **jaco = new double *[4];
     jaco[0] = new double[2 * 7];

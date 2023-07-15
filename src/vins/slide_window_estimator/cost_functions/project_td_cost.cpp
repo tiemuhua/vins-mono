@@ -5,10 +5,10 @@
 
 using namespace vins;
 
-Eigen::Matrix2d ProjectionTdFactor::sqrt_info;
-double ProjectionTdFactor::sum_t;
+Eigen::Matrix2d ProjectTdCost::sqrt_info;
+double ProjectTdCost::sum_t;
 
-ProjectionTdFactor::ProjectionTdFactor(const FeaturePoint2D& p1, const FeaturePoint2D& p2)
+ProjectTdCost::ProjectTdCost(const FeaturePoint2D& p1, const FeaturePoint2D& p2)
                                        : td_i(p1.time_stamp), td_j(p2.time_stamp) {
     pts_i = Eigen::Vector3d(p1.point.x, p1.point.y, 1.0);
     pts_j = Eigen::Vector3d(p2.point.x, p2.point.y, 1.0);
@@ -30,7 +30,7 @@ ProjectionTdFactor::ProjectionTdFactor(const FeaturePoint2D& p1, const FeaturePo
 #endif
 };
 
-bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
@@ -118,7 +118,7 @@ bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *resid
     return true;
 }
 
-void ProjectionTdFactor::check(double **parameters) {
+void ProjectTdCost::check(double **parameters) {
     double *res = new double[2];
     double **jaco = new double *[5];
     jaco[0] = new double[2 * 7];

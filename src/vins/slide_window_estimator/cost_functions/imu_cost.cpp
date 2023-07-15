@@ -2,7 +2,7 @@
 #include "vins/vins_utils.h"
 
 namespace vins{
-    bool IMUFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
+    bool IMUCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
 
         Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
         Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);

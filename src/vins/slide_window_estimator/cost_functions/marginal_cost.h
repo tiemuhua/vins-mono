@@ -14,11 +14,11 @@ namespace vins {
      * ResidualBlockInfo包括当前帧的预积分信息、视觉信息和之前帧的边缘化信息，分别对应不同的cost_function_
      * */
 
-    struct ResidualBlockInfo {
-        ResidualBlockInfo(ceres::CostFunction *_cost_function,
-                          ceres::LossFunction *_loss_function,
-                          std::vector<double *> _parameter_blocks,
-                          std::vector<int> _drop_set):
+    struct MarginalMetaFactor {
+        MarginalMetaFactor(ceres::CostFunction *_cost_function,
+                           ceres::LossFunction *_loss_function,
+                           std::vector<double *> _parameter_blocks,
+                           std::vector<int> _drop_set):
                 cost_function_(_cost_function),
                 loss_function_(_loss_function),
                 parameter_blocks_(std::move(_parameter_blocks)),
@@ -38,11 +38,11 @@ namespace vins {
     class MarginalInfo {
     public:
         ~MarginalInfo();
-        void addResidualBlockInfo(const ResidualBlockInfo &residual_block_info);
+        void addMetaFactor(const MarginalMetaFactor &residual_block_info);
         void marginalize();
         std::vector<double *> getReserveParamBlocksWithCertainOrder() const;
 
-        std::vector<ResidualBlockInfo> factors_;
+        std::vector<MarginalMetaFactor> factors_;
         int discard_param_dim_ = 0, reserve_param_dim_ = 0;
 
         std::vector<int> reserve_block_sizes_;      //原始数据维度，旋转为4维
@@ -55,9 +55,9 @@ namespace vins {
         static constexpr double EPS = 1e-8;
     };
 
-    class MarginalFactor : public ceres::CostFunction {
+    class MarginalCost : public ceres::CostFunction {
     public:
-        explicit MarginalFactor(MarginalInfo* _marginal_info);
+        explicit MarginalCost(MarginalInfo* _marginal_info);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
         // marginal_info_生命周期由SlideWindowEstimator负责维护
