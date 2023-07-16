@@ -23,10 +23,10 @@ typedef double arr3d[3];
 typedef double arr4d[4];
 
 static arr3d c_pos[WINDOW_SIZE];
+static arr4d c_quat[WINDOW_SIZE];
 static arr3d c_vel[WINDOW_SIZE];
 static arr3d c_ba[WINDOW_SIZE];
 static arr3d c_bg[WINDOW_SIZE];
-static arr4d c_quat[WINDOW_SIZE];
 
 static arr3d c_tic;
 static arr4d c_ric;
@@ -39,6 +39,7 @@ static arr4d c_loop_peer_quat;
 
 static std::vector<double*> s_marginal_param_blocks;
 static vins::MarginalInfo *sp_marginal_info;
+static std::unordered_map<double*, double*> sp_slide_addr_map;
 
 static vins::LoopMatchInfo* sp_loop_match_info;
 

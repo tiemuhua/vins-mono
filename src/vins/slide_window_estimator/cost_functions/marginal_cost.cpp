@@ -53,7 +53,7 @@ void MarginalMetaFactor::Evaluate() {
 }
 
 MarginalInfo::~MarginalInfo() {
-    for (auto & addr : reserve_block_data_frozen_)
+    for (auto & addr : reserve_block_frozen_)
         delete[] addr;
 
     for (auto & factor : factors_) {
@@ -94,7 +94,7 @@ void ThreadsConstructA(ThreadsStruct *p) {
 }
 }
 
-void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin) {
+void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
     /**
      * STEP 1:
      * 将所有参数整体视作一个待优化向量，求出每个参数块在该向量中的位置和长度，
@@ -110,11 +110,11 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
         const std::vector<double *> &parameter_blocks = factor.parameter_blocks_;
         for (const int discard_block_id:factor.discard_set_) {
             int cur_discard_param_dim_raw = factor.cost_function_->parameter_block_sizes()[discard_block_id];
-            discard_param_dim_ += tangentSpaceDimensionSize(cur_discard_param_dim_raw);
+            discard_dim_ += tangentSpaceDimensionSize(cur_discard_param_dim_raw);
             param_should_discard.insert(parameter_blocks[discard_block_id]);
         }
     }
-    int discard_idx = 0, reserve_idx = discard_param_dim_;
+    int discard_idx = 0, reserve_idx = discard_dim_;
     for (const auto &factor:factors_) {
         const std::vector<double *> &param_blocks = factor.parameter_blocks_;
         const std::vector<int> &param_sizes = factor.cost_function_->parameter_block_sizes();
@@ -131,7 +131,7 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
             }
         }
     }
-    reserve_param_dim_ = reserve_idx - discard_param_dim_;
+    reserve_dim_ = reserve_idx - discard_dim_;
 
     /**
      * STEP 2:
@@ -142,8 +142,8 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
      * */
     reserve_block_sizes_.clear();
     reserve_block_ids_.clear();
-    reserve_block_data_frozen_.clear();
-    reserve_block_addr_origin.clear();
+    reserve_block_frozen_.clear();
+    reserve_block_origin.clear();
     for (const auto& it: param_block_idx) {
         double * addr = it.first;
         if (param_should_discard.count(addr)) {
@@ -153,8 +153,8 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
         int idx = it.second;
         auto *frozen_data = new double [size];
         memcpy(frozen_data, it.first, sizeof(double) * size);
-        reserve_block_data_frozen_.emplace_back(frozen_data);
-        reserve_block_addr_origin.emplace_back(addr);
+        reserve_block_frozen_.emplace_back(frozen_data);
+        reserve_block_origin.emplace_back(addr);
         reserve_block_sizes_.emplace_back(size);
         reserve_block_ids_.emplace_back(idx);
     }
@@ -171,7 +171,7 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
      * STEP 4:
      * 多线程计算边缘化之前的最小二乘方程Ax=b
      * */
-    int total_dim = reserve_param_dim_ + discard_param_dim_;
+    int total_dim = reserve_dim_ + discard_dim_;
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(total_dim, total_dim);
     Eigen::VectorXd b = Eigen::VectorXd::Zero(total_dim);
 
@@ -200,12 +200,12 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
      * @param reserve_param_residuals_ 边缘化时刻要保留的参数对应的b-Ax
      * @param reserve_param_jacobians_ 边缘化时刻要保留的参数相对于residual的雅可比
      * */
-    const Eigen::VectorXd bmm = b.segment(0, discard_param_dim_);
-    const Eigen::VectorXd brr = b.segment(discard_param_dim_, reserve_param_dim_);
-    const Eigen::MatrixXd Amm = A.block(0, 0, discard_param_dim_, discard_param_dim_);
-    const Eigen::MatrixXd Amr = A.block(0, discard_param_dim_, discard_param_dim_, reserve_param_dim_);
-    const Eigen::MatrixXd Arm = A.block(discard_param_dim_, 0, reserve_param_dim_, discard_param_dim_);
-    const Eigen::MatrixXd Arr = A.block(discard_param_dim_, discard_param_dim_, reserve_param_dim_, reserve_param_dim_);
+    const Eigen::VectorXd bmm = b.segment(0, discard_dim_);
+    const Eigen::VectorXd brr = b.segment(discard_dim_, reserve_dim_);
+    const Eigen::MatrixXd Amm = A.block(0, 0, discard_dim_, discard_dim_);
+    const Eigen::MatrixXd Amr = A.block(0, discard_dim_, discard_dim_, reserve_dim_);
+    const Eigen::MatrixXd Arm = A.block(discard_dim_, 0, reserve_dim_, discard_dim_);
+    const Eigen::MatrixXd Arr = A.block(discard_dim_, discard_dim_, reserve_dim_, reserve_dim_);
 
     const Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(0.5 * (Amm + Amm.transpose()));
     const auto eigen_values = saes.eigenvalues().array();
@@ -234,19 +234,19 @@ MarginalCost::MarginalCost(MarginalInfo* _marginal_info)
     for (auto reserve_block_size: marginal_info_->reserve_block_sizes_) {
         mutable_parameter_block_sizes()->push_back(reserve_block_size);
     }
-    set_num_residuals(marginal_info_->reserve_param_dim_);
+    set_num_residuals(marginal_info_->reserve_dim_);
 }
 
 bool MarginalCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
-    int reserve_param_dim = marginal_info_->reserve_param_dim_;
-    int discard_param_dim = marginal_info_->discard_param_dim_;
+    int reserve_dim = marginal_info_->reserve_dim_;
+    int discard_dim = marginal_info_->discard_dim_;
 
-    Eigen::VectorXd dx(reserve_param_dim);
+    Eigen::VectorXd dx(reserve_dim);
     for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
         int size = marginal_info_->reserve_block_sizes_[i];
-        int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
+        int idx = marginal_info_->reserve_block_ids_[i] - discard_dim;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
-        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->reserve_block_data_frozen_[i], size);
+        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginal_info_->reserve_block_frozen_[i], size);
         if (size != 4)
             dx.segment(idx, size) = x - x0;
         else {
@@ -259,7 +259,7 @@ bool MarginalCost::Evaluate(double const *const *parameters, double *residuals, 
             }
         }
     }
-    Eigen::Map<Eigen::VectorXd>(residuals, reserve_param_dim) =
+    Eigen::Map<Eigen::VectorXd>(residuals, reserve_dim) =
             marginal_info_->reserve_param_residuals_ + marginal_info_->reserve_param_jacobians_ * dx;
 
     assert(jacobians);
@@ -267,8 +267,8 @@ bool MarginalCost::Evaluate(double const *const *parameters, double *residuals, 
         assert(jacobians[i]);
         int size = marginal_info_->reserve_block_sizes_[i];
         int local_size = tangentSpaceDimensionSize(size);
-        int idx = marginal_info_->reserve_block_ids_[i] - discard_param_dim;
-        Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_param_dim, size);
+        int idx = marginal_info_->reserve_block_ids_[i] - discard_dim;
+        Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_dim, size);
         jacobian.setZero();
         jacobian.leftCols(local_size) =
                 marginal_info_->reserve_param_jacobians_.middleCols(idx, local_size);
