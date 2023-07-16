@@ -60,16 +60,16 @@ namespace vins {
     public:
         ImageFrame() = delete;
 
-        ImageFrame(std::vector<FeaturePoint2D> _points, double _t, ImuIntegrator pre_integrate_, bool _is_key_frame):
+        ImageFrame(std::vector<FeaturePoint2D> _points, double _t, ImuIntegrator pre_integral_, bool _is_key_frame):
                 points{std::move(_points)},
                 t{_t},
-                pre_integrate_(std::move(pre_integrate_)),
+                pre_integral_(std::move(pre_integral_)),
                 is_key_frame_(_is_key_frame){};
         std::vector<FeaturePoint2D> points;
         double t{};
         Eigen::Matrix3d R;
         Eigen::Vector3d T;
-        ImuIntegrator pre_integrate_;
+        ImuIntegrator pre_integral_;
         bool is_key_frame_ = false;
     };
 

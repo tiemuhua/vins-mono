@@ -60,15 +60,15 @@ namespace vins {
         Eigen::Vector3d sum_acc;
         // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
         for (const ImageFrame &frame: all_image_frame_) {
-            double dt = frame.pre_integrate_.deltaTime();
-            Eigen::Vector3d tmp_acc = frame.pre_integrate_.deltaVel() / dt;
+            double dt = frame.pre_integral_.deltaTime();
+            Eigen::Vector3d tmp_acc = frame.pre_integral_.deltaVel() / dt;
             sum_acc += tmp_acc;
         }
         Eigen::Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
         double var = 0;
         for (const ImageFrame &frame:all_image_frame_) {
-            double dt = frame.pre_integrate_.deltaTime();
-            Eigen::Vector3d tmp_acc = frame.pre_integrate_.deltaVel() / dt;
+            double dt = frame.pre_integral_.deltaTime();
+            Eigen::Vector3d tmp_acc = frame.pre_integral_.deltaVel() / dt;
             var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
         }
 

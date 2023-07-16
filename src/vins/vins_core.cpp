@@ -64,7 +64,7 @@ namespace vins{
                 feature_manager_.getCorresponding( frames_cnt - 2, frames_cnt - 1);
         Eigen::Matrix3d calibrated_ric;
         bool succ = rotation_extrinsic_estimator_.calibrateRotationExtrinsic(correspondences,
-                                                                             all_frames_.back().pre_integrate_.deltaQuat(),
+                                                                             all_frames_.back().pre_integral_.deltaQuat(),
                                                                              calibrated_ric);
         if (!succ) {
             return kVinsStateEstimateExtrinsic;

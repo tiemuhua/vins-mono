@@ -19,11 +19,11 @@ namespace vins{
         Eigen::Vector3d Bgj(parameters[3][6], parameters[3][7], parameters[3][8]);
 
         Eigen::Map<ImuIntegrator::State> residual(residuals);
-        residual = pre_integration.evaluate(Pi, Qi, Vi, Bai, Bgi,
-                                             Pj, Qj, Vj, Baj, Bgj);
+        residual = pre_integral_.evaluate(Pi, Qi, Vi, Bai, Bgi,
+                                          Pj, Qj, Vj, Baj, Bgj);
 
         Eigen::Matrix<double, 15, 15> sqrt_info =
-                Eigen::LLT<ImuIntegrator::Covariance>(pre_integration.getCovariance().inverse()).matrixL().transpose();
+                Eigen::LLT<ImuIntegrator::Covariance>(pre_integral_.getCovariance().inverse()).matrixL().transpose();
         residual = sqrt_info * residual;
 
         assert(jacobians);
@@ -32,19 +32,19 @@ namespace vins{
         assert(jacobians[2]);
         assert(jacobians[3]);
 
-        double sum_dt = pre_integration.deltaTime();
-        Eigen::Matrix3d dp_dba = pre_integration.getJacobian().template block<3, 3>(O_P, O_BA);
-        Eigen::Matrix3d dp_dbg = pre_integration.getJacobian().template block<3, 3>(O_P, O_BG);
-        Eigen::Matrix3d dq_dbg = pre_integration.getJacobian().template block<3, 3>(O_R, O_BG);
-        Eigen::Matrix3d dv_dba = pre_integration.getJacobian().template block<3, 3>(O_V, O_BA);
-        Eigen::Matrix3d dv_dbg = pre_integration.getJacobian().template block<3, 3>(O_V, O_BG);
+        double sum_dt = pre_integral_.deltaTime();
+        Eigen::Matrix3d dp_dba = pre_integral_.getJacobian().template block<3, 3>(O_P, O_BA);
+        Eigen::Matrix3d dp_dbg = pre_integral_.getJacobian().template block<3, 3>(O_P, O_BG);
+        Eigen::Matrix3d dq_dbg = pre_integral_.getJacobian().template block<3, 3>(O_R, O_BG);
+        Eigen::Matrix3d dv_dba = pre_integral_.getJacobian().template block<3, 3>(O_V, O_BA);
+        Eigen::Matrix3d dv_dbg = pre_integral_.getJacobian().template block<3, 3>(O_V, O_BG);
 
-        if (pre_integration.getJacobian().maxCoeff() > 1e8 || pre_integration.getJacobian().minCoeff() < -1e8) {
+        if (pre_integral_.getJacobian().maxCoeff() > 1e8 || pre_integral_.getJacobian().minCoeff() < -1e8) {
             LOG_W("numerical unstable in pre-integration");
         }
 
         Eigen::Quaterniond corrected_delta_q =
-                pre_integration.deltaQuat() * utils::deltaQ(dq_dbg * (Bgi - pre_integration.getBg()));
+                pre_integral_.deltaQuat() * utils::deltaQ(dq_dbg * (Bgi - pre_integral_.getBg()));
 
         // jacobian_pose_i
         const Eigen::Vector3d G = {0,0,-9.81};// todo tiemuhuaguo G应该用标定后的值
@@ -68,7 +68,7 @@ namespace vins{
         jacobian_speed_bias_i.block<3, 3>(O_P, O_BA - O_V) = -dp_dba;
         jacobian_speed_bias_i.block<3, 3>(O_P, O_BG - O_V) = -dp_dbg;
         jacobian_speed_bias_i.block<3, 3>(O_R, O_BG - O_V) =
-                -utils::Qleft(Qj.inverse() * Qi * pre_integration.deltaQuat()).bottomRightCorner<3, 3>() * dq_dbg;
+                -utils::Qleft(Qj.inverse() * Qi * pre_integral_.deltaQuat()).bottomRightCorner<3, 3>() * dq_dbg;
         jacobian_speed_bias_i.block<3, 3>(O_V, O_V - O_V) = -Qi.inverse().toRotationMatrix();
         jacobian_speed_bias_i.block<3, 3>(O_V, O_BA - O_V) = -dv_dba;
         jacobian_speed_bias_i.block<3, 3>(O_V, O_BG - O_V) = -dv_dbg;
