@@ -61,8 +61,8 @@ MarginalInfo::~MarginalInfo() {
     }
 }
 
-void MarginalInfo::addMetaFactor(const MarginalMetaFactor &residual_block_info) {
-    factors_.emplace_back(residual_block_info);
+void MarginalInfo::addMetaFactor(const MarginalMetaFactor &marginal_meta_factor) {
+    factors_.emplace_back(marginal_meta_factor);
 }
 
 namespace {
