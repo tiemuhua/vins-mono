@@ -40,9 +40,9 @@ namespace vins {
         Eigen::Vector3d dba = Bai - ba_;
         Eigen::Vector3d dbg = Bgi - bg_;
 
-        Eigen::Quaterniond corrected_quat = pre_quat_ * utils::deltaQ(dq_dbg * dbg);
-        Eigen::Vector3d corrected_vel = pre_vel_ + dv_dba * dba + dv_dbg * dbg;
-        Eigen::Vector3d corrected_pos = pre_pos_ + dp_dba * dba + dp_dbg * dbg;
+        Eigen::Quaterniond corrected_quat = quat_ * utils::deltaQ(dq_dbg * dbg);
+        Eigen::Vector3d corrected_vel = vel_ + dv_dba * dba + dv_dbg * dbg;
+        Eigen::Vector3d corrected_pos = pos_ + dp_dba * dba + dp_dbg * dbg;
 
         State residuals;
         double sum_dt = time_stamp_buf_.back() - time_stamp_buf_.front();
@@ -56,57 +56,47 @@ namespace vins {
     }
 
     void ImuIntegrator::predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr) {
-        Eigen::Vector3d cur_pos = Eigen::Vector3d::Zero();
-        Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
-        Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
-
         midPointIntegral(time_stamp_buf_.back(), acc_buf_.back(), gyr_buf_.back(),
                          time_stamp, acc, gyr,
-                         pre_pos_, pre_quat_, pre_vel_, ba_, bg_,
-                         cur_pos, cur_quat, cur_vel, jacobian_, covariance_, noise_);
+                         ba_, bg_,
+                         pos_, quat_, vel_,
+                         jacobian_, covariance_, noise_);
 
         time_stamp_buf_.push_back(time_stamp);
         acc_buf_.push_back(acc);
         gyr_buf_.push_back(gyr);
-
-        pre_pos_ = cur_pos;
-        pre_quat_ = cur_quat;
-        pre_vel_ = cur_vel;
     }
 
     void ImuIntegrator::rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg) {
-        pre_pos_.setZero();
-        pre_quat_.setIdentity();
-        pre_vel_.setZero();
+        pos_.setZero();
+        quat_.setIdentity();
+        vel_.setZero();
         ba_ = new_ba;
         bg_ = new_bg;
         jacobian_.setIdentity();
         covariance_.setZero();
 
-        Eigen::Vector3d cur_pos = Eigen::Vector3d::Zero();
-        Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
-        Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
-
         for (int i = 1; i < static_cast<int>(time_stamp_buf_.size()); i++) {
             midPointIntegral(time_stamp_buf_[i - 1], acc_buf_[i - 1], gyr_buf_[i - 1],
                              time_stamp_buf_[i], acc_buf_[i], gyr_buf_[i],
-                             pre_pos_, pre_quat_, pre_vel_, ba_, bg_,
-                             cur_pos, cur_quat, cur_vel, jacobian_, covariance_, noise_);
-            pre_pos_ = cur_pos;
-            pre_quat_ = cur_quat;
-            pre_vel_ = cur_vel;
+                             ba_, bg_,
+                             pos_, quat_, vel_,
+                             jacobian_, covariance_, noise_);
         }
     }
 
     void ImuIntegrator::midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
                                          double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
-                                         ConstVec3dRef pre_pos, ConstQuatRef pre_quat, ConstVec3dRef pre_vel,
                                          ConstVec3dRef ba, ConstVec3dRef bg,
                                          Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
                                          Jacobian &jacobian, Covariance &covariance, Noise &noise) {
         const double dt = cur_time_stamp - pre_time_stamp;
         const double dt2 = dt * dt;
         const double dt3 = dt2 * dt;
+
+        ConstVec3dRef pre_pos = cur_pos;
+        ConstQuatRef pre_quat = cur_quat;
+        ConstVec3dRef pre_vel = cur_vel;
 
         Vector3d avg_gyr = 0.5 * (pre_gyr + cur_gyr) - bg;
         cur_quat = pre_quat * utils::deltaQ(avg_gyr * dt);

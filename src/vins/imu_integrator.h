@@ -43,13 +43,13 @@ namespace vins {
                                      ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
 
         [[nodiscard]] const Eigen::Vector3d& deltaPos() const {
-            return pre_pos_;
+            return pos_;
         }
         [[nodiscard]] const Eigen::Vector3d& deltaVel() const {
-            return pre_vel_;
+            return vel_;
         }
         [[nodiscard]] const Eigen::Quaterniond& deltaQuat() const {
-            return pre_quat_;
+            return quat_;
         }
         [[nodiscard]] double deltaTime() const {
             return time_stamp_buf_.back() - time_stamp_buf_.front();
@@ -70,14 +70,13 @@ namespace vins {
     private:
         static void midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
                                      double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
-                                     ConstVec3dRef pre_pos, ConstQuatRef pre_quat, ConstVec3dRef pre_vel,
                                      ConstVec3dRef ba, ConstVec3dRef bg,
                                      Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
                                      Jacobian &jacobian, Covariance &covariance, Noise &noise);
     private:
-        Eigen::Vector3d pre_pos_ = Eigen::Vector3d::Zero();
-        Eigen::Vector3d pre_vel_ = Eigen::Vector3d::Zero();
-        Eigen::Quaterniond pre_quat_ = Eigen::Quaterniond::Identity();
+        Eigen::Vector3d pos_ = Eigen::Vector3d::Zero();
+        Eigen::Vector3d vel_ = Eigen::Vector3d::Zero();
+        Eigen::Quaterniond quat_ = Eigen::Quaterniond::Identity();
 
         Eigen::Vector3d ba_ = Eigen::Vector3d::Zero();
         Eigen::Vector3d bg_ = Eigen::Vector3d::Zero();
