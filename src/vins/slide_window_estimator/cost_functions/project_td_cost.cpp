@@ -6,7 +6,6 @@
 using namespace vins;
 
 Eigen::Matrix2d ProjectTdCost::sqrt_info;
-double ProjectTdCost::sum_t;
 
 ProjectTdCost::ProjectTdCost(const FeaturePoint2D& p1, const FeaturePoint2D& p2)
                                        : td_i(p1.time_stamp), td_j(p2.time_stamp) {
@@ -17,7 +16,6 @@ ProjectTdCost::ProjectTdCost(const FeaturePoint2D& p1, const FeaturePoint2D& p2)
     row_i = p1.point.y - Param::Instance().camera.row / 2;
     row_j = p2.point.y - Param::Instance().camera.row / 2;
 
-#ifdef UNIT_SPHERE_ERROR
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();
     Eigen::Vector3d tmp(0, 0, 1);
@@ -27,7 +25,6 @@ ProjectTdCost::ProjectTdCost(const FeaturePoint2D& p1, const FeaturePoint2D& p2)
     b2 = a.cross(b1);
     tangent_base.block<1, 3>(0, 0) = b1.transpose();
     tangent_base.block<1, 3>(1, 0) = b2.transpose();
-#endif
 };
 
 bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
@@ -53,14 +50,9 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
     Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
     Eigen::Map <Eigen::Vector2d> residual(residuals);
 
-#ifdef UNIT_SPHERE_ERROR
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
-#else
-    double dep_j = pts_camera_j.z();
-    residual = (pts_camera_j / dep_j).head<2>() - pts_j_td.head<2>();
-#endif
-
     residual = sqrt_info * residual;
+
     assert(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3] && jacobians[4]);
     if (!(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3] && jacobians[4])) {
         LOG_E("!jacobian");
@@ -71,14 +63,11 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
     Eigen::Matrix3d Rj = Qj.toRotationMatrix();
     Eigen::Matrix3d ric = qic.toRotationMatrix();
     Eigen::Matrix<double, 2, 3> reduce(2, 3);
-#ifdef UNIT_SPHERE_ERROR
+
     double norm = pts_camera_j.norm();
     double norm3 = pow(norm, 3);
     Eigen::Matrix3d norm_jacobian = Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
     reduce = tangent_base * norm_jacobian;
-#else
-    reduce << 1. / dep_j, 0, -pts_camera_j(0) / (dep_j * dep_j),0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
-#endif
     reduce = sqrt_info * reduce;
 
     typedef Eigen::Matrix<double, 2, 7, Eigen::RowMajor> Mat27Row;
@@ -116,104 +105,4 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
     jacobian_td = r * velocity_i / inv_dep_i * -1.0 + sqrt_info * velocity_j.head(2);
 
     return true;
-}
-
-void ProjectTdCost::check(double **parameters) {
-    double *res = new double[2];
-    double **jaco = new double *[5];
-    jaco[0] = new double[2 * 7];
-    jaco[1] = new double[2 * 7];
-    jaco[2] = new double[2 * 7];
-    jaco[3] = new double[2 * 1];
-    jaco[4] = new double[2 * 1];
-    Evaluate(parameters, res, jaco);
-
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
-    Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
-
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
-    Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
-
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
-    Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
-    double inv_dep_i = parameters[3][0];
-    double td = parameters[4][0];
-
-    Eigen::Vector3d pts_i_td, pts_j_td;
-    pts_i_td = pts_i - (td - td_i + Param::Instance().getTimeShatPerRol() * row_i) * velocity_i;
-    pts_j_td = pts_j - (td - td_j + Param::Instance().getTimeShatPerRol() * row_j) * velocity_j;
-    Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
-    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
-    Eigen::Vector2d residual;
-
-#ifdef UNIT_SPHERE_ERROR
-    residual =  tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
-#else
-    double dep_j = pts_camera_j.z();
-    residual = (pts_camera_j / dep_j).head<2>() - pts_j_td.head<2>();
-#endif
-    residual = sqrt_info * residual;
-
-    puts("num");
-    std::cout << residual.transpose() << std::endl;
-
-    const double eps = 1e-6;
-    Eigen::Matrix<double, 2, 20> num_jacobian;
-    for (int k = 0; k < 20; k++) {
-        Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
-        Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
-
-        Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
-        Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
-
-        Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
-        Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
-        double inv_dep_i = parameters[3][0];
-        double td = parameters[4][0];
-
-
-        int a = k / 3, b = k % 3;
-        Eigen::Vector3d delta = Eigen::Vector3d(b == 0, b == 1, b == 2) * eps;
-
-        if (a == 0)
-            Pi += delta;
-        else if (a == 1)
-            Qi = Qi * utils::deltaQ(delta);
-        else if (a == 2)
-            Pj += delta;
-        else if (a == 3)
-            Qj = Qj * utils::deltaQ(delta);
-        else if (a == 4)
-            tic += delta;
-        else if (a == 5)
-            qic = qic * utils::deltaQ(delta);
-        else if (a == 6 && b == 0)
-            inv_dep_i += delta.x();
-        else if (a == 6 && b == 1)
-            td += delta.y();
-
-        Eigen::Vector3d pts_i_td, pts_j_td;
-        pts_i_td = pts_i - (td - td_i + Param::Instance().getTimeShatPerRol() * row_i) * velocity_i;
-        pts_j_td = pts_j - (td - td_j + Param::Instance().getTimeShatPerRol() * row_j) * velocity_j;
-        Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
-        Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-        Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-        Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
-        Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
-        Eigen::Vector2d tmp_residual;
-
-#ifdef UNIT_SPHERE_ERROR
-        tmp_residual =  tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
-#else
-        double dep_j = pts_camera_j.z();
-        tmp_residual = (pts_camera_j / dep_j).head<2>() - pts_j_td.head<2>();
-#endif
-        tmp_residual = sqrt_info * tmp_residual;
-
-        num_jacobian.col(k) = (tmp_residual - residual) / eps;
-    }
-    std::cout << num_jacobian << std::endl;
 }

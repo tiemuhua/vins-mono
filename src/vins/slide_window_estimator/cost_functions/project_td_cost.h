@@ -6,12 +6,12 @@
 #include "vins/vins_run_info.h"
 
 namespace vins{
-    class ProjectTdCost : public ceres::SizedCostFunction<2, 7, 7, 7, 1, 1>
-    {
+    // 残差为二维平面上的投影误差
+    // 参数为旧帧位置、旧帧四元数、新帧位置、新帧四元数、相机位置、相机四元数、逆深度、相机-imu时间差
+    class ProjectTdCost : public ceres::SizedCostFunction<2, 3, 4, 3, 4, 3, 4, 1, 1> {
     public:
         ProjectTdCost(const FeaturePoint2D& p1, const FeaturePoint2D& p2);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
-        void check(double **parameters);
 
         Eigen::Vector3d pts_i, pts_j;
         Eigen::Vector3d velocity_i, velocity_j;
@@ -19,6 +19,5 @@ namespace vins{
         Eigen::Matrix<double, 2, 3> tangent_base;
         double row_i, row_j;
         static Eigen::Matrix2d sqrt_info;
-        static double sum_t;
     };
 }
