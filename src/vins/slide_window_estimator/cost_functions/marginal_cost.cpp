@@ -1,6 +1,5 @@
 #include <thread>
 #include <unordered_map>
-#include <utility>
 #include "log.h"
 #include "vins_utils.h"
 #include "marginal_cost.h"

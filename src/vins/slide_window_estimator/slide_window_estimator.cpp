@@ -8,6 +8,7 @@
 
 #include "log.h"
 #include "vins/vins_utils.h"
+#include "vins/vins_define_internal.h"
 
 #include "cost_functions/imu_cost.h"
 #include "cost_functions/marginal_cost.h"
@@ -38,6 +39,8 @@ static arr4d c_loop_peer_quat;
 
 static std::vector<double*> s_marginal_param_blocks;
 static vins::MarginalInfo *sp_marginal_info;
+
+static vins::LoopMatchInfo* sp_loop_match_info;
 
 using namespace vins;
 using namespace std;
@@ -91,12 +94,12 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
     for (int i = 0; i < WINDOW_SIZE + 1; i++) {
         problem.AddParameterBlock(c_pos[i], 3);
-        problem.AddParameterBlock(c_quat[i], 4);
+        problem.AddParameterBlock(c_quat[i], 4, new ceres::EigenQuaternionManifold);
         problem.AddParameterBlock(c_vel[i], 3);
         problem.AddParameterBlock(c_ba[i], 3);
         problem.AddParameterBlock(c_bg[i], 3);
     }
-    problem.AddParameterBlock(c_ric, 4);
+    problem.AddParameterBlock(c_ric, 4, new ceres::EigenQuaternionManifold);
     problem.AddParameterBlock(c_tic, 3);
     if (param.fix_extrinsic) {
         LOG_D("fix extrinsic param");
@@ -108,6 +111,8 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     if (param.estimate_time_delay) {
         problem.AddParameterBlock(c_time_delay, 1);
     }
+    problem.AddParameterBlock(c_loop_peer_pos, 3);
+    problem.AddParameterBlock(c_loop_peer_quat, 4, new ceres::EigenQuaternionManifold);
 
     /*************** 1:边缘化 **************************/
     if (sp_marginal_info) {
@@ -150,6 +155,30 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
                                          c_pos[cur_frame_id], c_quat[cur_frame_id],
                                          c_tic, c_ric, c_inv_depth[feature_id]);
             }
+        }
+    }
+
+    /*************** 3:回环 **************************/
+    if (sp_loop_match_info) {
+        const auto match_points = sp_loop_match_info->match_points;
+        for (int feature_id = 0; feature_id < features.size(); ++ feature_id) {
+            FeaturesOfId feature = features[feature_id];
+            int start = feature.start_frame_;
+            if (feature.feature_points_.size() < 2 || start > WINDOW_SIZE - 2 || start < sp_loop_match_info->peer_frame_id) {
+                continue;
+            }
+            auto iter = std::find_if(match_points.begin(), match_points.end(), [&feature](const MatchPoint& mp) {
+                return mp.feature_id == feature.feature_id_;
+            });
+            if (iter == match_points.end()) {
+                continue;
+            }
+            auto *cost_function = new ProjectCost(iter->point, feature.feature_points_[0].point);
+            problem.AddResidualBlock(cost_function, loss_function,
+                                     c_pos[start], c_quat[start],
+                                     c_loop_peer_pos, c_loop_peer_quat,
+                                     c_tic, c_ric,
+                                     c_inv_depth[feature_id]);
         }
     }
 

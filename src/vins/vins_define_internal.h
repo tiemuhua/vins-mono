@@ -27,6 +27,15 @@ namespace vins {
 
     typedef std::vector<std::pair<cv::Point2f , cv::Point2f>> Correspondences;
 
+    struct MatchPoint{
+        cv::Point2f point;
+        int feature_id;
+    };
+    struct LoopMatchInfo {
+        int peer_frame_id = -1;
+        std::vector<MatchPoint> match_points;
+    };
+
     constexpr double pi = 3.1415926;
 }
 
