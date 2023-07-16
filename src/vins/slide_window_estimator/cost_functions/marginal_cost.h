@@ -18,18 +18,18 @@ namespace vins {
         MarginalMetaFactor(ceres::CostFunction *_cost_function,
                            ceres::LossFunction *_loss_function,
                            std::vector<double *> _parameter_blocks,
-                           std::vector<int> _drop_set):
+                           std::vector<int> _discard_set):
                 cost_function_(_cost_function),
                 loss_function_(_loss_function),
                 parameter_blocks_(std::move(_parameter_blocks)),
-                drop_set_(std::move(_drop_set)) {}
+                discard_set_(std::move(_discard_set)) {}
 
         void Evaluate();
 
         ceres::CostFunction *cost_function_;
         ceres::LossFunction *loss_function_;
         std::vector<double *> parameter_blocks_;
-        std::vector<int> drop_set_;
+        std::vector<int> discard_set_;
 
         std::vector<JacobianType> jacobians_;
         Eigen::VectorXd residuals_;

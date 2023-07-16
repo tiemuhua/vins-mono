@@ -108,7 +108,7 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin)
     std::set<double*> param_should_discard;
     for (const auto &factor:factors_) {
         const std::vector<double *> &parameter_blocks = factor.parameter_blocks_;
-        for (const int discard_block_id:factor.drop_set_) {
+        for (const int discard_block_id:factor.discard_set_) {
             int cur_discard_param_dim_raw = factor.cost_function_->parameter_block_sizes()[discard_block_id];
             discard_param_dim_ += tangentSpaceDimensionSize(cur_discard_param_dim_raw);
             param_should_discard.insert(parameter_blocks[discard_block_id]);

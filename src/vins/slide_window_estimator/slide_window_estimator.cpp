@@ -199,13 +199,13 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
 
     // 之前的边缘化约束
     if (sp_marginal_info) {
-        std::vector<int> marginal_drop_set;
+        std::vector<int> marginal_discard_set;
         for (int i = 0; i < static_cast<int>(s_marginal_param_blocks.size()); i++) {
             if (s_marginal_param_blocks[i] == c_pos[0] || s_marginal_param_blocks[i] == c_vel[0])
-                marginal_drop_set.push_back(i);
+                marginal_discard_set.push_back(i);
         }
         auto *marginal_cost = new MarginalCost(sp_marginal_info);
-        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, s_marginal_param_blocks, marginal_drop_set);
+        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, s_marginal_param_blocks, marginal_discard_set);
         marginal_info->addMetaFactor(marginal_factor);
     }
 
@@ -215,12 +215,12 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
             c_pos[0], c_quat[0], c_vel[0], c_ba[0], c_bg[0],
             c_pos[1], c_quat[1], c_vel[1], c_ba[1], c_bg[1],
     };
-    const vector<int> imu_drop_set = {0, 1, 2, 3 ,4};
-    MarginalMetaFactor imu_factor(imu_cost, nullptr, imu_param_blocks, imu_drop_set);
+    const vector<int> imu_discard_set = {0, 1, 2, 3 ,4};
+    MarginalMetaFactor imu_factor(imu_cost, nullptr, imu_param_blocks, imu_discard_set);
     marginal_info->addMetaFactor(imu_factor);
 
     // 最老帧的视觉约束
-    const vector<int> visual_drop_set = {0, 1, 6};
+    const vector<int> visual_discard_set = {0, 1, 6};
     for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
         const FeaturesOfId& feature = features[feature_id];
         if (feature.start_frame_ != window.frame_id_window.at(0)) {
@@ -239,7 +239,7 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
                         c_inv_depth[feature_id],
                         c_time_delay
                 };
-                MarginalMetaFactor project_td_factor(project_td_cost, loss_function, parameter_blocks, visual_drop_set);
+                MarginalMetaFactor project_td_factor(project_td_cost, loss_function, parameter_blocks, visual_discard_set);
                 marginal_info->addMetaFactor(project_td_factor);
             } else {
                 auto *project_cost = new ProjectCost(point0.point, point.point);
@@ -249,7 +249,7 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
                         c_tic, c_ric,
                         c_inv_depth[feature_id],
                 };
-                MarginalMetaFactor project_factor(project_cost, loss_function, parameter_blocks, visual_drop_set);
+                MarginalMetaFactor project_factor(project_cost, loss_function, parameter_blocks, visual_discard_set);
                 marginal_info->addMetaFactor(project_factor);
             }
         }
