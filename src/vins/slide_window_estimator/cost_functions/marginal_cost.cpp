@@ -94,7 +94,7 @@ void ThreadsConstructA(ThreadsStruct *p) {
 }
 }
 
-void MarginalInfo::marginalize() {
+void MarginalInfo::marginalize(std::vector<double *>& reserve_block_addr_origin) {
     /**
      * STEP 1:
      * 将所有参数整体视作一个待优化向量，求出每个参数块在该向量中的位置和长度，
@@ -143,7 +143,7 @@ void MarginalInfo::marginalize() {
     reserve_block_sizes_.clear();
     reserve_block_ids_.clear();
     reserve_block_data_frozen_.clear();
-    reserve_block_addr_origin_.clear();
+    reserve_block_addr_origin.clear();
     for (const auto& it: param_block_idx) {
         double * addr = it.first;
         if (param_should_discard.count(addr)) {
@@ -154,7 +154,7 @@ void MarginalInfo::marginalize() {
         auto *frozen_data = new double [size];
         memcpy(frozen_data, it.first, sizeof(double) * size);
         reserve_block_data_frozen_.emplace_back(frozen_data);
-        reserve_block_addr_origin_.emplace_back(addr);
+        reserve_block_addr_origin.emplace_back(addr);
         reserve_block_sizes_.emplace_back(size);
         reserve_block_ids_.emplace_back(idx);
     }
@@ -226,10 +226,6 @@ void MarginalInfo::marginalize() {
 
     reserve_param_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
     reserve_param_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
-}
-
-std::vector<double *> MarginalInfo::getReserveParamBlocksWithCertainOrder() const {
-    return reserve_block_addr_origin_;
 }
 
 // marginal_info_生命周期由SlideWindowEstimator负责维护

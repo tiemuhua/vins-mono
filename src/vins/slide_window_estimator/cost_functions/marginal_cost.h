@@ -38,9 +38,8 @@ namespace vins {
     class MarginalInfo {
     public:
         ~MarginalInfo();
-        void addMetaFactor(const MarginalMetaFactor &residual_block_info);
-        void marginalize();
-        std::vector<double *> getReserveParamBlocksWithCertainOrder() const;
+        void addMetaFactor(const MarginalMetaFactor &marginal_meta_factor);
+
 
         std::vector<MarginalMetaFactor> factors_;
         int discard_param_dim_ = 0, reserve_param_dim_ = 0;
@@ -48,7 +47,6 @@ namespace vins {
         std::vector<int> reserve_block_sizes_;      //原始数据维度，旋转为4维
         std::vector<int> reserve_block_ids_;        //切空间维度，旋转为3维
         std::vector<double *> reserve_block_data_frozen_;
-        std::vector<double *> reserve_block_addr_origin_;
 
         Eigen::MatrixXd reserve_param_jacobians_;
         Eigen::VectorXd reserve_param_residuals_;
