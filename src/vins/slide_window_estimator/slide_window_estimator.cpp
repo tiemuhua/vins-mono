@@ -183,10 +183,10 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
     // 最老帧的imu约束
     auto *imu_cost = new IMUCost(window.pre_int_window.at(0));
     vector<double *> imu_param_blocks = {
-            c_pos[0], c_vel[0], c_ba[0], c_bg[0],
-            c_pos[1], c_vel[1], c_ba[1], c_bg[1],
+            c_pos[0], c_quat[0], c_vel[0], c_ba[0], c_bg[0],
+            c_pos[1], c_quat[1], c_vel[1], c_ba[1], c_bg[1],
     };
-    const vector<int> imu_drop_set = {0, 1};// todo 这里为什么不丢弃ba和bg
+    const vector<int> imu_drop_set = {0, 1, 2, 3 ,4};
     MarginalMetaFactor imu_factor(imu_cost, nullptr, imu_param_blocks, imu_drop_set);
     marginal_info->addMetaFactor(imu_factor);
 

@@ -5,6 +5,7 @@
 #ifndef VINS_UTILS_H
 #define VINS_UTILS_H
 #include <cmath>
+#include <sstream>
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include "vins_define_internal.h"
@@ -12,6 +13,16 @@
 namespace vins {
 
     namespace utils {
+
+        template<typename T>
+        std::string eigen2string(T mat) {
+            std::stringstream sstream;
+            sstream << mat;
+            std::string str;
+            sstream >> str;
+            return str;
+        }
+
         /**
          * C数组的向量运算 todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
          * */

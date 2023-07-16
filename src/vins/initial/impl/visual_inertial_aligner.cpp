@@ -17,7 +17,7 @@ namespace vins {
             Eigen::Matrix3d tmp_A = Eigen::Matrix3d::Zero(3, 3);
             Eigen::Vector3d tmp_b = Eigen::Vector3d (3);
             Eigen::Quaterniond q_ij(frame_i->R.transpose() * frame_j->R);
-            tmp_A = frame_j->pre_integral_.getJacobian().template block<3, 3>(O_R, O_BG);
+            tmp_A = frame_j->pre_integral_.getJacobian().template block<3, 3>(kOrderRot, kOrderBG);
             tmp_b = 2 * (frame_j->pre_integral_.deltaQuat().inverse() * q_ij).vec();
             A += tmp_A.transpose() * tmp_A;
             b += tmp_A.transpose() * tmp_b;

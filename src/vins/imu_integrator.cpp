@@ -14,44 +14,44 @@ namespace vins {
             ba_{std::move(ba)},
             bg_{std::move(bg)},
             gravity_(std::move(gravity)) {
-        acc_buf.emplace_back(std::move(acc));
-        gyr_buf.emplace_back(std::move(gyr));
-        time_stamp_buf.emplace_back(time_stamp);
+        acc_buf_.emplace_back(std::move(acc));
+        gyr_buf_.emplace_back(std::move(gyr));
+        time_stamp_buf_.emplace_back(time_stamp);
 
-        noise.block<3, 3>(0, 0) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(3, 3) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(6, 6) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(9, 9) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(12, 12) = (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
-        noise.block<3, 3>(15, 15) = (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(0, 0) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(3, 3) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(6, 6) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(9, 9) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(12, 12) = (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(15, 15) = (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
     }
 
     ImuIntegrator::State ImuIntegrator::evaluate(
             ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
             ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const {
-        Eigen::Matrix3d dp_dba = jacobian.block<3, 3>(O_P, O_BA);
-        Eigen::Matrix3d dp_dbg = jacobian.block<3, 3>(O_P, O_BG);
+        Eigen::Matrix3d dp_dba = jacobian_.block<3, 3>(kOrderPos, kOrderBA);
+        Eigen::Matrix3d dp_dbg = jacobian_.block<3, 3>(kOrderPos, kOrderBG);
 
-        Eigen::Matrix3d dq_dbg = jacobian.block<3, 3>(O_R, O_BG);
+        Eigen::Matrix3d dq_dbg = jacobian_.block<3, 3>(kOrderRot, kOrderBG);
 
-        Eigen::Matrix3d dv_dba = jacobian.block<3, 3>(O_V, O_BA);
-        Eigen::Matrix3d dv_dbg = jacobian.block<3, 3>(O_V, O_BG);
+        Eigen::Matrix3d dv_dba = jacobian_.block<3, 3>(kOrderVel, kOrderBA);
+        Eigen::Matrix3d dv_dbg = jacobian_.block<3, 3>(kOrderVel, kOrderBG);
 
         Eigen::Vector3d dba = Bai - ba_;
         Eigen::Vector3d dbg = Bgi - bg_;
 
-        Eigen::Quaterniond corrected_quat = pre_quat * utils::deltaQ(dq_dbg * dbg);
-        Eigen::Vector3d corrected_vel = pre_vel + dv_dba * dba + dv_dbg * dbg;
-        Eigen::Vector3d corrected_pos = pre_pos + dp_dba * dba + dp_dbg * dbg;
+        Eigen::Quaterniond corrected_quat = pre_quat_ * utils::deltaQ(dq_dbg * dbg);
+        Eigen::Vector3d corrected_vel = pre_vel_ + dv_dba * dba + dv_dbg * dbg;
+        Eigen::Vector3d corrected_pos = pre_pos_ + dp_dba * dba + dp_dbg * dbg;
 
         State residuals;
-        double sum_dt = time_stamp_buf.back() - time_stamp_buf.front();
-        residuals.block<3, 1>(O_P, 0) =
+        double sum_dt = time_stamp_buf_.back() - time_stamp_buf_.front();
+        residuals.block<3, 1>(kOrderPos, 0) =
                 Qi.inverse() * (0.5 * gravity_ * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_pos;
-        residuals.block<3, 1>(O_R, 0) = 2 * (corrected_quat.inverse() * (Qi.inverse() * Qj)).vec();
-        residuals.block<3, 1>(O_V, 0) = Qi.inverse() * (gravity_ * sum_dt + Vj - Vi) - corrected_vel;
-        residuals.block<3, 1>(O_BA, 0) = Baj - Bai;
-        residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
+        residuals.block<3, 1>(kOrderRot, 0) = 2 * (corrected_quat.inverse() * (Qi.inverse() * Qj)).vec();
+        residuals.block<3, 1>(kOrderVel, 0) = Qi.inverse() * (gravity_ * sum_dt + Vj - Vi) - corrected_vel;
+        residuals.block<3, 1>(kOrderBA, 0) = Baj - Bai;
+        residuals.block<3, 1>(kOrderBG, 0) = Bgj - Bgi;
         return residuals;
     }
 
@@ -60,51 +60,51 @@ namespace vins {
         Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
         Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
 
-        midPointIntegration(time_stamp_buf.back(), acc_buf.back(), gyr_buf.back(),
-                            time_stamp, acc, gyr,
-                            pre_pos, pre_quat, pre_vel, ba_, bg_,
-                            cur_pos, cur_quat, cur_vel, jacobian, covariance, noise);
+        midPointIntegral(time_stamp_buf_.back(), acc_buf_.back(), gyr_buf_.back(),
+                         time_stamp, acc, gyr,
+                         pre_pos_, pre_quat_, pre_vel_, ba_, bg_,
+                         cur_pos, cur_quat, cur_vel, jacobian_, covariance_, noise_);
 
-        time_stamp_buf.push_back(time_stamp);
-        acc_buf.push_back(acc);
-        gyr_buf.push_back(gyr);
+        time_stamp_buf_.push_back(time_stamp);
+        acc_buf_.push_back(acc);
+        gyr_buf_.push_back(gyr);
 
-        pre_pos = cur_pos;
-        pre_quat = cur_quat;
-        pre_vel = cur_vel;
+        pre_pos_ = cur_pos;
+        pre_quat_ = cur_quat;
+        pre_vel_ = cur_vel;
     }
 
     void ImuIntegrator::rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg) {
-        pre_pos.setZero();
-        pre_quat.setIdentity();
-        pre_vel.setZero();
+        pre_pos_.setZero();
+        pre_quat_.setIdentity();
+        pre_vel_.setZero();
         ba_ = new_ba;
         bg_ = new_bg;
-        jacobian.setIdentity();
-        covariance.setZero();
+        jacobian_.setIdentity();
+        covariance_.setZero();
 
         Eigen::Vector3d cur_pos = Eigen::Vector3d::Zero();
         Eigen::Quaterniond cur_quat = Eigen::Quaterniond::Identity();
         Eigen::Vector3d cur_vel = Eigen::Vector3d::Zero();
 
-        for (int i = 1; i < static_cast<int>(time_stamp_buf.size()); i++) {
-            midPointIntegration(time_stamp_buf[i-1], acc_buf[i-1], gyr_buf[i-1],
-                                time_stamp_buf[i], acc_buf[i], gyr_buf[i],
-                                pre_pos, pre_quat, pre_vel, ba_, bg_,
-                                cur_pos, cur_quat, cur_vel, jacobian, covariance, noise);
-            pre_pos = cur_pos;
-            pre_quat = cur_quat;
-            pre_vel = cur_vel;
+        for (int i = 1; i < static_cast<int>(time_stamp_buf_.size()); i++) {
+            midPointIntegral(time_stamp_buf_[i - 1], acc_buf_[i - 1], gyr_buf_[i - 1],
+                             time_stamp_buf_[i], acc_buf_[i], gyr_buf_[i],
+                             pre_pos_, pre_quat_, pre_vel_, ba_, bg_,
+                             cur_pos, cur_quat, cur_vel, jacobian_, covariance_, noise_);
+            pre_pos_ = cur_pos;
+            pre_quat_ = cur_quat;
+            pre_vel_ = cur_vel;
         }
     }
 
-    void ImuIntegrator::midPointIntegration(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
-                                            double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
-                                            ConstVec3dRef pre_pos, ConstQuatRef pre_quat, ConstVec3dRef pre_vel,
-                                            ConstVec3dRef ba, ConstVec3dRef bg,
-                                            Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
-                                            Jacobian &jacobian, Covariance &covariance, Noise &noise) {
-        double dt = cur_time_stamp - pre_time_stamp;
+    void ImuIntegrator::midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
+                                         double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
+                                         ConstVec3dRef pre_pos, ConstQuatRef pre_quat, ConstVec3dRef pre_vel,
+                                         ConstVec3dRef ba, ConstVec3dRef bg,
+                                         Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
+                                         Jacobian &jacobian, Covariance &covariance, Noise &noise) {
+        const double dt = cur_time_stamp - pre_time_stamp;
         const double dt2 = dt * dt;
         const double dt3 = dt2 * dt;
 

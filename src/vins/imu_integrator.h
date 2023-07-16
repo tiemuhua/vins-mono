@@ -9,12 +9,12 @@
 #include "vins_define_internal.h"
 
 namespace vins {
-    enum StateOrder {
-        O_P = 0,
-        O_R = 3,
-        O_V = 6,
-        O_BA = 9,
-        O_BG = 12
+    enum EStateOrder {
+        kOrderPos = 0,
+        kOrderRot = 3,
+        kOrderVel = 6,
+        kOrderBA = 9,
+        kOrderBG = 12
     };
 
     enum NoiseOrder {
@@ -28,7 +28,7 @@ namespace vins {
     public:
         static constexpr int NoiseDim = 18;
         static constexpr int StateDim = 15;
-        typedef Eigen::Matrix<double, StateDim, StateDim> Jacobian, Covariance;
+        typedef Eigen::Matrix<double, StateDim, StateDim> Jacobian, Covariance, SqrtInfo;
         typedef Eigen::Matrix<double, NoiseDim, NoiseDim> Noise;
         typedef Eigen::Matrix<double, StateDim, 1> State;
 
@@ -43,53 +43,53 @@ namespace vins {
                                      ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
 
         [[nodiscard]] const Eigen::Vector3d& deltaPos() const {
-            return pre_pos;
+            return pre_pos_;
         }
         [[nodiscard]] const Eigen::Vector3d& deltaVel() const {
-            return pre_vel;
+            return pre_vel_;
         }
         [[nodiscard]] const Eigen::Quaterniond& deltaQuat() const {
-            return pre_quat;
+            return pre_quat_;
         }
         [[nodiscard]] double deltaTime() const {
-            return time_stamp_buf.back() - time_stamp_buf.front();
+            return time_stamp_buf_.back() - time_stamp_buf_.front();
         }
         [[nodiscard]] const Jacobian& getJacobian() const {
-            return jacobian;
+            return jacobian_;
         }
         [[nodiscard]] const Covariance& getCovariance() const {
-            return covariance;
+            return covariance_;
         }
         [[nodiscard]] const Noise& getNoise() const {
-            return noise;
+            return noise_;
         }
         [[nodiscard]] const Eigen::Vector3d& getBg() const {
             return bg_;
         }
 
     private:
-        static void midPointIntegration(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
-                                        double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
-                                        ConstVec3dRef pre_pos, ConstQuatRef pre_quat, ConstVec3dRef pre_vel,
-                                        ConstVec3dRef ba, ConstVec3dRef bg,
-                                        Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
-                                        Jacobian &jacobian, Covariance &covariance, Noise &noise);
+        static void midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
+                                     double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
+                                     ConstVec3dRef pre_pos, ConstQuatRef pre_quat, ConstVec3dRef pre_vel,
+                                     ConstVec3dRef ba, ConstVec3dRef bg,
+                                     Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
+                                     Jacobian &jacobian, Covariance &covariance, Noise &noise);
     private:
-        Eigen::Vector3d pre_pos = Eigen::Vector3d::Zero();
-        Eigen::Vector3d pre_vel = Eigen::Vector3d::Zero();
-        Eigen::Quaterniond pre_quat = Eigen::Quaterniond::Identity();
+        Eigen::Vector3d pre_pos_ = Eigen::Vector3d::Zero();
+        Eigen::Vector3d pre_vel_ = Eigen::Vector3d::Zero();
+        Eigen::Quaterniond pre_quat_ = Eigen::Quaterniond::Identity();
 
         Eigen::Vector3d ba_ = Eigen::Vector3d::Zero();
         Eigen::Vector3d bg_ = Eigen::Vector3d::Zero();
         Eigen::Vector3d gravity_ = Eigen::Vector3d(0,0,-9.81);
 
-        Jacobian jacobian = Jacobian::Identity();
-        Covariance covariance = Covariance::Zero();
-        Noise noise = Noise::Zero();
+        Jacobian jacobian_ = Jacobian::Identity();
+        Covariance covariance_ = Covariance::Zero();
+        Noise noise_ = Noise::Zero();
 
-        std::vector<double> time_stamp_buf;
-        std::vector<Eigen::Vector3d> acc_buf;
-        std::vector<Eigen::Vector3d> gyr_buf;
+        std::vector<double> time_stamp_buf_;
+        std::vector<Eigen::Vector3d> acc_buf_;
+        std::vector<Eigen::Vector3d> gyr_buf_;
     };
 }
 
