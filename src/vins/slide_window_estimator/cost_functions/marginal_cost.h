@@ -82,8 +82,8 @@ namespace vins {
         std::vector<int> reserve_block_ids_;        //切空间维度，旋转为3维
         std::vector<double *> reserve_block_frozen_;
 
-        Eigen::MatrixXd reserve_param_jacobians_;
-        Eigen::VectorXd reserve_param_residuals_;
+        Eigen::MatrixXd reserve_block_jacobians_;
+        Eigen::VectorXd reserve_block_residuals_;
         static constexpr double EPS = 1e-8;
     };
 

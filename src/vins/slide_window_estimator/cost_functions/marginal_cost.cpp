@@ -224,8 +224,8 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
     const Eigen::VectorXd S_sqrt = S.cwiseSqrt();
     const Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
 
-    reserve_param_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
-    reserve_param_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
+    reserve_block_jacobians_ = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();
+    reserve_block_residuals_ = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;
 }
 
 // marginal_info_生命周期由SlideWindowEstimator负责维护
@@ -260,7 +260,7 @@ bool MarginalCost::Evaluate(double const *const *parameters, double *residuals, 
         }
     }
     Eigen::Map<Eigen::VectorXd>(residuals, reserve_dim) =
-            marginal_info_->reserve_param_residuals_ + marginal_info_->reserve_param_jacobians_ * dx;
+            marginal_info_->reserve_block_residuals_ + marginal_info_->reserve_block_jacobians_ * dx;
 
     assert(jacobians);
     for (int i = 0; i < static_cast<int>(marginal_info_->reserve_block_sizes_.size()); i++) {
@@ -271,7 +271,7 @@ bool MarginalCost::Evaluate(double const *const *parameters, double *residuals, 
         Eigen::Map<JacobianType> jacobian(jacobians[i], reserve_dim, size);
         jacobian.setZero();
         jacobian.leftCols(local_size) =
-                marginal_info_->reserve_param_jacobians_.middleCols(idx, local_size);
+                marginal_info_->reserve_block_jacobians_.middleCols(idx, local_size);
     }
     return true;
 }
