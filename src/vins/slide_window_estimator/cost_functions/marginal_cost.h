@@ -67,7 +67,7 @@ namespace vins {
          * 3.更新量x_updated:
          *   保留原始量在窗口中滑动后被塞入MarginalCost，并在后续优化中不断更新，更新后的量称之为更新量。
          *   更新量本质上同样是slide_window_estimator.cpp中的c_pos、c_vel等数组，
-         *   但由于滑动窗口的滑动，同一变量在更新量和原始量中的地址并不相同，sp_slide_addr_map描述了从原始量到更新量的地址映射。
+         *   但由于滑动窗口的滑动，同一变量在更新量和原始量中的地址并不相同，s_slide_addr_map描述了从原始量到更新量的地址映射。
          *
          * 优化过程：
          *   后续优化会通过x_updated与x_frozen的差来估计残差，即更新后的残差为 r = R + J * (x_updated - x_frozen)

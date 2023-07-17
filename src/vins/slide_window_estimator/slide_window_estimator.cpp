@@ -37,9 +37,9 @@ static arr1d c_time_delay;
 static arr3d c_loop_peer_pos;
 static arr4d c_loop_peer_quat;
 
-static std::vector<double*> s_marginal_param_blocks;
+static std::vector<double*> s_marginal_blocks;
 static vins::MarginalInfo *sp_marginal_info;
-static std::unordered_map<double*, double*> sp_slide_addr_map;
+static std::unordered_map<double*, double*> s_slide_addr_map;
 
 static vins::LoopMatchInfo* sp_loop_match_info;
 
@@ -119,7 +119,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     if (sp_marginal_info) {
         // todo tiemuhuaguo last_marginal_param_blocks和sp_marginal_info是怎么维护的
         auto *cost_function = new MarginalCost(sp_marginal_info);
-        problem.AddResidualBlock(cost_function, nullptr, s_marginal_param_blocks);
+        problem.AddResidualBlock(cost_function, nullptr, s_marginal_blocks);
     }
 
     /*************** 2:IMU **************************/
@@ -201,12 +201,12 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
     // 之前的边缘化约束
     if (sp_marginal_info) {
         std::vector<int> marginal_discard_set;
-        for (int i = 0; i < static_cast<int>(s_marginal_param_blocks.size()); i++) {
-            if (s_marginal_param_blocks[i] == c_pos[0] || s_marginal_param_blocks[i] == c_vel[0])
+        for (int i = 0; i < static_cast<int>(s_marginal_blocks.size()); i++) {
+            if (s_marginal_blocks[i] == c_pos[0] || s_marginal_blocks[i] == c_vel[0])
                 marginal_discard_set.push_back(i);
         }
         auto *marginal_cost = new MarginalCost(sp_marginal_info);
-        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, s_marginal_param_blocks, marginal_discard_set);
+        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, s_marginal_blocks, marginal_discard_set);
         marginal_info->addMetaFactor(marginal_factor);
     }
 
@@ -254,6 +254,26 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
                 marginal_info->addMetaFactor(project_factor);
             }
         }
+    }
+
+    std::vector<double *> reserve_block_origin;
+    marginal_info->marginalize(reserve_block_origin);
+    if (s_slide_addr_map.empty()) {
+        // todo 逆深度怎么搞？
+        for (int i = 1; i < WINDOW_SIZE; ++i) {
+            s_slide_addr_map[c_pos[i]] = c_pos[i-1];
+            s_slide_addr_map[c_quat[i]] = c_quat[i-1];
+            s_slide_addr_map[c_vel[i]] = c_vel[i-1];
+            s_slide_addr_map[c_ba[i]] = c_ba[i-1];
+            s_slide_addr_map[c_bg[i]] = c_bg[i-1];
+        }
+        s_slide_addr_map[c_tic] = c_tic;
+        s_slide_addr_map[c_ric] = c_ric;
+        s_slide_addr_map[c_time_delay] = c_time_delay;
+    }
+    s_marginal_blocks.resize(reserve_block_origin.size());
+    for (int i = 0; i < reserve_block_origin.size(); ++i) {
+        s_marginal_blocks[i] = s_slide_addr_map[reserve_block_origin[i]];
     }
 
     delete sp_marginal_info;
