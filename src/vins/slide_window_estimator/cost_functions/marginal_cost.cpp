@@ -87,11 +87,12 @@ struct ThreadsStruct {
  *   上轮优化过程结束后，边缘化过程中，即addMetaFactor()和marginalize()时对应的数据.
  *   保存于@param MarginalMetaFactor.parameter_blocks_，指向slide_window_estimator.cpp中c_pos、c_vel等数组。
  *   SlideWindowEstimator负责new/delete。
- *   保留原始量即为原始量中需要保留的参数，保存于@param reserve_block_origin
+ *   保留原始量即为原始量中需要保留的参数，保存于@param s_reserve_block_origin
  * 2.更新量x_updated:
  *   保留原始量在窗口中滑动后被塞入MarginalCost，并在下一轮优化中不断更新，更新后的量称之为更新量。
- *   更新量在MarginalCost::Evaluate()中通过@param parameters 传入，本质上同样是c_pos、c_vel等数组，
- *   但由于滑动窗口的滑动，同一变量在更新量和原始量中的地址并不相同，s_slide_addr_map描述了从保留原始量到更新量的地址映射。
+ *   更新量在MarginalCost::Evaluate()中通过@param parameters 传入，本质上同样是c_pos、c_vel等数组。
+ *   由于窗口的滑动，同一变量在更新量和原始量中的地址并不相同。
+ *   SlideWindowEstimator::slide()中的slide_addr_map描述了从保留原始量到更新量的地址映射。
  * 3.冻结量x_frozen:
  *   由于c_pos、c_vel中的数据在下轮优化中不断更新，marginalize()生成一份保留原始量的快照，称之为冻结量，在下轮优化中保持不变。
  *   冻结量保存于@param reserve_block_frozen_，MarginalInfo负责new/delete。

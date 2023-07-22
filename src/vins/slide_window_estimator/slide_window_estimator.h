@@ -8,6 +8,7 @@
 #include "vins/vins_define_internal.h"
 #include "vins/vins_run_info.h"
 #include "vins/parameters.h"
+#include "vins/feature_manager.h"
 
 namespace vins::SlideWindowEstimator{
     void optimize(const SlideWindowEstimatorParam &param,
@@ -15,9 +16,9 @@ namespace vins::SlideWindowEstimator{
                   BundleAdjustWindow &window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
-    void marginalize(const SlideWindowEstimatorParam &param,
-                     std::vector<FeaturesOfId> &features,
-                     BundleAdjustWindow &window);
+    void slide(const SlideWindowEstimatorParam &param,
+               FeatureManager &feature_manager,
+               BundleAdjustWindow &window);
 }
 
 #endif //VINS_BATCH_ADJUSTER_H

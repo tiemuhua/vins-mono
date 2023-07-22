@@ -82,6 +82,16 @@ namespace vins {
         return id2index;
     }
 
+    void FeatureManager::discardFeaturesOfFrameId(int frame_id) {
+        std::vector<FeaturesOfId> features;
+        for (auto &feature:features_) {
+            if (feature.start_frame_ != frame_id) {
+                features.emplace_back(std::move(feature));
+            }
+        }
+        features_ = std::move(features);
+    }
+
     void FeatureManager::removeFailures() {
         for (auto it = features_.begin(), it_next = features_.begin();
              next(it) != features_.end(); it = it_next) {

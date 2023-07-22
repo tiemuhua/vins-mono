@@ -76,6 +76,9 @@ namespace vins {
     template<typename T>
     class Window {
     public:
+        Window(int capacity) {
+            capacity_ = capacity;
+        }
         void push(T t) {
             queue_[(begin_ + size_) % capacity_] = std::move(t);
             if (size_ < capacity_) {
@@ -112,6 +115,7 @@ namespace vins {
         Window<Eigen::Vector3d> vel_window;
         Window<Eigen::Matrix3d> rot_window;
         Window<int> frame_id_window;
+        int size;
     };
 
 }

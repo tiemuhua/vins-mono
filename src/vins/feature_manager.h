@@ -29,6 +29,8 @@ namespace vins {
 
         std::unordered_map<int, int> getFeatureId2Index();
 
+        void discardFeaturesOfFrameId(int frame_id);
+
         void removeFailures();
         void removeBackShiftDepth();
         void removeFront();

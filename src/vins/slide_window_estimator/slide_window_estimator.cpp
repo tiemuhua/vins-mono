@@ -39,7 +39,6 @@ static arr4d c_loop_peer_quat;
 
 static std::vector<double*> s_marginal_blocks;
 static vins::MarginalInfo *sp_marginal_info;
-static std::unordered_map<double*, double*> s_slide_addr_map;
 
 static vins::LoopMatchInfo* sp_loop_match_info;
 
@@ -47,7 +46,7 @@ using namespace vins;
 using namespace std;
 
 static void eigen2c(const BundleAdjustWindow& window,
-                    const std::vector<FeaturesOfId> &features_,
+                    const std::vector<FeaturesOfId> &features,
                     const Eigen::Vector3d& tic,
                     const Eigen::Matrix3d &ric){
     for (int i = 0; i < window.pos_window.size(); ++i) {
@@ -66,11 +65,11 @@ static void eigen2c(const BundleAdjustWindow& window,
         utils::vec3d2array(window.bg_window.at(i), c_bg[i]);
     }
 
-    for (int i = 0; i < features_.size(); ++i) {
-        if (features_[i].feature_points_.size() < 2 || features_[i].start_frame_ >= WINDOW_SIZE - 2) {
+    for (int i = 0; i < features.size(); ++i) {
+        if (features[i].feature_points_.size() < 2 || features[i].start_frame_ >= WINDOW_SIZE - 2) {
             continue;
         }
-        c_inv_depth[i][0] = features_[i].inv_depth;
+        c_inv_depth[i][0] = features[i].inv_depth;
     }
 
     utils::vec3d2array(tic, c_tic);
@@ -193,9 +192,10 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     eigen2c(window, features, RunInfo::Instance().tic, RunInfo::Instance().ric);
 }
 
-void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
-                                       std::vector<FeaturesOfId> &features,
-                                       BundleAdjustWindow &window) {
+static void marginalize(const SlideWindowEstimatorParam &param,
+                        const std::vector<FeaturesOfId> &features,
+                        BundleAdjustWindow &window,
+                        std::vector<double *> &reserve_block_origin) {
     auto *marginal_info = new MarginalInfo();
 
     // 之前的边缘化约束
@@ -256,26 +256,37 @@ void SlideWindowEstimator::marginalize(const SlideWindowEstimatorParam &param,
         }
     }
 
-    std::vector<double *> reserve_block_origin;
     marginal_info->marginalize(reserve_block_origin);
-    if (s_slide_addr_map.empty()) {
-        // todo 逆深度怎么搞？
-        for (int i = 1; i < WINDOW_SIZE; ++i) {
-            s_slide_addr_map[c_pos[i]] = c_pos[i-1];
-            s_slide_addr_map[c_quat[i]] = c_quat[i-1];
-            s_slide_addr_map[c_vel[i]] = c_vel[i-1];
-            s_slide_addr_map[c_ba[i]] = c_ba[i-1];
-            s_slide_addr_map[c_bg[i]] = c_bg[i-1];
-        }
-        s_slide_addr_map[c_tic] = c_tic;
-        s_slide_addr_map[c_ric] = c_ric;
-        s_slide_addr_map[c_time_delay] = c_time_delay;
-    }
-    s_marginal_blocks.resize(reserve_block_origin.size());
-    for (int i = 0; i < reserve_block_origin.size(); ++i) {
-        s_marginal_blocks[i] = s_slide_addr_map[reserve_block_origin[i]];
-    }
 
     delete sp_marginal_info;
     sp_marginal_info = marginal_info;
+}
+
+void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
+                                 FeatureManager &feature_manager,
+                                 BundleAdjustWindow &window) {
+    std::vector<double *> reserve_block_origin;
+    marginalize(param, feature_manager.features_, window, reserve_block_origin);
+
+    std::unordered_map<int, int> feature_id_2_idx_origin = feature_manager.getFeatureId2Index();
+    feature_manager.discardFeaturesOfFrameId(window.frame_id_window.at(0));
+    std::unordered_map<int, int> feature_id_2_idx_after_discard = feature_manager.getFeatureId2Index();
+
+    std::unordered_map<double*, double*> slide_addr_map;
+    for (const auto &id2idx_origin : feature_id_2_idx_origin) {
+        int id = id2idx_origin.first;
+        int idx_origin = id2idx_origin.second;
+        int idx_after_discard = feature_id_2_idx_after_discard[id];
+        slide_addr_map[c_inv_depth[idx_origin]] = c_inv_depth[idx_after_discard];
+    }
+    for (int frame_idx = 0; frame_idx < window.size - 1; ++frame_idx) {
+        slide_addr_map[c_pos[frame_idx]] = c_pos[frame_idx + 1];
+        slide_addr_map[c_quat[frame_idx]] = c_quat[frame_idx + 1];
+        slide_addr_map[c_vel[frame_idx]] = c_vel[frame_idx + 1];
+        slide_addr_map[c_ba[frame_idx]] = c_ba[frame_idx + 1];
+        slide_addr_map[c_bg[frame_idx]] = c_bg[frame_idx + 1];
+    }
+    for (double* origin_addr:reserve_block_origin) {
+        s_marginal_blocks.emplace_back(slide_addr_map[origin_addr]);
+    }
 }
