@@ -70,41 +70,50 @@ struct ThreadsStruct {
     std::vector<MarginalMetaFactor> sub_factors;
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
-    std::unordered_map<double*, int> parameter_block_size;  //原始数据维度，旋转为4维
-    std::unordered_map<double*, int> parameter_block_idx;   //切空间维度，旋转为3维
 };
-
-void ThreadsConstructA(ThreadsStruct *p) {
-    for (const MarginalMetaFactor& it: p->sub_factors) {
-        for (int i = 0; i < static_cast<int>(it.parameter_blocks_.size()); i++) {
-            int idx_i = p->parameter_block_idx[it.parameter_blocks_[i]];
-            int size_i = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[i]]);
-            Eigen::MatrixXd jacobian_i = it.jacobians_[i].leftCols(size_i);
-            for (int j = i + 1; j < static_cast<int>(it.parameter_blocks_.size()); j++) {
-                int idx_j = p->parameter_block_idx[it.parameter_blocks_[j]];
-                int size_j = tangentSpaceDimensionSize(p->parameter_block_size[it.parameter_blocks_[j]]);
-                Eigen::MatrixXd jacobian_j = it.jacobians_[j].leftCols(size_j);
-                p->A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
-                p->A.block(idx_j, idx_i, size_j, size_i) = p->A.block(idx_i, idx_j, size_i, size_j).transpose();
-            }
-            p->A.block(idx_i, idx_i, size_i, idx_i) += jacobian_i.transpose() * jacobian_i;
-            p->b.segment(idx_i, size_i) += jacobian_i.transpose() * it.residuals_;
-        }
-    }
-}
 }
 
+/**
+ * 将待优化变量按是否需要丢弃分为:
+ * 1.丢弃量:需要从滑动窗口中丢弃的位置、姿态、速度、特征点深度
+ *   只存在于下文的原始量当中，不存在于冻结量和更新量当中
+ * 2.保留量:与丢弃量有约束边相连，但是尚不从滑动窗口中丢弃的量
+ *   存在于原始量、冻结量和更新量当中
+ * 3.无关量:既不需要从滑动窗口中丢弃，也不和丢弃量相连，这些量不卷入边缘化过程
+ *   在原始量、冻结量、更新量当中均不存在
+ *
+ * 将待优化变量在时间上分为：
+ * 1.原始量x_original:
+ *   上轮优化过程结束后，边缘化过程中，即addMetaFactor()和marginalize()时对应的数据.
+ *   保存于@param MarginalMetaFactor.parameter_blocks_，指向slide_window_estimator.cpp中c_pos、c_vel等数组。
+ *   SlideWindowEstimator负责new/delete。
+ *   保留原始量即为原始量中需要保留的参数，保存于@param reserve_block_origin
+ * 2.更新量x_updated:
+ *   保留原始量在窗口中滑动后被塞入MarginalCost，并在下一轮优化中不断更新，更新后的量称之为更新量。
+ *   更新量在MarginalCost::Evaluate()中通过@param parameters 传入，本质上同样是c_pos、c_vel等数组，
+ *   但由于滑动窗口的滑动，同一变量在更新量和原始量中的地址并不相同，s_slide_addr_map描述了从保留原始量到更新量的地址映射。
+ * 3.冻结量x_frozen:
+ *   由于c_pos、c_vel中的数据在下轮优化中不断更新，marginalize()生成一份保留原始量的快照，称之为冻结量，在下轮优化中保持不变。
+ *   冻结量保存于@param reserve_block_frozen_，MarginalInfo负责new/delete。
+ *   由于冻结量需要在MarginalCost::Evaluate()中和原始量做差，因此冻结量和保留原始量的顺序必须一一对应
+ *
+ * 优化过程：
+ *   marginalize()计算残差R和保留原始量的雅可比J，储存于@param reserve_param_residuals_、@param reserve_param_jacobians_
+ *   后续优化会通过x_updated与x_frozen的差来估计残差，即更新后的残差为 r = R + J * (x_updated - x_frozen)
+ *   由于reserve_block_origin和sp_slide_addr_map构建起了冻结量和更新量之间的地址对应关系，这样的减法是可行的。
+ * */
 void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
     /**
      * STEP 1:
-     * 将所有参数整体视作一个待优化向量，求出每个参数块在该向量中的位置和长度，
-     * 即@param param_block_idx 和 @param param_block_size
-     * 注意将要被丢弃的参数块在该向量的前面，要保留的参数块在后面。
-     * @param discard_param_dim_ 所有要丢弃的参数块的长度的和
-     * @param reserve_param_dim_ 所有要保留的参数块的长度的和
+     * 参数块的维度记为dim，长度记为size，例如四元数的维度为3，长度为4
+     * 将所有原始量参数化后视作一个整体向量，要丢弃的参数块在前，要保留的参数块在后。
+     * @return 各参数块在该向量中的长度和位置，即@param origin_addr_to_size 和 @param origin_addr_to_idx
+     * NOTE:位置是维度的前缀和，而非长度的前缀和
+     * @param discard_param_dim_ 所有要丢弃的参数块的维度的和
+     * @param reserve_param_dim_ 所有要保留的参数块的维度的和
      * */
-    std::unordered_map<double*, int> param_block_size;      //原始数据维度，旋转为4维
-    std::unordered_map<double*, int> param_block_idx;       //切空间维度，旋转为3维
+    std::unordered_map<double*, int> origin_addr_to_size;
+    std::unordered_map<double*, int> origin_addr_to_idx;
     std::set<double*> param_should_discard;
     for (const auto &factor:factors_) {
         const std::vector<double *> &parameter_blocks = factor.parameter_blocks_;
@@ -121,12 +130,12 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
         for (int i = 0; i < static_cast<int>(param_blocks.size()); i++) {
             double *block_addr = param_blocks[i];
             int size = param_sizes[i];
-            param_block_size[block_addr] = size;
+            origin_addr_to_size[block_addr] = size;
             if (param_should_discard.count(block_addr) == 0) {
-                param_block_idx[block_addr] = reserve_idx;
+                origin_addr_to_idx[block_addr] = reserve_idx;
                 reserve_idx += tangentSpaceDimensionSize(size);
             } else {
-                param_block_idx[block_addr] = discard_idx;
+                origin_addr_to_idx[block_addr] = discard_idx;
                 discard_idx += tangentSpaceDimensionSize(size);
             }
         }
@@ -135,21 +144,19 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
 
     /**
      * STEP 2:
-     * @param reserve_block_addr_origin_ 要保留的参数，外部负责new/delete，在后面的优化过程中不断更新
-     * @param reserve_block_data_frozen_ 要保留的参数在边缘化时刻的值，MarginalInfo负责new/delete，在后面的优化过程中冻结不变
-     * 在MarginalFactor::Evaluate中通过更新后参数与冻结参数的差来近似计算残差
-     * 因此需要保证reserve_block_xxxx中的参数地址一一对应
+     * 生成冻结量和保留原始量及其对应的idx和size
+     * @return reserve_block_frozen_、reserve_block_origin、
      * */
     reserve_block_sizes_.clear();
     reserve_block_ids_.clear();
     reserve_block_frozen_.clear();
     reserve_block_origin.clear();
-    for (const auto& it: param_block_idx) {
+    for (const auto& it: origin_addr_to_idx) {
         double * addr = it.first;
         if (param_should_discard.count(addr)) {
             continue;
         }
-        int size = param_block_size[addr];
+        int size = origin_addr_to_size[addr];
         int idx = it.second;
         auto *frozen_data = new double [size];
         memcpy(frozen_data, it.first, sizeof(double) * size);
@@ -184,9 +191,25 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
     for (ThreadsStruct & thread_struct : thread_structs) {
         thread_struct.A = Eigen::MatrixXd::Zero(total_dim, total_dim);
         thread_struct.b = Eigen::VectorXd::Zero(total_dim);
-        thread_struct.parameter_block_size = param_block_size;
-        thread_struct.parameter_block_idx = param_block_idx;
-        threads.emplace_back(&ThreadsConstructA, &thread_struct);
+        threads.emplace_back([&thread_struct, &origin_addr_to_size, &origin_addr_to_idx]() {
+            for (const MarginalMetaFactor& it: thread_struct.sub_factors) {
+                for (int i = 0; i < static_cast<int>(it.parameter_blocks_.size()); i++) {
+                    int idx_i = origin_addr_to_idx[it.parameter_blocks_[i]];
+                    int size_i = tangentSpaceDimensionSize(origin_addr_to_size[it.parameter_blocks_[i]]);
+                    Eigen::MatrixXd jacobian_i = it.jacobians_[i].leftCols(size_i);
+                    for (int j = i + 1; j < static_cast<int>(it.parameter_blocks_.size()); j++) {
+                        int idx_j = origin_addr_to_idx[it.parameter_blocks_[j]];
+                        int size_j = tangentSpaceDimensionSize(origin_addr_to_size[it.parameter_blocks_[j]]);
+                        Eigen::MatrixXd jacobian_j = it.jacobians_[j].leftCols(size_j);
+                        thread_struct.A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
+                        thread_struct.A.block(idx_j, idx_i, size_j, size_i) =
+                                thread_struct.A.block(idx_i, idx_j, size_i, size_j).transpose();
+                    }
+                    thread_struct.A.block(idx_i, idx_i, size_i, idx_i) += jacobian_i.transpose() * jacobian_i;
+                    thread_struct.b.segment(idx_i, size_i) += jacobian_i.transpose() * it.residuals_;
+                }
+            }
+        });
     }
     for (int i = NUM_THREADS - 1; i >= 0; i--) {
         threads[i].join();
