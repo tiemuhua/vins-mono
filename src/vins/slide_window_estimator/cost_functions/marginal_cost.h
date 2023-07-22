@@ -52,8 +52,8 @@ namespace vins {
         std::vector<MarginalMetaFactor> factors_;
         int discard_dim_ = 0, reserve_dim_ = 0;
 
-        std::vector<int> reserve_block_sizes_;      //原始数据维度，旋转为4维
-        std::vector<int> reserve_block_ids_;        //切空间维度，旋转为3维
+        std::vector<int> reserve_block_sizes_;
+        std::vector<int> reserve_block_ids_;
         std::vector<double *> reserve_block_frozen_;
 
         Eigen::MatrixXd reserve_block_jacobians_;
