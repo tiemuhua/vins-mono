@@ -17,7 +17,7 @@ namespace vins {
     public:
         void clearState();
 
-        bool isKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) const;
+        [[nodiscard]] bool isKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) const;
         void addFeatures(int frame_id, const std::vector<FeaturePoint2D> &feature_points);
 
         [[nodiscard]] Correspondences getCorrespondences(int frame_count_l, int frame_count_r) const;
@@ -26,6 +26,8 @@ namespace vins {
                          const Window<Eigen::Matrix3d>& rot_window,
                          ConstVec3dRef tic,
                          ConstMat3dRef ric);
+
+        std::unordered_map<int, int> getFeatureId2Index();
 
         void removeFailures();
         void removeBackShiftDepth();

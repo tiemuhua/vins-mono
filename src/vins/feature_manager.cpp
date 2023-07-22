@@ -74,6 +74,14 @@ namespace vins {
         return correspondences;
     }
 
+    std::unordered_map<int, int> FeatureManager::getFeatureId2Index() {
+        std::unordered_map<int, int> id2index;
+        for (int i = 0; i < features_.size(); ++i) {
+            id2index[features_[i].feature_id_] = i;
+        }
+        return id2index;
+    }
+
     void FeatureManager::removeFailures() {
         for (auto it = features_.begin(), it_next = features_.begin();
              next(it) != features_.end(); it = it_next) {
