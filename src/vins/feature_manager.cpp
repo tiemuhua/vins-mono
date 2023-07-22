@@ -10,7 +10,7 @@ namespace vins {
         features_.clear();
     }
 
-    bool FeatureManager::addFeaturesAndCheckIsKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
+    bool FeatureManager::isKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) const {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features_.size());
 
         int last_track_num = 0;
@@ -19,11 +19,7 @@ namespace vins {
                 return it.feature_id_ == point.feature_id;
             });
 
-            if (it == features_.end()) {
-                features_.emplace_back(FeaturesOfId(point.feature_id, frame_id));
-                features_.back().feature_points_.push_back(point);
-            } else {
-                it->feature_points_.emplace_back(point);
+            if (it != features_.end()) {
                 last_track_num++;
             }
         }
@@ -47,6 +43,21 @@ namespace vins {
             LOG_D("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
             LOG_D("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
             return parallax_sum / parallax_num >= MIN_PARALLAX;
+        }
+    }
+
+    void FeatureManager::addFeatures(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
+        for (const FeaturePoint2D &point: feature_points) {
+            auto it = find_if(features_.begin(), features_.end(), [point](const FeaturesOfId &it)->bool {
+                return it.feature_id_ == point.feature_id;
+            });
+
+            if (it == features_.end()) {
+                features_.emplace_back(FeaturesOfId(point.feature_id, frame_id));
+                features_.back().feature_points_.push_back(point);
+            } else {
+                it->feature_points_.emplace_back(point);
+            }
         }
     }
 

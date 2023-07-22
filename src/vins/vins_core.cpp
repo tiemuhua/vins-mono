@@ -36,7 +36,8 @@ namespace vins{
             feature_points.emplace_back(point);
         }
         // all_frames_.size()不要-1
-        bool is_key_frame = feature_manager_.addFeaturesAndCheckIsKeyFrame((int) all_frames_.size(), feature_points);
+        bool is_key_frame = feature_manager_.isKeyFrame((int) all_frames_.size(), feature_points);
+        feature_manager_.addFeatures((int) all_frames_.size(), feature_points);
         all_frames_.emplace_back(std::move(feature_points),
                                  time_stamp,
                                  std::move(imu_integrator),
