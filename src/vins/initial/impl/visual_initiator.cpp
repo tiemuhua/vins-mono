@@ -119,7 +119,7 @@ namespace vins {
         int big_parallax_frame_id = -1;
         for (int i = 0; i < Param::Instance().window_size; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    feature_manager_.getCorresponding(i, Param::Instance().window_size);
+                    feature_manager_.getCorrespondences(i, Param::Instance().window_size);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;

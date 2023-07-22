@@ -39,11 +39,10 @@ namespace vins {
 
         if (parallax_num == 0) {
             return true;
-        } else {
-            LOG_D("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
-            LOG_D("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
-            return parallax_sum / parallax_num >= MIN_PARALLAX;
         }
+        LOG_I("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
+        LOG_I("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
+        return parallax_sum / parallax_num >= MIN_PARALLAX;
     }
 
     void FeatureManager::addFeatures(int frame_id, const std::vector<FeaturePoint2D> &feature_points) {
@@ -61,18 +60,18 @@ namespace vins {
         }
     }
 
-    vector<pair<cv::Point2f, cv::Point2f>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r) const {
-        vector<pair<cv::Point2f , cv::Point2f>> corres;
+    Correspondences FeatureManager::getCorrespondences(int frame_count_l, int frame_count_r) const {
+        Correspondences correspondences;
         for (const FeaturesOfId &it: features_) {
             if (it.start_frame_ <= frame_count_l && it.endFrame() >= frame_count_r) {
                 int idx_l = frame_count_l - it.start_frame_;
                 int idx_r = frame_count_r - it.start_frame_;
                 cv::Point2f a = it.feature_points_[idx_l].point;
                 cv::Point2f b = it.feature_points_[idx_r].point;
-                corres.emplace_back(make_pair(a, b));
+                correspondences.emplace_back(make_pair(a, b));
             }
         }
-        return corres;
+        return correspondences;
     }
 
     void FeatureManager::removeFailures() {

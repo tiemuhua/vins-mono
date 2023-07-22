@@ -20,7 +20,7 @@ namespace vins {
         bool isKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) const;
         void addFeatures(int frame_id, const std::vector<FeaturePoint2D> &feature_points);
 
-        [[nodiscard]] Correspondences getCorresponding(int frame_count_l, int frame_count_r) const;
+        [[nodiscard]] Correspondences getCorrespondences(int frame_count_l, int frame_count_r) const;
 
         void triangulate(const Window<Eigen::Vector3d>& pos_window,
                          const Window<Eigen::Matrix3d>& rot_window,
