@@ -13,12 +13,15 @@
 namespace vins::SlideWindowEstimator{
     void optimize(const SlideWindowEstimatorParam &param,
                   std::vector<FeaturesOfId> &features,
-                  BundleAdjustWindow &window,
+                  Window<EstimateState>& state_window,
+                  Window<ImuIntegrator>& pre_int_window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
     void slide(const SlideWindowEstimatorParam &param,
+               int oldest_key_frame_id,
                FeatureManager &feature_manager,
-               BundleAdjustWindow &window);
+               Window<EstimateState>& state_window,
+               Window<ImuIntegrator>& pre_int_window);
 }
 
 #endif //VINS_BATCH_ADJUSTER_H

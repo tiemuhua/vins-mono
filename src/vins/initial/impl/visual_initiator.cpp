@@ -141,18 +141,17 @@ namespace vins {
             return false;
         }
 
-        //solve pnp for all frame，包括非关键帧
-        int i = 0;
+        //利用关键帧位姿和特征点深度PNP求解非关键帧位姿
+        int key_frame_idx = 0;
         for (ImageFrame &frame:all_image_frame_) {
             // provide initial guess
             if (frame.is_key_frame_) {
-                frame.R = Q[i].toRotationMatrix();
-                frame.T = T[i];
-                i++;
+                frame.R = Q[key_frame_idx].toRotationMatrix();
+                frame.T = T[key_frame_idx];
+                key_frame_idx++;
                 continue;
             }
 
-            frame.is_key_frame_ = false;
             vector<cv::Point3f> pts_3_vector;
             vector<cv::Point2f> pts_2_vector;
             for (const FeaturePoint2D &point:frame.points) {
@@ -169,8 +168,8 @@ namespace vins {
                 return false;
             }
 
-            Eigen::Matrix3d R_initial = Q[i].toRotationMatrix();
-            Eigen::Vector3d P_initial = T[i];
+            Eigen::Matrix3d R_initial = Q[key_frame_idx].toRotationMatrix();
+            Eigen::Vector3d P_initial = T[key_frame_idx];
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
                 LOG_D("solve pnp fail!");
                 return false;

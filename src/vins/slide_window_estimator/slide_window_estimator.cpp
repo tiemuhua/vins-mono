@@ -45,24 +45,16 @@ static vins::LoopMatchInfo* sp_loop_match_info;
 using namespace vins;
 using namespace std;
 
-static void eigen2c(const BundleAdjustWindow& window,
+static void eigen2c(const Window<EstimateState>& window,
                     const std::vector<FeaturesOfId> &features,
                     const Eigen::Vector3d& tic,
                     const Eigen::Matrix3d &ric){
-    for (int i = 0; i < window.pos_window.size(); ++i) {
-        utils::vec3d2array(window.pos_window.at(i), c_pos[i]);
-    }
-    for (int i = 0; i < window.rot_window.size(); ++i) {
-        utils::quat2array(Eigen::Quaterniond(window.rot_window.at(i)), c_quat[i]);
-    }
-    for (int i = 0; i < window.vel_window.size(); ++i) {
-        utils::vec3d2array(window.vel_window.at(i), c_vel[i]);
-    }
-    for (int i = 0; i < window.ba_window.size(); ++i) {
-        utils::vec3d2array(window.ba_window.at(i), c_ba[i]);
-    }
-    for (int i = 0; i < window.bg_window.size(); ++i) {
-        utils::vec3d2array(window.bg_window.at(i), c_bg[i]);
+    for (int i = 0; i < window.size(); ++i) {
+        utils::vec3d2array(window.at(i).pos, c_pos[i]);
+        utils::quat2array(Eigen::Quaterniond(window.at(i).rot), c_quat[i]);
+        utils::vec3d2array(window.at(i).vel, c_vel[i]);
+        utils::vec3d2array(window.at(i).ba, c_ba[i]);
+        utils::vec3d2array(window.at(i).bg, c_bg[i]);
     }
 
     for (int i = 0; i < features.size(); ++i) {
@@ -76,24 +68,16 @@ static void eigen2c(const BundleAdjustWindow& window,
     utils::quat2array(Eigen::Quaterniond(ric), c_ric);
 }
 
-static void c2eigen(BundleAdjustWindow &window,
+static void c2eigen(Window<EstimateState>& window,
                     std::vector<FeaturesOfId> &features,
                     Eigen::Vector3d& tic,
                     Eigen::Matrix3d &ric) {
-    for (int i = 0; i < window.pos_window.size(); ++i) {
-        window.pos_window.at(i) = utils::array2vec3d(c_pos[i]);
-    }
-    for (int i = 0; i < window.rot_window.size(); ++i) {
-        window.rot_window.at(i) = utils::array2quat(c_quat[i]);
-    }
-    for (int i = 0; i < window.vel_window.size(); ++i) {
-        window.vel_window.at(i) = utils::array2vec3d(c_vel[i]);
-    }
-    for (int i = 0; i < window.ba_window.size(); ++i) {
-        window.ba_window.at(i) = utils::array2vec3d(c_ba[i]);
-    }
-    for (int i = 0; i < window.bg_window.size(); ++i) {
-        window.bg_window.at(i) = utils::array2vec3d(c_bg[i]);
+    for (int i = 0; i < window.size(); ++i) {
+        window.at(i).pos = utils::array2vec3d(c_pos[i]);
+        window.at(i).rot = utils::array2quat(c_quat[i]).toRotationMatrix();
+        window.at(i).vel = utils::array2vec3d(c_vel[i]);
+        window.at(i).ba = utils::array2vec3d(c_ba[i]);
+        window.at(i).bg = utils::array2vec3d(c_bg[i]);
     }
 
     for (int i = 0; i < features.size(); ++i) {
@@ -109,7 +93,8 @@ static void c2eigen(BundleAdjustWindow &window,
 
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
                                     std::vector<FeaturesOfId> &features,
-                                    BundleAdjustWindow &window,
+                                    Window<EstimateState>& window,
+                                    Window<ImuIntegrator>& pre_int_window,
                                     Eigen::Vector3d &tic,
                                     Eigen::Matrix3d &ric) {
     eigen2c(window, features, tic, ric);
@@ -146,11 +131,11 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     }
 
     /*************** 2:IMU **************************/
-    for (int i = 0; i < window.pre_int_window.size(); i++) {
+    for (int i = 0; i < pre_int_window.size(); i++) {
         int j = i + 1;
-        if (window.pre_int_window.at(i).deltaTime() > 10.0)// todo why???
+        if (pre_int_window.at(i).deltaTime() > 10.0)// todo why???
             continue;
-        auto *cost_function = new IMUCost(window.pre_int_window.at(i));
+        auto *cost_function = new IMUCost(pre_int_window.at(i));
         problem.AddResidualBlock(cost_function, nullptr,
                                  c_pos[i], c_quat[i], c_vel[i], c_ba[i], c_bg[i],
                                  c_pos[j], c_quat[j], c_vel[j], c_ba[j], c_bg[j]);
@@ -217,8 +202,9 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
 }
 
 static void marginalize(const SlideWindowEstimatorParam &param,
+                        const int oldest_key_frame_id,
                         const std::vector<FeaturesOfId> &features,
-                        BundleAdjustWindow &window,
+                        const Window<ImuIntegrator>& pre_int_window,
                         std::vector<double *> &reserve_block_origin) {
     auto *marginal_info = new MarginalInfo();
 
@@ -235,7 +221,7 @@ static void marginalize(const SlideWindowEstimatorParam &param,
     }
 
     // 最老帧的imu约束
-    auto *imu_cost = new IMUCost(window.pre_int_window.at(0));
+    auto *imu_cost = new IMUCost(pre_int_window.at(0));
     vector<double *> imu_param_blocks = {
             c_pos[0], c_quat[0], c_vel[0], c_ba[0], c_bg[0],
             c_pos[1], c_quat[1], c_vel[1], c_ba[1], c_bg[1],
@@ -248,7 +234,7 @@ static void marginalize(const SlideWindowEstimatorParam &param,
     const vector<int> visual_discard_set = {0, 1, 6};
     for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
         const FeaturesOfId& feature = features[feature_id];
-        if (feature.start_frame_ != window.frame_id_window.at(0)) {
+        if (feature.start_frame_ != oldest_key_frame_id) {
             continue;
         }
         const FeaturePoint2D & point0 = feature.feature_points_[0];
@@ -287,13 +273,15 @@ static void marginalize(const SlideWindowEstimatorParam &param,
 }
 
 void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
+                                 const int oldest_key_frame_id,
                                  FeatureManager &feature_manager,
-                                 BundleAdjustWindow &window) {
+                                 Window<EstimateState>& state_window,
+                                 Window<ImuIntegrator>& pre_int_window) {
     std::vector<double *> reserve_block_origin;
-    marginalize(param, feature_manager.features_, window, reserve_block_origin);
+    marginalize(param, oldest_key_frame_id, feature_manager.features_, pre_int_window, reserve_block_origin);
 
     std::unordered_map<int, int> feature_id_2_idx_origin = feature_manager.getFeatureId2Index();
-    feature_manager.discardFeaturesOfFrameId(window.frame_id_window.at(0));
+    feature_manager.discardFeaturesOfFrameId(oldest_key_frame_id);
     std::unordered_map<int, int> feature_id_2_idx_after_discard = feature_manager.getFeatureId2Index();
 
     std::unordered_map<double*, double*> slide_addr_map;
@@ -303,7 +291,7 @@ void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
         int idx_after_discard = feature_id_2_idx_after_discard[id];
         slide_addr_map[c_inv_depth[idx_origin]] = c_inv_depth[idx_after_discard];
     }
-    for (int frame_idx = 0; frame_idx < window.size - 1; ++frame_idx) {
+    for (int frame_idx = 0; frame_idx < state_window.size() - 1; ++frame_idx) {
         slide_addr_map[c_pos[frame_idx]] = c_pos[frame_idx + 1];
         slide_addr_map[c_quat[frame_idx]] = c_quat[frame_idx + 1];
         slide_addr_map[c_vel[frame_idx]] = c_vel[frame_idx + 1];

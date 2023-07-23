@@ -47,16 +47,12 @@ namespace vins {
         int size_ = 0;
     };
 
-    struct BundleAdjustWindow {
-        Window<ImuIntegrator> pre_int_window;
-        Window<double> time_stamp_window;
-        Window<Eigen::Vector3d> ba_window;
-        Window<Eigen::Vector3d> bg_window;
-        Window<Eigen::Vector3d> pos_window;
-        Window<Eigen::Vector3d> vel_window;
-        Window<Eigen::Matrix3d> rot_window;
-        Window<int> frame_id_window;
-        int size;
+    struct EstimateState {
+        Eigen::Vector3d pos;
+        Eigen::Matrix3d rot;
+        Eigen::Vector3d vel;
+        Eigen::Vector3d ba;
+        Eigen::Vector3d bg;
     };
 
     camodocal::CameraPtr CameraInstance();
@@ -67,8 +63,13 @@ namespace vins {
         Eigen::Vector3d tic;
         Eigen::Matrix3d ric;
         Eigen::Vector3d gravity;
-        BundleAdjustWindow window;
+
+        Window<EstimateState> state_window;
+        Window<int> frame_id_window;
+        Window<ImuIntegrator> pre_int_window;
+
         std::vector<ImageFrame> all_frames;
+
         static RunInfo& Instance() {
             return run_info_;
         }

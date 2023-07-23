@@ -29,7 +29,7 @@ namespace vins{
         } vins_state_ = kVinsStateEstimateExtrinsic;
         EVinsState _handleEstimateExtrinsic();
         EVinsState _handleInitial(double time_stamp);
-        EVinsState _handleNormal(double time_stamp);
+        EVinsState _handleNormal(bool is_key_frame);
 
     private:
         std::mutex read_imu_buf_mutex_;
@@ -39,14 +39,11 @@ namespace vins{
 
         double last_init_time_stamp_ = 0.0;
 
-        std::vector<ImageFrame> all_frames_;
+        int cur_frame_id_;
 
         RICEstimator *ric_estimator_;
         FeatureManager *feature_manager_;
         FeatureTracker *feature_tracker_;
-
-        Eigen::Matrix3d ric_;
-        Eigen::Vector3d tic_;
     };
 }
 

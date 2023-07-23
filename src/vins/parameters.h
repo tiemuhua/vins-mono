@@ -28,6 +28,7 @@ namespace vins {
     public:
         CameraParam camera;
         FrameTrackerParam frame_tracker;
+        SlideWindowEstimatorParam slide_window;
 
         double gravity_norm;
         double time_rolling_shatter;
