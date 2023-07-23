@@ -13,11 +13,7 @@ namespace vins {
     class Initiate {
     public:
         static bool initiate(int frame_cnt,
-                             ConstVec3dRef TIC,
-                             ConstMat3dRef RIC,
-                             BundleAdjustWindow& window,
-                             std::vector<ImageFrame> &all_frames,
-                             Eigen::Vector3d& gravity,
+                             RunInfo &run_info,
                              FeatureManager &feature_manager);
     };
 }

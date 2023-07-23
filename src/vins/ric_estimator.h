@@ -8,9 +8,9 @@
 namespace vins {
     typedef std::pair<cv::Point2f, cv::Point2f> PointCorrespondence;
     typedef std::vector<PointCorrespondence> PointCorrespondences;
-    class RotationExtrinsicEstimator {
+    class RICEstimator {
     public:
-        RotationExtrinsicEstimator(int window_size){
+        RICEstimator(int window_size){
             window_size_ = window_size;
         }
 

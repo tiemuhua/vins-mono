@@ -30,7 +30,7 @@ cv::Point2f FeatureTracker::rawPoint2UniformedPoint(const cv::Point2f& p) {
     return {col, row};
 }
 
-FeatureTracker::FeaturesPerImage FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time){
+std::vector<FeaturePoint2D> FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time){
     int COL = Param::Instance().camera.col;
     int ROW = Param::Instance().camera.row;
 
@@ -39,57 +39,57 @@ FeatureTracker::FeaturesPerImage FeatureTracker::extractFeatures(const cv::Mat &
         prev_img_ = _img;
     }
 
-    vector<cv::Point2f> next_pts;
+    vector<cv::Point2f> next_raw_pts;
 
-    if (!prev_pts_.empty()) {
+    if (!prev_raw_pts_.empty()) {
         vector<uchar> status;
         vector<float> err;
         cv::Size winSize(21, 21);
-        cv::calcOpticalFlowPyrLK(prev_img_, next_img, prev_pts_, next_pts, status, err, winSize, 3);
+        cv::calcOpticalFlowPyrLK(prev_img_, next_img, prev_raw_pts_, next_raw_pts, status, err, winSize, 3);
 
-        for (int i = 0; i < int(next_pts.size()); i++) {
-            status[i] = status[i] && inBorder(next_pts[i]);
+        for (int i = 0; i < int(next_raw_pts.size()); i++) {
+            status[i] = status[i] && inBorder(next_raw_pts[i]);
         }
-        utils::reduceVector(prev_pts_, status);
-        utils::reduceVector(next_pts, status);
-        utils::reduceVector(prev_uniformed_pts_, status);
+        utils::reduceVector(prev_raw_pts_, status);
+        utils::reduceVector(next_raw_pts, status);
+        utils::reduceVector(prev_normalized_pts_, status);
         utils::reduceVector(feature_ids_, status);
     }
 
-    vector<cv::Point2f> next_uniformed_pts(next_pts.size());
-    for (const cv::Point2f &p: next_pts) {
-        next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
+    vector<cv::Point2f> next_normalized_pts(next_raw_pts.size());
+    for (const cv::Point2f &p: next_raw_pts) {
+        next_normalized_pts.emplace_back(rawPoint2UniformedPoint(p));
     }
 
-    if (next_pts.size() >= 8) {
+    if (next_raw_pts.size() >= 8) {
         vector<uchar> mask;
-        cv::findFundamentalMat(prev_uniformed_pts_, next_uniformed_pts, cv::FM_RANSAC,
+        cv::findFundamentalMat(prev_normalized_pts_, next_normalized_pts, cv::FM_RANSAC,
                                Param::Instance().frame_tracker.fundamental_threshold, 0.99, mask);
-        size_t size_a = prev_pts_.size();
-        utils::reduceVector(prev_pts_, mask);
-        utils::reduceVector(next_pts, mask);
-        utils::reduceVector(prev_uniformed_pts_, mask);
-        utils::reduceVector(next_uniformed_pts, mask);
+        size_t size_a = prev_raw_pts_.size();
+        utils::reduceVector(prev_raw_pts_, mask);
+        utils::reduceVector(next_raw_pts, mask);
+        utils::reduceVector(prev_normalized_pts_, mask);
+        utils::reduceVector(next_normalized_pts, mask);
         utils::reduceVector(feature_ids_, mask);
-        LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_pts.size(), 1.0 * next_pts.size() / size_a);
+        LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_raw_pts.size(), 1.0 * next_raw_pts.size() / size_a);
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
     cv::Mat mask = cv::Mat(ROW, COL, CV_8UC1, cv::Scalar(255));
-    for (const cv::Point2f & p: next_pts) {
+    for (const cv::Point2f & p: next_raw_pts) {
         if (mask.at<uchar>(p.x, p.y) == 255) {
             cv::circle(mask, p, Param::Instance().frame_tracker.min_dist, 0, -1);
         }
     }
 
-    int max_new_pnt_num = Param::Instance().frame_tracker.max_cnt - static_cast<int>(next_pts.size());
+    int max_new_pnt_num = Param::Instance().frame_tracker.max_cnt - static_cast<int>(next_raw_pts.size());
     if (max_new_pnt_num > 0) {
         vector<cv::Point2f> new_pts;
         constexpr double qualityLevel = 0.01;
         cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, Param::Instance().frame_tracker.min_dist, mask);
         for (auto &p: new_pts) {
-            next_pts.push_back(p);
-            next_uniformed_pts.emplace_back(rawPoint2UniformedPoint(p));
+            next_raw_pts.push_back(p);
+            next_normalized_pts.emplace_back(rawPoint2UniformedPoint(p));
             feature_ids_.push_back(s_feature_id_cnt_++);
         }
     }
@@ -97,30 +97,32 @@ FeatureTracker::FeaturesPerImage FeatureTracker::extractFeatures(const cv::Mat &
     // calculate points velocity
     double dt = _cur_time - prev_time_;
     vector<cv::Point2f> pts_velocity;
-    for (unsigned int i = 0; i < next_uniformed_pts.size(); i++) {
-        auto it = prev_feature_id_2_uniformed_points_map_.find(feature_ids_[i]);
-        if (it != prev_feature_id_2_uniformed_points_map_.end()) {
-            double v_x = (next_uniformed_pts[i].x - it->second.x) / dt;
-            double v_y = (next_uniformed_pts[i].y - it->second.y) / dt;
+    for (unsigned int i = 0; i < next_normalized_pts.size(); i++) {
+        auto it = prev_feature_id_2_normalized_pts_.find(feature_ids_[i]);
+        if (it != prev_feature_id_2_normalized_pts_.end()) {
+            double v_x = (next_normalized_pts[i].x - it->second.x) / dt;
+            double v_y = (next_normalized_pts[i].y - it->second.y) / dt;
             pts_velocity.emplace_back(cv::Point2f(v_x, v_y));
             continue;
         }
         pts_velocity.emplace_back(cv::Point2f(0, 0));
     }
     unordered_map<int, cv::Point2f> next_feature_id_2_uniformed_points_map;
-    for (unsigned int i = 0; i < next_uniformed_pts.size(); i++) {
-        next_feature_id_2_uniformed_points_map[feature_ids_[i]] = next_uniformed_pts[i];
+    for (unsigned int i = 0; i < next_normalized_pts.size(); i++) {
+        next_feature_id_2_uniformed_points_map[feature_ids_[i]] = next_normalized_pts[i];
     }
 
-    prev_feature_id_2_uniformed_points_map_ = std::move(next_feature_id_2_uniformed_points_map);
+    prev_feature_id_2_normalized_pts_ = std::move(next_feature_id_2_uniformed_points_map);
     prev_img_ = std::move(next_img);
-    prev_pts_ = std::move(next_pts);
+    prev_raw_pts_ = std::move(next_raw_pts);
     prev_time_ = _cur_time;
-    prev_uniformed_pts_ = std::move(next_uniformed_pts);
+    prev_normalized_pts_ = std::move(next_normalized_pts);
 
-    FeaturesPerImage features;
-    features.points = prev_pts_;
-    features.points_velocity = std::move(pts_velocity);
-    features.unified_points = prev_uniformed_pts_;
-    features.feature_ids = feature_ids_;
+    int feature_points_num = prev_raw_pts_.size();
+    std::vector<FeaturePoint2D> features(feature_points_num);
+    for (int i = 0; i < feature_points_num; ++i) {
+        features[i].feature_id = feature_ids_[i];
+        features[i].point = prev_normalized_pts_[i];
+        features[i].velocity = pts_velocity[i];
+    }
 }

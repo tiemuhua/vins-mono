@@ -14,6 +14,7 @@
 #include "camodocal/camera_models/PinholeCamera.h"
 
 #include "parameters.h"
+#include "vins_define_internal.h"
 
 using namespace std;
 using namespace camodocal;
@@ -27,23 +28,16 @@ namespace vins{
     public:
         explicit FeatureTracker(const string &calib_file);
 
-        struct FeaturesPerImage {
-            std::vector<cv::Point2f> points;
-            std::vector<cv::Point2f> unified_points;
-            std::vector<cv::Point2f> points_velocity;
-            std::vector<int> feature_ids;
-        };
-
-        FeaturesPerImage extractFeatures(const cv::Mat &_img, double _cur_time);
+        std::vector<FeaturePoint2D> extractFeatures(const cv::Mat &_img, double _cur_time);
 
     private:
         cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
 
         cv::Mat prev_img_;
-        vector<cv::Point2f> prev_pts_;
-        vector<cv::Point2f> prev_uniformed_pts_;
+        vector<cv::Point2f> prev_raw_pts_;
+        vector<cv::Point2f> prev_normalized_pts_;
         double prev_time_{};
-        unordered_map<int, cv::Point2f> prev_feature_id_2_uniformed_points_map_;
+        unordered_map<int, cv::Point2f> prev_feature_id_2_normalized_pts_;
         vector<int> feature_ids_;
         camodocal::CameraPtr m_camera_;
 

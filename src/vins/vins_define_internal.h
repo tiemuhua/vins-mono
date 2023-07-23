@@ -18,6 +18,54 @@ namespace vins {
         int cnt = 0;
     };
 
+    // point和velocity已经投影到归一化平面
+    struct FeaturePoint2D {
+        cv::Point2f point;
+        cv::Point2f velocity;
+        int feature_id;
+    };
+
+    class FeaturesOfId {
+    public:
+        int feature_id_         = -1;
+        int start_frame_        = -1;
+        bool is_outlier_        = false;
+        double inv_depth        = -1;
+        std::vector<FeaturePoint2D> feature_points_;
+
+        enum {
+            FeatureHaveNotSolved,
+            FeatureSolvedSucc,
+            FeatureSolveFail,
+        }solve_flag_ = FeatureHaveNotSolved;
+
+        FeaturesOfId(int _feature_id, int _start_frame)
+                : feature_id_(_feature_id), start_frame_(_start_frame) {}
+
+        [[nodiscard]] int endFrame() const {
+            return start_frame_ + (int )feature_points_.size() - 1;
+        }
+    };
+
+    class ImuIntegrator;
+    class ImageFrame {
+    public:
+        ImageFrame() = delete;
+
+        ImageFrame(std::vector<FeaturePoint2D> _points, double _t, std::shared_ptr<ImuIntegrator> _pre_integral, bool _is_key_frame):
+                points{std::move(_points)},
+                t{_t},
+                pre_integral_(std::move(_pre_integral)),
+                is_key_frame_(_is_key_frame){};
+        std::vector<FeaturePoint2D> points;
+        double t{};
+        Eigen::Matrix3d R;
+        Eigen::Vector3d T;
+        std::shared_ptr<ImuIntegrator> pre_integral_;
+        bool is_key_frame_ = false;
+    };
+
+
     typedef const Eigen::Matrix3d & ConstMat3dRef;
     typedef const Eigen::Vector3d & ConstVec3dRef;
     typedef const Eigen::Quaterniond & ConstQuatRef;

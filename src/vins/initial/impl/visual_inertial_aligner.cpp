@@ -9,7 +9,7 @@
 #include "vins_utils.h"
 
 namespace vins {
-    static Eigen::Vector3d solveGyroscopeBias(const std::vector<ImageFrame> &all_image_frame) {
+    static Eigen::Vector3d solveGyroBias(const std::vector<ImageFrame> &all_image_frame) {
         Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
         Eigen::Vector3d b = Eigen::Vector3d::Zero();
         for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
@@ -17,8 +17,8 @@ namespace vins {
             Eigen::Matrix3d tmp_A = Eigen::Matrix3d::Zero(3, 3);
             Eigen::Vector3d tmp_b = Eigen::Vector3d (3);
             Eigen::Quaterniond q_ij(frame_i->R.transpose() * frame_j->R);
-            tmp_A = frame_j->pre_integral_.getJacobian().template block<3, 3>(kOrderRot, kOrderBG);
-            tmp_b = 2 * (frame_j->pre_integral_.deltaQuat().inverse() * q_ij).vec();
+            tmp_A = frame_j->pre_integral_->getJacobian().template block<3, 3>(kOrderRot, kOrderBG);
+            tmp_b = 2 * (frame_j->pre_integral_->deltaQuat().inverse() * q_ij).vec();
             A += tmp_A.transpose() * tmp_A;
             b += tmp_A.transpose() * tmp_b;
         }
@@ -75,10 +75,11 @@ namespace vins {
                 Vector6d tmp_b = Vector6d::Zero();
 
                 Eigen::Matrix3d rot_i_inv = frame_i.R.transpose();
-                double dt = frame_j.pre_integral_.deltaTime();
+                ImuIntegrator & pre_integral_j = *frame_j.pre_integral_;
+                double dt = pre_integral_j.deltaTime();
                 double dt2 = dt * dt;
-                Eigen::Vector3d delta_pos_j = frame_j.pre_integral_.deltaPos();
-                Eigen::Vector3d delta_vel_j = frame_j.pre_integral_.deltaVel();
+                Eigen::Vector3d delta_pos_j = pre_integral_j.deltaPos();
+                Eigen::Vector3d delta_vel_j = pre_integral_j.deltaVel();
                 tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
                 tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
                 tmp_A.block<3, 1>(0, 8) = rot_i_inv * (frame_j.T - frame_i.T) / 100.0;
@@ -128,7 +129,8 @@ namespace vins {
             Vector6d tmp_b =  Vector6d::Zero();
 
             // todo tiemuhuaguo frame_i的预积分才有意义，这里的公式需要重新推导
-            double dt = frame_j.pre_integral_.deltaTime();
+            ImuIntegrator& pre_integral_j = *frame_j.pre_integral_;
+            double dt = pre_integral_j.deltaTime();
             Eigen::Matrix3d R_i_inv = frame_i.R.transpose();
             Eigen::Matrix3d R_j = frame_j.R;
 
@@ -138,8 +140,8 @@ namespace vins {
             tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
             tmp_A.block<3, 3>(3, 3) = R_i_inv * R_j;
             tmp_A.block<3, 3>(3, 6) = R_i_inv * dt;
-            tmp_b.block<3, 1>(0, 0) = frame_j.pre_integral_.deltaPos() + R_i_inv * R_j * TIC - TIC;
-            tmp_b.block<3, 1>(3, 0) = frame_j.pre_integral_.deltaVel();
+            tmp_b.block<3, 1>(0, 0) = pre_integral_j.deltaPos() + R_i_inv * R_j * TIC - TIC;
+            tmp_b.block<3, 1>(3, 0) = pre_integral_j.deltaVel();
 
             Matrix10d r_A = tmp_A.transpose() * tmp_A;
             Vector10d r_b = tmp_A.transpose() * tmp_b;
@@ -191,10 +193,10 @@ namespace vins {
         int frame_size = (int) all_frames.size();
 
         // todo solveGyroscopeBias求出来的是bg的值还是bg的变化值？
-        delta_bg = solveGyroscopeBias(all_frames);
+        delta_bg = solveGyroBias(all_frames);
 
         for (int i = 0; i < frame_size - 1; ++i) {
-            all_frames[i].pre_integral_.rePredict(Eigen::Vector3d::Zero(), delta_bg);
+            all_frames[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), delta_bg);
         }
 
         if (!linearAlignment(all_frames, TIC, Param::Instance().gravity_norm, gravity)) {

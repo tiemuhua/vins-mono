@@ -13,65 +13,6 @@
 #include "imu_integrator.h"
 
 namespace vins {
-    class RunInfo {
-    public:
-        Eigen::Vector3d tic;
-        Eigen::Matrix3d ric;
-        camodocal::CameraPtr camera_ptr;
-        static RunInfo& Instance() {
-            return run_info_;
-        }
-    private:
-        static RunInfo run_info_;
-    };
-
-    struct FeaturePoint2D {
-        cv::Point2f point;
-        cv::Point2f velocity;
-        double time_stamp;
-        int feature_id;
-    };
-
-    class FeaturesOfId {
-    public:
-        int feature_id_         = -1;
-        int start_frame_        = -1;
-        bool is_outlier_        = false;
-        double inv_depth        = -1;
-        std::vector<FeaturePoint2D> feature_points_;
-
-        enum {
-            FeatureHaveNotSolved,
-            FeatureSolvedSucc,
-            FeatureSolveFail,
-        }solve_flag_;
-
-        FeaturesOfId(int _feature_id, int _start_frame)
-                : feature_id_(_feature_id), start_frame_(_start_frame),
-                  inv_depth(-1.0), solve_flag_(FeatureHaveNotSolved) {
-        }
-
-        [[nodiscard]] int endFrame() const {
-            return start_frame_ + (int )feature_points_.size() - 1;
-        }
-    };
-
-    class ImageFrame {
-    public:
-        ImageFrame() = delete;
-
-        ImageFrame(std::vector<FeaturePoint2D> _points, double _t, ImuIntegrator pre_integral_, bool _is_key_frame):
-                points{std::move(_points)},
-                t{_t},
-                pre_integral_(std::move(pre_integral_)),
-                is_key_frame_(_is_key_frame){};
-        std::vector<FeaturePoint2D> points;
-        double t{};
-        Eigen::Matrix3d R;
-        Eigen::Vector3d T;
-        ImuIntegrator pre_integral_;
-        bool is_key_frame_ = false;
-    };
 
     template<typename T>
     class Window {
@@ -118,6 +59,22 @@ namespace vins {
         int size;
     };
 
+    camodocal::CameraPtr CameraInstance();
+
+
+    class RunInfo {
+    public:
+        Eigen::Vector3d tic;
+        Eigen::Matrix3d ric;
+        Eigen::Vector3d gravity;
+        BundleAdjustWindow window;
+        std::vector<ImageFrame> all_frames;
+        static RunInfo& Instance() {
+            return run_info_;
+        }
+    private:
+        static RunInfo run_info_;
+    };
 }
 
 #endif //GJT_VINS_VINS_DATA_H

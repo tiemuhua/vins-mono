@@ -8,17 +8,18 @@
 #include <vector>
 #include <mutex>
 #include <Eigen/Eigen>
-
-#include "feature_tracker.h"
-#include "vins_define_internal.h"
-#include "rotation_extrinsic_estimator.h"
-#include "feature_manager.h"
+#include <opencv2/opencv.hpp>
 
 namespace vins{
+    class ImageFrame;
+    class RICEstimator;
+    class FeatureManager;
+    class FeatureTracker;
+
     class VinsCore {
     public:
-        void handleImage(const FeatureTracker::FeaturesPerImage& image_features, double time_stamp);
-        void handleIMU(ConstVec3dRef acc, ConstVec3dRef gyr, double time_stamp);
+        void handleImage(const cv::Mat &_img, double time_stamp);
+        void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
 
     private:
         enum EVinsState {
@@ -40,8 +41,9 @@ namespace vins{
 
         std::vector<ImageFrame> all_frames_;
 
-        RotationExtrinsicEstimator rotation_extrinsic_estimator_;
-        FeatureManager feature_manager_;
+        RICEstimator *ric_estimator_;
+        FeatureManager *feature_manager_;
+        FeatureTracker *feature_tracker_;
 
         Eigen::Matrix3d ric_;
         Eigen::Vector3d tic_;

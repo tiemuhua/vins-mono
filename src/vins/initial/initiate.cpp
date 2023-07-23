@@ -8,14 +8,10 @@
 #include "impl/visual_initiator.h"
 
 using namespace vins;
-bool Initiate::initiate(const int frame_cnt,
-                        ConstVec3dRef TIC,
-                        ConstMat3dRef RIC,
-                        BundleAdjustWindow& window,
-                        std::vector<ImageFrame> &all_frames,
-                        Eigen::Vector3d& gravity,
+bool Initiate::initiate(int frame_cnt,
+                        RunInfo &run_info,
                         FeatureManager &feature_manager) {
-    bool visual_succ = VisualInitiator::initialStructure(feature_manager, frame_cnt, all_frames);
+    bool visual_succ = VisualInitiator::initialStructure(feature_manager, frame_cnt, run_info.all_frames);
     if (!visual_succ) {
         return false;
     }
@@ -24,10 +20,10 @@ bool Initiate::initiate(const int frame_cnt,
     Eigen::Matrix3d rot_diff;
     std::vector<Eigen::Vector3d> velocities;
     double scale;
-    bool align_succ = VisualInertialAligner::visualInitialAlignImpl(TIC,
-                                                                    RIC,
-                                                                    all_frames,
-                                                                    gravity,
+    bool align_succ = VisualInertialAligner::visualInitialAlignImpl(run_info.tic,
+                                                                    run_info.ric,
+                                                                    run_info.all_frames,
+                                                                    run_info.gravity,
                                                                     delta_bg,
                                                                     rot_diff,
                                                                     velocities,
@@ -36,6 +32,10 @@ bool Initiate::initiate(const int frame_cnt,
         return false;
     }
 
+    auto &window = run_info.window;
+    auto &all_frames = run_info.all_frames;
+    auto &TIC = run_info.tic;
+    auto RIC = run_info.ric;
     for (int i = 0; i < window.bg_window.size(); ++i) {
         window.bg_window.at(i) = window.bg_window.at(i) + delta_bg;
     }

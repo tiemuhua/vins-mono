@@ -1,4 +1,4 @@
-#include "rotation_extrinsic_estimator.h"
+#include "ric_estimator.h"
 #include "log.h"
 #include "vins_utils.h"
 #include "vins_define_internal.h"
@@ -7,9 +7,9 @@ namespace vins {
     using namespace Eigen;
     using namespace std;
 
-    bool RotationExtrinsicEstimator::calibrateRotationExtrinsic(const PointCorrespondences & correspondences,
-                                                                ConstQuatRef delta_q_imu,
-                                                                Matrix3d &calib_ric_result) {
+    bool RICEstimator::calibrateRotationExtrinsic(const PointCorrespondences & correspondences,
+                                                  ConstQuatRef delta_q_imu,
+                                                  Matrix3d &calib_ric_result) {
         rot_visual_que_.emplace_back(solveRelativeR(correspondences));
         rot_imu_que_.emplace_back(delta_q_imu.toRotationMatrix());
         rot_imu_in_world_frame_que_.emplace_back(ric_.inverse() * delta_q_imu * ric_);
@@ -56,7 +56,7 @@ namespace vins {
             return false;
     }
 
-    Matrix3d RotationExtrinsicEstimator::solveRelativeR(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences) {
+    Matrix3d RICEstimator::solveRelativeR(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences) {
         if (correspondences.size() < 9) {
             return Matrix3d::Identity();
         }
@@ -84,8 +84,8 @@ namespace vins {
         return ans_R_eigen;
     }
 
-    double RotationExtrinsicEstimator::testTriangulation(const std::vector<cv::Point2f> &l, const std::vector<cv::Point2f> &r,
-                                                         cv::Mat_<double> R, cv::Mat_<double> t) {
+    double RICEstimator::testTriangulation(const std::vector<cv::Point2f> &l, const std::vector<cv::Point2f> &r,
+                                           cv::Mat_<double> R, cv::Mat_<double> t) {
         static const cv::Matx34f P = cv::Matx34f(1, 0, 0, 0,
                                                  0, 1, 0, 0,
                                                  0, 0, 1, 0);
@@ -107,9 +107,9 @@ namespace vins {
         return 1.0 * front_count / point_cloud.cols;
     }
 
-    void RotationExtrinsicEstimator::decomposeE(const cv::Mat& E,
-                                                cv::Mat_<double> &R1, cv::Mat_<double> &R2,
-                                                cv::Mat_<double> &t1, cv::Mat_<double> &t2) {
+    void RICEstimator::decomposeE(const cv::Mat& E,
+                                  cv::Mat_<double> &R1, cv::Mat_<double> &R2,
+                                  cv::Mat_<double> &t1, cv::Mat_<double> &t2) {
         cv::SVD svd(E, cv::SVD::MODIFY_A);
         cv::Matx33d W(0, -1, 0,
                       1, 0, 0,

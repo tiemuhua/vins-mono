@@ -6,9 +6,7 @@
 #define VINS_VISUAL_INERTIAL_ALIGNER_H
 
 #include <Eigen/Eigen>
-#include "vins_define_internal.h"
-#include "imu_integrator.h"
-#include "feature_manager.h"
+#include "vins_run_info.h"
 
 namespace vins {
     class VisualInertialAligner {

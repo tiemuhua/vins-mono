@@ -7,7 +7,6 @@
 #include <vector>
 #include <cmath>
 
-#include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <ceres/ceres.h>
@@ -60,15 +59,15 @@ namespace vins {
         Eigen::Vector3d sum_acc;
         // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
         for (const ImageFrame &frame: all_image_frame_) {
-            double dt = frame.pre_integral_.deltaTime();
-            Eigen::Vector3d tmp_acc = frame.pre_integral_.deltaVel() / dt;
+            double dt = frame.pre_integral_->deltaTime();
+            Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
             sum_acc += tmp_acc;
         }
         Eigen::Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
         double var = 0;
         for (const ImageFrame &frame:all_image_frame_) {
-            double dt = frame.pre_integral_.deltaTime();
-            Eigen::Vector3d tmp_acc = frame.pre_integral_.deltaVel() / dt;
+            double dt = frame.pre_integral_->deltaTime();
+            Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
             var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
         }
 
@@ -94,7 +93,7 @@ namespace vins {
                           Eigen::Quaterniond *q, Eigen::Vector3d *T,
                           vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &sfm_tracked_points);
 
-    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager_,
+    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
                                            const int key_frame_num,
                                            vector<ImageFrame> &all_image_frame_) {
         if (!isAccVariantBigEnough(all_image_frame_)) {
@@ -103,7 +102,7 @@ namespace vins {
 
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
-        for (const FeaturesOfId &features_of_id: feature_manager_.features_) {
+        for (const FeaturesOfId &features_of_id: feature_manager.features_) {
             SFMFeature sfm_feature;
             sfm_feature.id = features_of_id.feature_id_;
             for (int i = 0; i < features_of_id.feature_points_.size(); ++i) {
@@ -119,7 +118,7 @@ namespace vins {
         int big_parallax_frame_id = -1;
         for (int i = 0; i < Param::Instance().window_size; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    feature_manager_.getCorrespondences(i, Param::Instance().window_size);
+                    feature_manager.getCorrespondences(i, Param::Instance().window_size);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
