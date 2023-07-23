@@ -77,10 +77,34 @@ static void eigen2c(const BundleAdjustWindow& window,
 }
 
 static void c2eigen(BundleAdjustWindow &window,
-                    std::vector<FeaturesOfId> &features_,
+                    std::vector<FeaturesOfId> &features,
                     Eigen::Vector3d& tic,
                     Eigen::Matrix3d &ric) {
+    for (int i = 0; i < window.pos_window.size(); ++i) {
+        window.pos_window.at(i) = utils::array2vec3d(c_pos[i]);
+    }
+    for (int i = 0; i < window.rot_window.size(); ++i) {
+        window.rot_window.at(i) = utils::array2quat(c_quat[i]);
+    }
+    for (int i = 0; i < window.vel_window.size(); ++i) {
+        window.vel_window.at(i) = utils::array2vec3d(c_vel[i]);
+    }
+    for (int i = 0; i < window.ba_window.size(); ++i) {
+        window.ba_window.at(i) = utils::array2vec3d(c_ba[i]);
+    }
+    for (int i = 0; i < window.bg_window.size(); ++i) {
+        window.bg_window.at(i) = utils::array2vec3d(c_bg[i]);
+    }
 
+    for (int i = 0; i < features.size(); ++i) {
+        if (features[i].feature_points_.size() < 2 || features[i].start_frame_ >= WINDOW_SIZE - 2) {
+            continue;
+        }
+        features[i].inv_depth = c_inv_depth[i][0];
+    }
+
+    tic = utils::array2vec3d(c_tic);
+    ric = utils::array2quat(c_ric).toRotationMatrix();
 }
 
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
