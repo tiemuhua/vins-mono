@@ -11,7 +11,7 @@
 #include <opencv2/opencv.hpp>
 
 namespace vins{
-    class ImageFrame;
+    class Frame;
     class RICEstimator;
     class FeatureManager;
     class FeatureTracker;

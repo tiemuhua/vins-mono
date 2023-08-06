@@ -9,7 +9,7 @@
 #include "vins_utils.h"
 
 namespace vins {
-    static Eigen::Vector3d solveGyroBias(const std::vector<ImageFrame> &all_image_frame) {
+    static Eigen::Vector3d solveGyroBias(const std::vector<Frame> &all_image_frame) {
         Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
         Eigen::Vector3d b = Eigen::Vector3d::Zero();
         for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
@@ -54,7 +54,7 @@ namespace vins {
      * @param s 尺度
      * @param vel todo坐标系下的速度，长度为todo
      * */
-    static void refineGravity(const std::vector<ImageFrame> &all_frames, const double gravity_norm, ConstVec3dRef TIC,
+    static void refineGravity(const std::vector<Frame> &all_frames, const double gravity_norm, ConstVec3dRef TIC,
                               Eigen::Vector3d &g, double &s, std::vector<Eigen::Vector3d> &vel) {
         const int frames_size = (int )all_frames.size();
         g = g.normalized() * gravity_norm;
@@ -68,8 +68,8 @@ namespace vins {
         for (int iter = 0; iter < 4; iter++) {
             Matrix_3_2 tangent_basis = TangentBasis(g);
             for (int i = 0; i < frames_size - 1; ++i) {
-                const ImageFrame& frame_i = all_frames[i];
-                const ImageFrame& frame_j = all_frames[i + 1];
+                const Frame& frame_i = all_frames[i];
+                const Frame& frame_j = all_frames[i + 1];
 
                 Matrix_6_9 tmp_A = Matrix_6_9::Zero();
                 Vector6d tmp_b = Vector6d::Zero();
@@ -114,7 +114,7 @@ namespace vins {
         }
     }
 
-    static bool linearAlignment(const std::vector<ImageFrame> &all_frames, ConstVec3dRef TIC,
+    static bool linearAlignment(const std::vector<Frame> &all_frames, ConstVec3dRef TIC,
                                 const double gravity_norm, Eigen::Vector3d &g) {
         int n_state = (int )all_frames.size() * 3 + 3 + 1;
 
@@ -122,8 +122,8 @@ namespace vins {
         Eigen::VectorXd b = Eigen::VectorXd::Zero(n_state);
 
         for (int i = 0; i < (int) all_frames.size() - 1; ++i) {
-            const ImageFrame& frame_i = all_frames[i];
-            const ImageFrame& frame_j = all_frames[i + 1];
+            const Frame& frame_i = all_frames[i];
+            const Frame& frame_j = all_frames[i + 1];
 
             Matrix_6_10 tmp_A = Matrix_6_10::Zero();
             Vector6d tmp_b =  Vector6d::Zero();
@@ -184,7 +184,7 @@ namespace vins {
 
     bool VisualInertialAligner::visualInitialAlignImpl(ConstVec3dRef TIC,
                                                        ConstMat3dRef RIC,
-                                                       std::vector<ImageFrame> &all_frames,
+                                                       std::vector<Frame> &all_frames,
                                                        Eigen::Vector3d& gravity,
                                                        Eigen::Vector3d& delta_bg,
                                                        Eigen::Matrix3d& rot_diff,

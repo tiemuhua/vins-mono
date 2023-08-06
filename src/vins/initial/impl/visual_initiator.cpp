@@ -54,18 +54,18 @@ namespace vins {
         cv::Point2f observed_point_;
     };
 
-    static bool isAccVariantBigEnough(const vector<ImageFrame> &all_image_frame_) {
+    static bool isAccVariantBigEnough(const vector<Frame> &all_image_frame_) {
         //check imu observability
         Eigen::Vector3d sum_acc;
         // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
-        for (const ImageFrame &frame: all_image_frame_) {
+        for (const Frame &frame: all_image_frame_) {
             double dt = frame.pre_integral_->deltaTime();
             Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
             sum_acc += tmp_acc;
         }
         Eigen::Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
         double var = 0;
-        for (const ImageFrame &frame:all_image_frame_) {
+        for (const Frame &frame:all_image_frame_) {
             double dt = frame.pre_integral_->deltaTime();
             Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
             var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
@@ -95,8 +95,8 @@ namespace vins {
 
     bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
                                            const int key_frame_num,
-                                           vector<ImageFrame> &all_image_frame_) {
-        if (!isAccVariantBigEnough(all_image_frame_)) {
+                                           vector<Frame> &all_frames) {
+        if (!isAccVariantBigEnough(all_frames)) {
             return false;
         }
 
@@ -143,7 +143,7 @@ namespace vins {
 
         //利用关键帧位姿和特征点深度PNP求解非关键帧位姿
         int key_frame_idx = 0;
-        for (ImageFrame &frame:all_image_frame_) {
+        for (Frame &frame:all_frames) {
             // provide initial guess
             if (frame.is_key_frame_) {
                 frame.R = Q[key_frame_idx].toRotationMatrix();

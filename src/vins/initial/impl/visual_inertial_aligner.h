@@ -13,7 +13,7 @@ namespace vins {
     public:
         static bool visualInitialAlignImpl(ConstVec3dRef TIC,
                                            ConstMat3dRef RIC,
-                                           std::vector<ImageFrame> &all_frames,
+                                           std::vector<Frame> &all_frames,
                                            Eigen::Vector3d& gravity,
                                            Eigen::Vector3d& delta_bg,
                                            Eigen::Matrix3d& rot_diff,

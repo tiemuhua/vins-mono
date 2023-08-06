@@ -48,11 +48,11 @@ namespace vins {
     };
 
     class ImuIntegrator;
-    class ImageFrame {
+    class Frame {
     public:
-        ImageFrame() = delete;
+        Frame() = delete;
 
-        ImageFrame(std::vector<FeaturePoint2D> _points, double _t, std::shared_ptr<ImuIntegrator> _pre_integral, bool _is_key_frame):
+        Frame(std::vector<FeaturePoint2D> _points, double _t, std::shared_ptr<ImuIntegrator> _pre_integral, bool _is_key_frame):
                 points{std::move(_points)},
                 t{_t},
                 pre_integral_(std::move(_pre_integral)),

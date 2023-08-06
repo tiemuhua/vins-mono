@@ -68,7 +68,7 @@ namespace vins {
         Window<int> frame_id_window;
         Window<ImuIntegrator> pre_int_window;
 
-        std::vector<ImageFrame> all_frames;
+        std::vector<Frame> all_frames;
 
         static RunInfo& Instance() {
             return run_info_;

@@ -11,7 +11,7 @@ namespace vins{
     public:
         static bool initialStructure(const FeatureManager& feature_manager,
                                      int key_frame_num,
-                                     std::vector<ImageFrame> &all_image_frame_);
+                                     std::vector<Frame> &all_frames);
     };
 }
 
