@@ -11,8 +11,9 @@
 #include "vins/feature_manager.h"
 
 namespace vins::SlideWindowEstimator{
+    void setLoopMatchInfo(vins::LoopMatchInfo*);
     void optimize(const SlideWindowEstimatorParam &param,
-                  std::vector<FeaturesOfId> &features,
+                  std::vector<SameFeatureInDifferentFrames> &features,
                   Window<EstimateState>& state_window,
                   Window<ImuIntegrator>& pre_int_window,
                   Eigen::Vector3d &tic,

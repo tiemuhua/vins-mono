@@ -1,7 +1,8 @@
 #include "loop_closer.h"
 #include "log.h"
 #include "vins/vins_utils.h"
-#include "vins/vins_run_info.h"
+#include "vins/feature_tracker.h"
+#include <vins/slide_window_estimator/slide_window_estimator.h>
 #include "impl/feature_retriever.h"
 #include "impl/loop_detector.h"
 #include "impl/keyframe.h"
@@ -78,8 +79,9 @@ LoopCloser::~LoopCloser() {
 }
 
 // todo 若使用sift等耗时较长的描述字，可将提取描述子过程放入单独任务队列执行
-void LoopCloser::addKeyFrame(const double _time_stamp, const Vector3d &t, const Matrix3d &r, const cv::Mat &_image,
-                             const std::vector<cv::Point3f> &_point_3d, const std::vector<cv::Point2f> &_point_2d_uv) {
+void LoopCloser::addKeyFrame(const Frame &base_frame, const cv::Mat &_image,
+                             const std::vector<cv::Point3f> &_point_3d,
+                             const std::vector<cv::Point2f> &_point_2d_uv) {
     std::vector<cv::KeyPoint> key_points;
     for (auto & i : _point_2d_uv) {
         cv::KeyPoint key;
@@ -94,15 +96,11 @@ void LoopCloser::addKeyFrame(const double _time_stamp, const Vector3d &t, const 
     cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
     std::vector<DVision::BRIEF::bitset> external_descriptors;
     brief_extractor_->brief_.compute(_image, external_key_points_un_normalized, external_descriptors);
-    std::vector<cv::KeyPoint> external_key_pts2d;
-    for (auto & keypoint : external_key_points_un_normalized) {
-        Eigen::Vector3d tmp_p;
-        RunInfo::Instance().camera_ptr->liftProjective(Eigen::Vector2d(keypoint.pt.x, keypoint.pt.y), tmp_p);
-        cv::KeyPoint tmp_norm;
-        tmp_norm.pt = cv::Point2f(tmp_p.x() / tmp_p.z(), tmp_p.y() / tmp_p.z());
-        external_key_pts2d.push_back(tmp_norm);
+    std::vector<cv::Point2f> external_key_pts2d;
+    for (const cv::KeyPoint & keypoint : external_key_points_un_normalized) {
+        external_key_pts2d.push_back(FeatureTracker::rawPoint2UniformedPoint(keypoint.pt));
     }
-    auto cur_kf = std::make_shared<KeyFrame>(_time_stamp, t, r, _point_3d, descriptors, external_key_pts2d, external_descriptors);
+    auto cur_kf = std::make_shared<KeyFrame>(base_frame, _point_3d, descriptors, external_key_pts2d, external_descriptors);
 
     Synchronized(key_frame_buffer_mutex_) {
         key_frame_buffer_.emplace_back(cur_kf);
@@ -110,12 +108,12 @@ void LoopCloser::addKeyFrame(const double _time_stamp, const Vector3d &t, const 
 }
 
 bool LoopCloser::findLoop(const KeyFramePtr& cur_kf, int& peer_loop_id) {
-    peer_loop_id = loop_detector_->detectLoop(cur_kf->external_descriptors_, key_frame_list_.size());
+    peer_loop_id = loop_detector_->detectSimilarDescriptor(cur_kf->external_descriptors_, key_frame_list_.size());
     loop_detector_->addDescriptors(cur_kf->external_descriptors_);
     if (peer_loop_id == -1) {
         return false;
     }
-    return FeatureRetriever::calculate4DofLoopDrift(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf);
+    return LoopRelativePos::find4DofLoopDrift(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf);
 }
 
 [[noreturn]] void LoopCloser::optimize4DoF() {
@@ -136,10 +134,16 @@ void LoopCloser::optimize4DoFImpl() {
         kf->updatePoseByDrift(t_drift, r_drift);
         int peer_loop_id = -1;
         if (findLoop(kf, peer_loop_id)) {
+            assert(peer_loop_id != -1);
             loop_interval_upper_bound_ = (int )key_frame_list_.size();
             if (loop_interval_lower_bound_ > peer_loop_id || loop_interval_lower_bound_ == -1) {
                 loop_interval_lower_bound_ = peer_loop_id;
             }
+
+            LoopMatchInfo* loop_match_info_ptr = new LoopMatchInfo();
+            loop_match_info_ptr->peer_frame_id = peer_loop_id;
+            loop_match_info_ptr->peer_frame = key_frame_buffer_[peer_loop_id]->base_frame_;
+            SlideWindowEstimator::setLoopMatchInfo(loop_match_info_ptr);
         }
         key_frame_list_.emplace_back(kf);
     }

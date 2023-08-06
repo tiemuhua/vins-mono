@@ -30,16 +30,16 @@ namespace vins{
 
         std::vector<FeaturePoint2D> extractFeatures(const cv::Mat &_img, double _cur_time);
 
-    private:
-        cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
+        static cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
 
+    private:
         cv::Mat prev_img_;
         vector<cv::Point2f> prev_raw_pts_;
         vector<cv::Point2f> prev_normalized_pts_;
         double prev_time_{};
         unordered_map<int, cv::Point2f> prev_feature_id_2_normalized_pts_;
         vector<int> feature_ids_;
-        camodocal::CameraPtr m_camera_;
+        static camodocal::CameraPtr m_camera_;
 
         static int s_feature_id_cnt_;
     };

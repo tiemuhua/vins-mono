@@ -7,14 +7,16 @@ using namespace vins;
 
 Eigen::Matrix2d ProjectTdCost::sqrt_info;
 
-ProjectTdCost::ProjectTdCost(const FeaturePoint2D& p1, const FeaturePoint2D& p2)
-                                       : td_i(p1.time_stamp), td_j(p2.time_stamp) {
-    pts_i = Eigen::Vector3d(p1.point.x, p1.point.y, 1.0);
-    pts_j = Eigen::Vector3d(p2.point.x, p2.point.y, 1.0);
-    velocity_i = Eigen::Vector3d(p1.velocity.x, p1.velocity.y, 0.0);
-    velocity_j = Eigen::Vector3d(p2.velocity.x, p2.velocity.y, 0.0);
-    row_i = p1.point.y - Param::Instance().camera.row / 2;
-    row_j = p2.point.y - Param::Instance().camera.row / 2;
+ProjectTdCost::ProjectTdCost(const cv::Point2f &p1, const cv::Point2f& p2,
+                             const cv::Point2f &vel1, const cv::Point2f &vel2,
+                             double time_stamp1_ms, const double time_stamp2_ms)
+                                       : td_i(time_stamp1_ms), td_j(time_stamp2_ms) {
+    pts_i = Eigen::Vector3d(p1.x, p1.y, 1.0);
+    pts_j = Eigen::Vector3d(p2.x, p2.y, 1.0);
+    velocity_i = Eigen::Vector3d(vel1.x, vel1.y, 0.0);
+    velocity_j = Eigen::Vector3d(vel2.x, vel2.y, 0.0);
+    row_i = p1.y - Param::Instance().camera.row / 2;
+    row_j = p2.y - Param::Instance().camera.row / 2;
 
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();

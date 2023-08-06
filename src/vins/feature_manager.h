@@ -18,7 +18,7 @@ namespace vins {
         void clearState();
 
         [[nodiscard]] bool isKeyFrame(int frame_id, const std::vector<FeaturePoint2D> &feature_points) const;
-        void addFeatures(int frame_id, const std::vector<FeaturePoint2D> &feature_points);
+        void addFeatures(int frame_id, double time_stamp, const std::vector<FeaturePoint2D> &feature_points);
 
         [[nodiscard]] Correspondences getCorrespondences(int frame_count_l, int frame_count_r) const;
 
@@ -36,10 +36,10 @@ namespace vins {
         void removeFront();
         void removeOutlier();
 
-        std::vector<FeaturesOfId> features_;
+        std::vector<SameFeatureInDifferentFrames> features_;
 
     private:
-        static double compensatedParallax2(const FeaturesOfId &it_per_id, int frame_count);
+        static double compensatedParallax2(const SameFeatureInDifferentFrames &it_per_id, int frame_count);
     };
 }
 

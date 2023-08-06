@@ -20,12 +20,10 @@ namespace vins{
     };
 
     struct KeyFrame {
-        KeyFrame(double _time_stamp,
-                 const Eigen::Vector3d &t,
-                 const Eigen::Matrix3d &r,
+        KeyFrame(const Frame& _base_frame,
                  const std::vector<cv::Point3f> &_point_3d,
                  const std::vector<DVision::BRIEF::bitset> &descriptors,
-                 const std::vector<cv::KeyPoint> &external_key_pts2d,
+                 const std::vector<cv::Point2f> &external_key_pts2d,
                  const std::vector<DVision::BRIEF::bitset> &external_descriptors);
 
         void getLoopedPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
@@ -49,10 +47,12 @@ namespace vins{
         std::vector<cv::Point3f> key_pts3d_;
         std::vector<DVision::BRIEF::bitset> descriptors_;
         // pnp匹配的时候老帧提供external_key_pts2d_和external_descriptors_
-        std::vector<cv::KeyPoint> external_key_pts2d_;
+        std::vector<cv::Point2f> external_key_pts2d_;
         std::vector<DVision::BRIEF::bitset> external_descriptors_;
 
         LoopRelativePose loop_relative_pose_;
+
+        Frame base_frame_;
     };
     typedef std::shared_ptr<KeyFrame> KeyFramePtr;
     typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;

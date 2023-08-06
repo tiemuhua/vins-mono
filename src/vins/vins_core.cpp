@@ -36,9 +36,8 @@ namespace vins{
         std::vector<FeaturePoint2D> feature_points = feature_tracker_->extractFeatures(_img, time_stamp);
         cur_frame_id_++;
         bool is_key_frame = feature_manager_->isKeyFrame(cur_frame_id_, feature_points);
-        feature_manager_->addFeatures(cur_frame_id_, feature_points);
+        feature_manager_->addFeatures(cur_frame_id_, time_stamp, feature_points);
         RunInfo::Instance().all_frames.emplace_back(std::move(feature_points),
-                                                    time_stamp,
                                                     std::move(imu_integrator),
                                                     is_key_frame);
 
@@ -97,6 +96,11 @@ namespace vins{
                                        RunInfo::Instance().pre_int_window,
                                        RunInfo::Instance().tic,
                                        RunInfo::Instance().ric);
-        // todo window push
+        // todo 失败检测与状态恢复
+        bool fail;
+        if (fail) {
+            return kVinsStateInitial;
+        }
+        return kVinsStateNormal;
     }
 }

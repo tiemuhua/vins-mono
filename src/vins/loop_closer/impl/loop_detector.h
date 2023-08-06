@@ -17,7 +17,7 @@ namespace vins{
         /**
          * 成功建立回环则返回之前帧的id，否则返回-1
          * */
-        [[nodiscard]] int detectLoop(const std::vector<DVision::BRIEF::bitset>& descriptors, int frame_index) const;
+        [[nodiscard]] int detectSimilarDescriptor(const std::vector<DVision::BRIEF::bitset>& descriptors, int frame_index) const;
         void addDescriptors(const std::vector<DVision::BRIEF::bitset>& descriptors)  {
             db.add(descriptors);
         }

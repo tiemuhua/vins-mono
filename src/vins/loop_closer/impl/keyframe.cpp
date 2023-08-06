@@ -8,16 +8,12 @@ using namespace Eigen;
 using namespace std;
 
 // create keyframe online
-KeyFrame::KeyFrame(double _time_stamp,
-                   const Eigen::Vector3d &t,
-                   const Eigen::Matrix3d &r,
+KeyFrame::KeyFrame(const Frame& _base_frame,
                    const std::vector<cv::Point3f> &_point_3d,
                    const std::vector<DVision::BRIEF::bitset> &descriptors,
-                   const std::vector<cv::KeyPoint> &external_key_pts2d,
+                   const std::vector<cv::Point2f> &external_key_pts2d,
                    const std::vector<DVision::BRIEF::bitset> &external_descriptors) {
-    time_stamp = _time_stamp;
-    vio_T_i_w_ = t;
-    vio_R_i_w_ = r;
+    base_frame_ = _base_frame;
     T_i_w_ = vio_T_i_w_;
     R_i_w_ = vio_R_i_w_;
     key_pts3d_ = _point_3d;

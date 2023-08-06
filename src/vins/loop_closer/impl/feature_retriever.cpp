@@ -6,7 +6,7 @@
 #include <vector>
 #include "vins/vins_utils.h"
 
-using namespace vins::FeatureRetriever;
+using namespace vins::LoopRelativePos;
 using namespace vins;
 using namespace DVision;
 using namespace Eigen;
@@ -29,13 +29,13 @@ static bool searchInArea(const DVision::BRIEF::bitset& descriptor,
         }
     }
     if (bestIndex != -1 && bestDist < 80) {
-        best_match_norm = old_kf->external_key_pts2d_[bestIndex].pt;
+        best_match_norm = old_kf->external_key_pts2d_[bestIndex];
         return true;
     } else
         return false;
 }
 
-static void searchByBRIEFDes(ConstKeyFramePtr old_kf,
+static void searchByBRIEFDes(ConstKeyFramePtr& old_kf,
                              const std::vector<BRIEF::bitset> &descriptors,
                              std::vector<cv::Point2f> &pts2d_in_old_frame,
                              std::vector<uchar> &status) {
@@ -84,9 +84,7 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
 }
 
 static constexpr int min_loop_key_points_num = 25;
-bool calculate4DofLoopRelativePose(ConstKeyFramePtr& old_kf,
-                                   const int old_kf_id,
-                                   KeyFramePtr& new_kf) {
+bool find4DofLoopDrift(ConstKeyFramePtr& old_kf, const int old_kf_id, KeyFramePtr& new_kf) {
     vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_pts3d_;
     vector<uint8_t> status;
     vector<cv::Point2f> pts2d_in_old_frame;

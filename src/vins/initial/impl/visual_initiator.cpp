@@ -102,7 +102,7 @@ namespace vins {
 
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
-        for (const FeaturesOfId &features_of_id: feature_manager.features_) {
+        for (const SameFeatureInDifferentFrames &features_of_id: feature_manager.features_) {
             SFMFeature sfm_feature;
             sfm_feature.id = features_of_id.feature_id_;
             for (int i = 0; i < features_of_id.feature_points_.size(); ++i) {

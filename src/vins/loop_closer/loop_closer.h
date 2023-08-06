@@ -12,6 +12,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include "vins/vins_define_internal.h"
 namespace vins{
 
     class LoopDetector;
@@ -26,10 +27,7 @@ namespace vins{
 
         ~LoopCloser();
 
-        void addKeyFrame(double _time_stamp,
-                         const Eigen::Vector3d &t,
-                         const Eigen::Matrix3d &r,
-                         const cv::Mat &_image,
+        void addKeyFrame(const vins::Frame &base_frame, const cv::Mat &_image,
                          const std::vector<cv::Point3f> &_point_3d,
                          const std::vector<cv::Point2f> &_point_2d_uv);
 
@@ -49,8 +47,8 @@ namespace vins{
         int loop_interval_lower_bound_ = -1;
         int loop_interval_upper_bound_ = -1;
 
-        LoopDetector* loop_detector_;
-        BriefExtractor* brief_extractor_;
+        LoopDetector* loop_detector_{};
+        BriefExtractor* brief_extractor_{};
     };
 
 }

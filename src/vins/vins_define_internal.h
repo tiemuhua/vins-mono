@@ -7,6 +7,7 @@
 
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
+#include <utility>
 
 namespace vins {
 #define Synchronized(mutex_)  for(ScopedLocker locker(mutex_); locker.cnt < 1; locker.cnt++)
@@ -25,46 +26,55 @@ namespace vins {
         int feature_id;
     };
 
-    class FeaturesOfId {
+    class SameFeatureInDifferentFrames {
     public:
-        int feature_id_         = -1;
-        int start_frame_        = -1;
-        bool is_outlier_        = false;
+        int feature_id          = -1;
+        int start_frame         = -1;
+        bool is_outlier         = false;
         double inv_depth        = -1;
-        std::vector<FeaturePoint2D> feature_points_;
+        std::vector<cv::Point2f> points;
+        std::vector<cv::Point2f> velocities;
+        std::vector<double> time_stamps_ms;
 
         enum {
-            FeatureHaveNotSolved,
-            FeatureSolvedSucc,
-            FeatureSolveFail,
-        }solve_flag_ = FeatureHaveNotSolved;
+            kDepthUnknown,
+            kDepthSolved,
+            kDepthSolvedFail,
+        }solve_flag_ = kDepthUnknown;
 
-        FeaturesOfId(int _feature_id, int _start_frame)
-                : feature_id_(_feature_id), start_frame_(_start_frame) {}
+        SameFeatureInDifferentFrames(int _feature_id, int _start_frame)
+                : feature_id(_feature_id), start_frame(_start_frame) {}
 
         [[nodiscard]] int endFrame() const {
-            return start_frame_ + (int )feature_points_.size() - 1;
+            return start_frame + (int )points.size() - 1;
         }
     };
 
     class ImuIntegrator;
     class Frame {
     public:
-        Frame() = delete;
-
-        Frame(std::vector<FeaturePoint2D> _points, double _t, std::shared_ptr<ImuIntegrator> _pre_integral, bool _is_key_frame):
-                points{std::move(_points)},
-                t{_t},
-                pre_integral_(std::move(_pre_integral)),
-                is_key_frame_(_is_key_frame){};
-        std::vector<FeaturePoint2D> points;
-        double t{};
+        Frame(const std::vector<FeaturePoint2D>& _features,
+              std::shared_ptr<ImuIntegrator> _pre_integral,
+              bool _is_key_frame) {
+            for (const FeaturePoint2D feature:_features) {
+                points.emplace_back(feature.point);
+                feature_ids.emplace_back(feature.feature_id);
+            }
+            pre_integral_ = std::move(_pre_integral);
+            is_key_frame_ = _is_key_frame;
+        };
+        std::vector<cv::Point2f> points;
+        std::vector<int> feature_ids;
         Eigen::Matrix3d R;
         Eigen::Vector3d T;
         std::shared_ptr<ImuIntegrator> pre_integral_;
         bool is_key_frame_ = false;
     };
 
+    struct LoopMatchInfo {
+        int peer_frame_id = -1;
+        Frame peer_frame;
+    };
 
     typedef const Eigen::Matrix3d & ConstMat3dRef;
     typedef const Eigen::Vector3d & ConstVec3dRef;
@@ -74,15 +84,6 @@ namespace vins {
     typedef Eigen::Quaterniond & QuatRef;
 
     typedef std::vector<std::pair<cv::Point2f , cv::Point2f>> Correspondences;
-
-    struct MatchPoint{
-        cv::Point2f point;
-        int feature_id;
-    };
-    struct LoopMatchInfo {
-        int peer_frame_id = -1;
-        std::vector<MatchPoint> match_points;
-    };
 
     constexpr double pi = 3.1415926;
 }
