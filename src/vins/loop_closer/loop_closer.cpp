@@ -3,7 +3,7 @@
 #include "vins/vins_utils.h"
 #include "vins/feature_tracker.h"
 #include <vins/slide_window_estimator/slide_window_estimator.h>
-#include "impl/feature_retriever.h"
+#include "impl/loop_relative_pos.h"
 #include "impl/loop_detector.h"
 #include "impl/keyframe.h"
 
