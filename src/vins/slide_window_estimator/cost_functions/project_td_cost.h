@@ -12,7 +12,7 @@ namespace vins{
     public:
         ProjectTdCost(const cv::Point2f &p1, const cv::Point2f& p2,
                       const cv::Point2f &vel1, const cv::Point2f &vel2,
-                      double time_stamp1_ms, const double time_stamp2_ms);
+                      double time_stamp1_ms, double time_stamp2_ms);
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
         Eigen::Vector3d pts_i, pts_j;
@@ -20,6 +20,5 @@ namespace vins{
         double td_i, td_j;
         Eigen::Matrix<double, 2, 3> tangent_base;
         double row_i, row_j;
-        static Eigen::Matrix2d sqrt_info;
     };
 }

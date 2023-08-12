@@ -14,6 +14,5 @@ namespace vins {
 
         Eigen::Vector3d pts_i, pts_j;
         Eigen::Matrix<double, 2, 3> tangent_base;
-        static Eigen::Matrix2d sqrt_info;
     };
 }

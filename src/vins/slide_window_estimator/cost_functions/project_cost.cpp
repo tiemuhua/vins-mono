@@ -1,25 +1,22 @@
 #include "project_cost.h"
 #include "log.h"
 #include "vins/vins_utils.h"
+#include "vins/parameters.h"
 
 using namespace vins;
-
-Eigen::Matrix2d ProjectCost::sqrt_info;
 
 ProjectCost::ProjectCost(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j) {
     pts_i = Eigen::Vector3d(_pts_i.x, _pts_i.y, 1.0);
     pts_j = Eigen::Vector3d(_pts_j.x, _pts_j.y, 1.0);
-#ifdef UNIT_SPHERE_ERROR
-    Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();
     Eigen::Vector3d tmp(0, 0, 1);
-    if(a == tmp)
+    if((a-tmp).norm() < 0.001) {
         tmp << 1, 0, 0;
-    b1 = (tmp - a * (a.transpose() * tmp)).normalized();
-    b2 = a.cross(b1);
+    }
+    Eigen::Vector3d b1 = (tmp - a * (a.transpose() * tmp)).normalized();
+    Eigen::Vector3d b2 = a.cross(b1);
     tangent_base.block<1, 3>(0, 0) = b1.transpose();
     tangent_base.block<1, 3>(1, 0) = b2.transpose();
-#endif
 };
 
 bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
@@ -41,14 +38,9 @@ bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, d
     Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
-#ifdef UNIT_SPHERE_ERROR
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
-#else
-    double dep_j = pts_camera_j.z();
-    residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
-#endif
-
-    residual = sqrt_info * residual;
+    Eigen::Matrix2d sqrt_info = vins::Param::Instance().camera.focal / 1.5 * Eigen::Matrix2d::Identity();
+    residual =  sqrt_info * residual;
 
     assert(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3]);
     if (!(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3])) {
@@ -60,15 +52,10 @@ bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, d
     Eigen::Matrix3d Rj = Qj.toRotationMatrix();
     Eigen::Matrix3d ric = qic.toRotationMatrix();
     Eigen::Matrix<double, 2, 3> reduce(2, 3);
-#ifdef UNIT_SPHERE_ERROR
     double norm = pts_camera_j.norm();
     double norm3 = pow(norm, 3);
     Eigen::Matrix3d norm_jacobian = Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
     reduce = tangent_base * norm_jacobian;
-#else
-    reduce << 1. / dep_j, 0, -pts_camera_j(0) / (dep_j * dep_j),
-    0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
-#endif
     reduce = sqrt_info * reduce;
 
     Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
