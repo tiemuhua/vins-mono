@@ -102,12 +102,12 @@ namespace vins {
 
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
-        for (const SameFeatureInDifferentFrames &features_of_id: feature_manager.features_) {
+        for (const Feature &feature: feature_manager.features_) {
             SFMFeature sfm_feature;
-            sfm_feature.id = features_of_id.feature_id_;
-            for (int i = 0; i < features_of_id.feature_points_.size(); ++i) {
-                sfm_feature.frame_id_2_point_[features_of_id.start_frame_ + i] =
-                        features_of_id.feature_points_[i].point;
+            sfm_feature.id = feature.feature_id;
+            for (int i = 0; i < feature.points.size(); ++i) {
+                sfm_feature.frame_id_2_point_[feature.start_frame + i] =
+                        feature.points[i];
             }
             sfm_features.push_back(sfm_feature);
         }
@@ -154,12 +154,12 @@ namespace vins {
 
             vector<cv::Point3f> pts_3_vector;
             vector<cv::Point2f> pts_2_vector;
-            for (const FeaturePoint2D &point:frame.points) {
-                const auto it = sfm_tracked_points.find(point.feature_id);
+            for (int i = 0; i < frame.points.size(); ++i) {
+                const auto it = sfm_tracked_points.find(frame.feature_ids[i]);
                 if (it != sfm_tracked_points.end()) {
                     Eigen::Vector3d world_pts = it->second;
                     pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                    pts_2_vector.emplace_back(point.point);
+                    pts_2_vector.emplace_back(frame.points[i]);
                 }
             }
             cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);

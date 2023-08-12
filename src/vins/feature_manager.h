@@ -36,10 +36,10 @@ namespace vins {
         void removeFront();
         void removeOutlier();
 
-        std::vector<SameFeatureInDifferentFrames> features_;
+        std::vector<Feature> features_;
 
     private:
-        static double compensatedParallax2(const SameFeatureInDifferentFrames &it_per_id, int frame_count);
+        static double compensatedParallax2(const Feature &it_per_id, int frame_count);
     };
 }
 

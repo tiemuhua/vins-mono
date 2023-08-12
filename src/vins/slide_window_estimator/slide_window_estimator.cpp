@@ -46,7 +46,7 @@ using namespace vins;
 using namespace std;
 
 static void eigen2c(const Window<EstimateState>& window,
-                    const std::vector<SameFeatureInDifferentFrames> &features,
+                    const std::vector<Feature> &features,
                     const Eigen::Vector3d& tic,
                     const Eigen::Matrix3d &ric){
     for (int i = 0; i < window.size(); ++i) {
@@ -69,7 +69,7 @@ static void eigen2c(const Window<EstimateState>& window,
 }
 
 static void c2eigen(Window<EstimateState>& window,
-                    std::vector<SameFeatureInDifferentFrames> &features,
+                    std::vector<Feature> &features,
                     Eigen::Vector3d& tic,
                     Eigen::Matrix3d &ric) {
     for (int i = 0; i < window.size(); ++i) {
@@ -96,7 +96,7 @@ void SlideWindowEstimator::setLoopMatchInfo(vins::LoopMatchInfo* loop_match_info
 }
 
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
-                                    std::vector<SameFeatureInDifferentFrames> &features,
+                                    std::vector<Feature> &features,
                                     Window<EstimateState>& window,
                                     Window<ImuIntegrator>& pre_int_window,
                                     Eigen::Vector3d &tic,
@@ -147,7 +147,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
 
     /*************** 3:特征点 **************************/
     for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
-        const SameFeatureInDifferentFrames &feature = features[feature_id];
+        const Feature &feature = features[feature_id];
         if (feature.points.size() < 2 || feature.start_frame >= WINDOW_SIZE - 2)
             continue;
         int start_frame_id = feature.start_frame;
@@ -179,7 +179,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     if (sp_loop_match_info) {
         const auto& peer_frame_feature_ids = sp_loop_match_info->peer_frame.feature_ids;
         for (int feature_id = 0; feature_id < features.size(); ++ feature_id) {
-            SameFeatureInDifferentFrames feature = features[feature_id];
+            Feature feature = features[feature_id];
             int start = feature.start_frame;
             if (feature.points.size() < 2 || start > WINDOW_SIZE - 2 || start < sp_loop_match_info->peer_frame_id) {
                 continue;
@@ -214,7 +214,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
 
 static void marginalize(const SlideWindowEstimatorParam &param,
                         const int oldest_key_frame_id,
-                        const std::vector<SameFeatureInDifferentFrames> &features,
+                        const std::vector<Feature> &features,
                         const Window<ImuIntegrator>& pre_int_window,
                         std::vector<double *> &reserve_block_origin) {
     auto *marginal_info = new MarginalInfo();
@@ -244,7 +244,7 @@ static void marginalize(const SlideWindowEstimatorParam &param,
     // 最老帧的视觉约束
     const vector<int> visual_discard_set = {0, 1, 6};
     for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
-        const SameFeatureInDifferentFrames& feature = features[feature_id];
+        const Feature& feature = features[feature_id];
         if (feature.start_frame != oldest_key_frame_id) {
             continue;
         }

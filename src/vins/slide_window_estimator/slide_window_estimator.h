@@ -13,7 +13,7 @@
 namespace vins::SlideWindowEstimator{
     void setLoopMatchInfo(vins::LoopMatchInfo*);
     void optimize(const SlideWindowEstimatorParam &param,
-                  std::vector<SameFeatureInDifferentFrames> &features,
+                  std::vector<Feature> &features,
                   Window<EstimateState>& state_window,
                   Window<ImuIntegrator>& pre_int_window,
                   Eigen::Vector3d &tic,

@@ -26,8 +26,7 @@ namespace vins {
         int feature_id;
     };
 
-    class SameFeatureInDifferentFrames {
-    public:
+    struct Feature {
         int feature_id          = -1;
         int start_frame         = -1;
         bool is_outlier         = false;
@@ -42,7 +41,7 @@ namespace vins {
             kDepthSolvedFail,
         }solve_flag_ = kDepthUnknown;
 
-        SameFeatureInDifferentFrames(int _feature_id, int _start_frame)
+        Feature(int _feature_id, int _start_frame)
                 : feature_id(_feature_id), start_frame(_start_frame) {}
 
         [[nodiscard]] int endFrame() const {
@@ -53,10 +52,11 @@ namespace vins {
     class ImuIntegrator;
     class Frame {
     public:
+        Frame() = default;
         Frame(const std::vector<FeaturePoint2D>& _features,
               std::shared_ptr<ImuIntegrator> _pre_integral,
               bool _is_key_frame) {
-            for (const FeaturePoint2D feature:_features) {
+            for (const FeaturePoint2D &feature:_features) {
                 points.emplace_back(feature.point);
                 feature_ids.emplace_back(feature.feature_id);
             }

@@ -63,7 +63,7 @@ bool Initiate::initiate(int frame_cnt,
 
     //triangulate on cam pose , no tic
     feature_manager.triangulate(window.pos_window, window.rot_window, Eigen::Vector3d::Zero(), RIC);
-    for (SameFeatureInDifferentFrames &features_of_id: feature_manager.features_) {
+    for (Feature &features_of_id: feature_manager.features_) {
         if (features_of_id.feature_points_.size() < 2 || features_of_id.start_frame_ >= Param::Instance().window_size - 2) {
             continue;
         }

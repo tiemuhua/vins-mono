@@ -15,7 +15,7 @@ namespace vins {
 
         int last_track_num = 0;
         for (const FeaturePoint2D &point: feature_points) {
-            auto it = find_if(features_.begin(), features_.end(), [point](const SameFeatureInDifferentFrames &it)->bool {
+            auto it = find_if(features_.begin(), features_.end(), [point](const Feature &it)->bool {
                 return it.feature_id == point.feature_id;
             });
 
@@ -29,7 +29,7 @@ namespace vins {
 
         int parallax_num = 0;
         double parallax_sum = 0;
-        for (const SameFeatureInDifferentFrames &feature_per_id: features_) {
+        for (const Feature &feature_per_id: features_) {
             if (feature_per_id.start_frame <= frame_id - 2 &&
                 feature_per_id.start_frame + int(feature_per_id.points.size()) >= frame_id) {
                 parallax_sum += compensatedParallax2(feature_per_id, frame_id);
@@ -48,12 +48,12 @@ namespace vins {
     void FeatureManager::addFeatures(int frame_id, double time_stamp,
                                      const std::vector<FeaturePoint2D> &feature_points) {
         for (const FeaturePoint2D &point: feature_points) {
-            auto it = find_if(features_.begin(), features_.end(), [point](const SameFeatureInDifferentFrames &it)->bool {
+            auto it = find_if(features_.begin(), features_.end(), [point](const Feature &it)->bool {
                 return it.feature_id == point.feature_id;
             });
 
             if (it == features_.end()) {
-                features_.emplace_back(SameFeatureInDifferentFrames(point.feature_id, frame_id));
+                features_.emplace_back(Feature(point.feature_id, frame_id));
                 it = features_.end()--;
             }
             it->points.push_back(point.point);
@@ -64,7 +64,7 @@ namespace vins {
 
     Correspondences FeatureManager::getCorrespondences(int frame_count_l, int frame_count_r) const {
         Correspondences correspondences;
-        for (const SameFeatureInDifferentFrames &it: features_) {
+        for (const Feature &it: features_) {
             if (it.start_frame <= frame_count_l && it.endFrame() >= frame_count_r) {
                 int idx_l = frame_count_l - it.start_frame;
                 int idx_r = frame_count_r - it.start_frame;
@@ -85,7 +85,7 @@ namespace vins {
     }
 
     void FeatureManager::discardFeaturesOfFrameId(int frame_id) {
-        std::vector<SameFeatureInDifferentFrames> features;
+        std::vector<Feature> features;
         for (auto &feature:features_) {
             if (feature.start_frame != frame_id) {
                 features.emplace_back(std::move(feature));
@@ -98,7 +98,7 @@ namespace vins {
         for (auto it = features_.begin(), it_next = features_.begin();
              next(it) != features_.end(); it = it_next) {
             it_next++;
-            if (it->solve_flag_ == SameFeatureInDifferentFrames::kDepthSolvedFail)
+            if (it->solve_flag_ == Feature::kDepthSolvedFail)
                 features_.erase(it);
         }
     }
@@ -106,25 +106,25 @@ namespace vins {
     void FeatureManager::triangulate(const Window<Eigen::Vector3d>& pos_window,
                                      const Window<Eigen::Matrix3d>& rot_window,
                                      const Vector3d& tic, const Matrix3d &ric) {
-        for (SameFeatureInDifferentFrames &it_per_id: features_) {
-            it_per_id.inv_depth = -1.0;
+        for (Feature &feature: features_) {
+            feature.inv_depth = -1.0;
         }
 
-        for (SameFeatureInDifferentFrames &it_per_id: features_) {
-            if (!(it_per_id.points.size() >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
+        for (Feature &feature: features_) {
+            if (!(feature.points.size() >= 2 && feature.start_frame < WINDOW_SIZE - 2))
                 continue;
 
-            if (it_per_id.inv_depth > 0)
+            if (feature.inv_depth > 0)
                 continue;
 
-            Eigen::MatrixXd svd_A(2 * it_per_id.points.size(), 4);
+            Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);
 
-            int imu_i = it_per_id.start_frame;
+            int imu_i = feature.start_frame;
             Eigen::Vector3d t0 = pos_window.at(imu_i) + rot_window.at(imu_i) * tic;
             Eigen::Matrix3d R0 = rot_window.at(imu_i) * ric;
 
-            for (int i = 0; i < it_per_id.points.size(); ++i) {
-                int imu_j = it_per_id.start_frame + i;
+            for (int i = 0; i < feature.points.size(); ++i) {
+                int imu_j = feature.start_frame + i;
                 Eigen::Vector3d t1 = pos_window.at(imu_j) + rot_window.at(imu_j) * tic;
                 Eigen::Matrix3d R1 = rot_window.at(imu_j) * ric;
                 Eigen::Vector3d t = R0.transpose() * (t1 - t0);
@@ -132,7 +132,7 @@ namespace vins {
                 Eigen::Matrix<double, 3, 4> P;
                 P.leftCols<3>() = R.transpose();
                 P.rightCols<1>() = -R.transpose() * t;
-                const cv::Point2f &unified_point = it_per_id.points[i];
+                const cv::Point2f &unified_point = feature.points[i];
                 Eigen::Vector3d f = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0).normalized();
                 svd_A.row(2 * i) = f[0] * P.row(2) - f[2] * P.row(0);
                 svd_A.row(2 * i + 1) = f[1] * P.row(2) - f[2] * P.row(1);
@@ -141,9 +141,9 @@ namespace vins {
             double svd_method = svd_V[2] / svd_V[3];
 
             if (svd_method < 0.1) {
-                it_per_id.inv_depth = -1;
+                feature.inv_depth = -1;
             } else {
-                it_per_id.inv_depth = svd_method;
+                feature.inv_depth = svd_method;
             }
         }
     }
@@ -200,7 +200,7 @@ namespace vins {
         }
     }
 
-    double FeatureManager::compensatedParallax2(const SameFeatureInDifferentFrames &feature, int frame_id) {
+    double FeatureManager::compensatedParallax2(const Feature &feature, int frame_id) {
         // check the second last frame is keyframe or not
         // parallax between second last frame and third last frame
         cv::Point2f p_i = feature.points[frame_id - 2 - feature.start_frame];
