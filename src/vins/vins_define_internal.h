@@ -41,6 +41,7 @@ namespace vins {
             kDepthSolvedFail,
         }solve_flag_ = kDepthUnknown;
 
+        Feature() = default;
         Feature(int _feature_id, int _start_frame)
                 : feature_id(_feature_id), start_frame(_start_frame) {}
 

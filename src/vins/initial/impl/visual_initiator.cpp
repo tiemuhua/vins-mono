@@ -24,10 +24,8 @@ namespace vins {
 
     struct SFMFeature {
         bool state = false;
-        int id = -1;
-        map<int, cv::Point2f> frame_id_2_point_;
         Eigen::Vector3d position;
-        double depth = -1.0;
+        Feature feature;
     };
 
     struct ReProjectionError3D {
@@ -104,11 +102,7 @@ namespace vins {
         vector<SFMFeature> sfm_features;
         for (const Feature &feature: feature_manager.features_) {
             SFMFeature sfm_feature;
-            sfm_feature.id = feature.feature_id;
-            for (int i = 0; i < feature.points.size(); ++i) {
-                sfm_feature.frame_id_2_point_[feature.start_frame + i] =
-                        feature.points[i];
-            }
+            sfm_feature.feature = feature;
             sfm_features.push_back(sfm_feature);
         }
 
@@ -192,11 +186,15 @@ namespace vins {
         return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
     }
 
+    inline bool isFrameHasFeature(int frame_id, const Feature& feature) {
+        return feature.start_frame <= frame_id && frame_id < feature.start_frame + feature.points.size();
+    }
+
     static void features2FramePoints(const vector<SFMFeature> &sfm_features, const int frame_id,
                                      vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
-            if (sfm.state && sfm.frame_id_2_point_.count(frame_id)) {
-                cv::Point2f img_pts = sfm.frame_id_2_point_.at(frame_id);
+            if (sfm.state && isFrameHasFeature(frame_id, sfm.feature)) {
+                cv::Point2f img_pts = sfm.feature.points[frame_id - sfm.feature.start_frame];
                 pts_2_vector.emplace_back(img_pts);
                 pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
@@ -226,11 +224,11 @@ namespace vins {
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.state)
                 continue;
-            if (!sfm.frame_id_2_point_.count(frame0) || !sfm.frame_id_2_point_.count(frame1)) {
+            if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
                 continue;
             }
-            cv::Point2f point0 = sfm.frame_id_2_point_.at(frame0);
-            cv::Point2f point1 = sfm.frame_id_2_point_.at(frame1);
+            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_frame);
+            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_frame);
             sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
             sfm.state = true;
         }
@@ -293,13 +291,13 @@ namespace vins {
 
         //5: triangulate all others points
         for (SFMFeature& sfm: sfm_features) {
-            if (sfm.state || sfm.frame_id_2_point_.size() < 2) {
+            if (sfm.state || sfm.feature.points.size() < 2) {
                 continue;
             }
-            int frame_0 = sfm.frame_id_2_point_.begin()->first;
-            cv::Point2f point0 = sfm.frame_id_2_point_.begin()->second;
-            int frame_1 = sfm.frame_id_2_point_.end()->first;
-            cv::Point2f point1 = sfm.frame_id_2_point_.end()->second;
+            int frame_0 = sfm.feature.start_frame;
+            cv::Point2f point0 = sfm.feature.points.front();
+            int frame_1 = sfm.feature.start_frame + sfm.feature.points.size();
+            cv::Point2f point1 = sfm.feature.points.back();
             sfm.position = triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1);
             sfm.state = true;
         }
@@ -325,9 +323,9 @@ namespace vins {
         for (SFMFeature & sfm : sfm_features) {
             if (!sfm.state)
                 continue;
-            for (const auto &it:sfm.frame_id_2_point_) {
+            for (int frame_bias = 0; frame_bias < sfm.feature.points.size(); ++frame_bias) {
                 ceres::CostFunction *cost_function =
-                        ReProjectionError3D::Create(it.second);
+                        ReProjectionError3D::Create(sfm.feature.points[frame_bias]);
                 problem.AddResidualBlock(cost_function, nullptr,
                                          c_rotation[big_parallax_frame_id], c_translation[big_parallax_frame_id], sfm.position.data());
             }
@@ -348,7 +346,7 @@ namespace vins {
         }
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.state)
-                sfm_tracked_points[sfm.id] = sfm.position;
+                sfm_tracked_points[sfm.feature.feature_id] = sfm.position;
         }
         return true;
     }
