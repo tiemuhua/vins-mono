@@ -5,7 +5,6 @@
 #include "visual_initiator.h"
 
 #include <vector>
-#include <cmath>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
@@ -23,7 +22,7 @@ namespace vins {
     using namespace std;
 
     struct SFMFeature {
-        bool state = false;
+        bool has_been_triangulated = false;
         Eigen::Vector3d position;
         Feature feature;
     };
@@ -82,7 +81,7 @@ namespace vins {
                                      vector<SFMFeature> &sfm_features) {
         assert(frame0 != frame1);
         for (SFMFeature & sfm : sfm_features) {
-            if (sfm.state)
+            if (sfm.has_been_triangulated)
                 continue;
             if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
                 continue;
@@ -90,14 +89,14 @@ namespace vins {
             cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_frame);
             cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_frame);
             sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
-            sfm.state = true;
+            sfm.has_been_triangulated = true;
         }
     }
 
     static void calcFeaturePtsInFrame(const vector<SFMFeature> &sfm_features, const int frame_id,
                                       vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
-            if (sfm.state && isFrameHasFeature(frame_id, sfm.feature)) {
+            if (sfm.has_been_triangulated && isFrameHasFeature(frame_id, sfm.feature)) {
                 cv::Point2f img_pts = sfm.feature.points[frame_id - sfm.feature.start_frame];
                 pts_2_vector.emplace_back(img_pts);
                 pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
@@ -178,7 +177,7 @@ namespace vins {
 
         //5: triangulate all others points
         for (SFMFeature& sfm: sfm_features) {
-            if (sfm.state || sfm.feature.points.size() < 2) {
+            if (sfm.has_been_triangulated || sfm.feature.points.size() < 2) {
                 continue;
             }
             int frame_0 = sfm.feature.start_frame;
@@ -186,7 +185,7 @@ namespace vins {
             int frame_1 = sfm.feature.start_frame + sfm.feature.points.size();
             cv::Point2f point1 = sfm.feature.points.back();
             sfm.position = triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1);
-            sfm.state = true;
+            sfm.has_been_triangulated = true;
         }
 
         //full BA
@@ -208,7 +207,7 @@ namespace vins {
         }
 
         for (SFMFeature & sfm : sfm_features) {
-            if (!sfm.state)
+            if (!sfm.has_been_triangulated)
                 continue;
             for (int frame_bias = 0; frame_bias < sfm.feature.points.size(); ++frame_bias) {
                 ceres::CostFunction *cost_function =
@@ -232,7 +231,7 @@ namespace vins {
             T[i] = utils::array2vec3d(c_translation[i]);
         }
         for (SFMFeature & sfm : sfm_features) {
-            if (sfm.state)
+            if (sfm.has_been_triangulated)
                 feature_id_2_position[sfm.feature.feature_id] = sfm.position;
         }
         return true;
