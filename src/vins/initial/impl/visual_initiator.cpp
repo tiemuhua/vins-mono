@@ -74,9 +74,6 @@ namespace vins {
         return var > 0.25;
     }
 
-    static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2_vector, const vector<cv::Point3f> &pts_3_vector,
-                                bool use_extrinsic_guess, Eigen::Matrix3d &R, Eigen::Vector3d &T);
-
     static double getAverageParallax(const vector<pair<cv::Point2f , cv::Point2f>>& correspondences) {
         double sum_parallax = 0;
         for (auto &correspond: correspondences) {
@@ -86,96 +83,12 @@ namespace vins {
         return 1.0 * sum_parallax / int(correspondences.size());
     }
 
-    static bool construct(int key_frame_num, int big_parallax_frame_id,
-                          const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
-                          Eigen::Quaterniond *q, Eigen::Vector3d *T,
-                          vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &sfm_tracked_points);
-
-    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
-                                           const int key_frame_num,
-                                           vector<Frame> &all_frames) {
-        if (!isAccVariantBigEnough(all_frames)) {
-            return false;
-        }
-
-        // 计算sfm_features
-        vector<SFMFeature> sfm_features;
-        for (const Feature &feature: feature_manager.features_) {
-            SFMFeature sfm_feature;
-            sfm_feature.feature = feature;
-            sfm_features.push_back(sfm_feature);
-        }
-
-        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
-        Eigen::Matrix3d relative_R;
-        Eigen::Vector3d relative_T;
-        int big_parallax_frame_id = -1;
-        for (int i = 0; i < Param::Instance().window_size; ++i) {
-            vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    feature_manager.getCorrespondences(i, Param::Instance().window_size);
-            constexpr double avg_parallax_threshold = 30.0/460;
-            if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
-                continue;
-            }
-            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T);
-            big_parallax_frame_id = i;
-            break;
-        }
-        if (big_parallax_frame_id == -1) {
-            LOG_E("Not enough features or parallax; Move device around");
-            return false;
-        }
-
-        // 初始化所有关键帧的位姿，和特征点的深度
-        Eigen::Quaterniond Q[Param::Instance().window_size + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
-        Eigen::Vector3d T[Param::Instance().window_size + 1];
-        map<int, Eigen::Vector3d> sfm_tracked_points;
-        if (!construct(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T, sfm_features, sfm_tracked_points)) {
-            LOG_D("global SFM failed!");
-            return false;
-        }
-
-        //利用关键帧位姿和特征点深度PNP求解非关键帧位姿
-        int key_frame_idx = 0;
-        for (Frame &frame:all_frames) {
-            // provide initial guess
-            if (frame.is_key_frame_) {
-                frame.R = Q[key_frame_idx].toRotationMatrix();
-                frame.T = T[key_frame_idx];
-                key_frame_idx++;
-                continue;
-            }
-
-            vector<cv::Point3f> pts_3_vector;
-            vector<cv::Point2f> pts_2_vector;
-            for (int i = 0; i < frame.points.size(); ++i) {
-                const auto it = sfm_tracked_points.find(frame.feature_ids[i]);
-                if (it != sfm_tracked_points.end()) {
-                    Eigen::Vector3d world_pts = it->second;
-                    pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                    pts_2_vector.emplace_back(frame.points[i]);
-                }
-            }
-            cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-            if (pts_3_vector.size() < 6) {
-                LOG_D("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
-                return false;
-            }
-
-            Eigen::Matrix3d R_initial = Q[key_frame_idx].toRotationMatrix();
-            Eigen::Vector3d P_initial = T[key_frame_idx];
-            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
-                LOG_D("solve pnp fail!");
-                return false;
-            }
-            frame.R = R_initial;
-            frame.T = P_initial;
-        }
-        return true;
+    inline bool isFrameHasFeature(int frame_id, const Feature& feature) {
+        return feature.start_frame <= frame_id && frame_id < feature.start_frame + feature.points.size();
     }
 
     static Eigen::Vector3d triangulatePoint(const Eigen::Matrix<double, 3, 4> &Pose0, const Eigen::Matrix<double, 3, 4> &Pose1,
-                                     const cv::Point2f &point0, const cv::Point2f &point1) {
+                                            const cv::Point2f &point0, const cv::Point2f &point1) {
         Eigen::Matrix4d design_matrix = Eigen::Matrix4d::Zero();
         design_matrix.row(0) = point0.x * Pose0.row(2) - Pose0.row(0);
         design_matrix.row(1) = point0.y * Pose0.row(2) - Pose0.row(1);
@@ -186,8 +99,21 @@ namespace vins {
         return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
     }
 
-    inline bool isFrameHasFeature(int frame_id, const Feature& feature) {
-        return feature.start_frame <= frame_id && frame_id < feature.start_frame + feature.points.size();
+    static void triangulateTwoFrames(int frame0, const Eigen::Matrix<double, 3, 4> &Pose0,
+                                     int frame1, const Eigen::Matrix<double, 3, 4> &Pose1,
+                                     vector<SFMFeature> &sfm_features) {
+        assert(frame0 != frame1);
+        for (SFMFeature & sfm : sfm_features) {
+            if (sfm.state)
+                continue;
+            if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
+                continue;
+            }
+            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_frame);
+            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_frame);
+            sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
+            sfm.state = true;
+        }
     }
 
     static void features2FramePoints(const vector<SFMFeature> &sfm_features, const int frame_id,
@@ -215,23 +141,6 @@ namespace vins {
         cv::cv2eigen(r, R);
         cv::cv2eigen(t, T);
         return true;
-    }
-
-    static void triangulateTwoFrames(int frame0, const Eigen::Matrix<double, 3, 4> &Pose0,
-                                     int frame1, const Eigen::Matrix<double, 3, 4> &Pose1,
-                                     vector<SFMFeature> &sfm_features) {
-        assert(frame0 != frame1);
-        for (SFMFeature & sfm : sfm_features) {
-            if (sfm.state)
-                continue;
-            if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
-                continue;
-            }
-            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_frame);
-            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_frame);
-            sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
-            sfm.state = true;
-        }
     }
 
     bool construct(int key_frame_num, int big_parallax_frame_id,
@@ -347,6 +256,89 @@ namespace vins {
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.state)
                 sfm_tracked_points[sfm.feature.feature_id] = sfm.position;
+        }
+        return true;
+    }
+
+    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
+                                           const int key_frame_num,
+                                           vector<Frame> &all_frames) {
+        if (!isAccVariantBigEnough(all_frames)) {
+            return false;
+        }
+
+        // 计算sfm_features
+        vector<SFMFeature> sfm_features;
+        for (const Feature &feature: feature_manager.features_) {
+            SFMFeature sfm_feature;
+            sfm_feature.feature = feature;
+            sfm_features.push_back(sfm_feature);
+        }
+
+        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
+        Eigen::Matrix3d relative_R;
+        Eigen::Vector3d relative_T;
+        int big_parallax_frame_id = -1;
+        for (int i = 0; i < Param::Instance().window_size; ++i) {
+            vector<pair<cv::Point2f , cv::Point2f>> correspondences =
+                    feature_manager.getCorrespondences(i, Param::Instance().window_size);
+            constexpr double avg_parallax_threshold = 30.0/460;
+            if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
+                continue;
+            }
+            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T);
+            big_parallax_frame_id = i;
+            break;
+        }
+        if (big_parallax_frame_id == -1) {
+            LOG_E("Not enough features or parallax; Move device around");
+            return false;
+        }
+
+        // 初始化所有关键帧的位姿，和特征点的深度
+        Eigen::Quaterniond Q[Param::Instance().window_size + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
+        Eigen::Vector3d T[Param::Instance().window_size + 1];
+        map<int, Eigen::Vector3d> sfm_tracked_points;
+        if (!construct(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T, sfm_features, sfm_tracked_points)) {
+            LOG_D("global SFM failed!");
+            return false;
+        }
+
+        //利用关键帧位姿和特征点深度PNP求解非关键帧位姿
+        int key_frame_idx = 0;
+        for (Frame &frame:all_frames) {
+            // provide initial guess
+            if (frame.is_key_frame_) {
+                frame.R = Q[key_frame_idx].toRotationMatrix();
+                frame.T = T[key_frame_idx];
+                key_frame_idx++;
+                continue;
+            }
+
+            vector<cv::Point3f> pts_3_vector;
+            vector<cv::Point2f> pts_2_vector;
+            for (int i = 0; i < frame.points.size(); ++i) {
+                const auto it = sfm_tracked_points.find(frame.feature_ids[i]);
+                if (it != sfm_tracked_points.end()) {
+                    Eigen::Vector3d world_pts = it->second;
+                    pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
+                    pts_2_vector.emplace_back(frame.points[i]);
+                }
+            }
+            cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+            if (pts_3_vector.size() < 6) {
+                LOG_D("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
+                return false;
+            }
+
+            Eigen::Matrix3d R_initial = Q[key_frame_idx].toRotationMatrix();
+            Eigen::Vector3d P_initial = T[key_frame_idx];
+            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
+                LOG_D("solve pnp fail!");
+                return false;
+            }
+            frame.R = R_initial;
+            frame.T = P_initial;
         }
         return true;
     }
