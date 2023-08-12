@@ -290,14 +290,14 @@ namespace vins {
                 }
             }
             if (pts_3_vector.size() < 6) {
-                LOG_D("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
+                LOG_E("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
                 return false;
             }
 
             Eigen::Matrix3d R_initial = key_frames_rot[key_frame_idx];
             Eigen::Vector3d P_initial = key_frames_pos[key_frame_idx];
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
-                LOG_D("solve pnp fail!");
+                LOG_E("solve pnp fail!");
                 return false;
             }
             frame.R = R_initial;
