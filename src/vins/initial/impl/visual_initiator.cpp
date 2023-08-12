@@ -116,8 +116,8 @@ namespace vins {
         }
     }
 
-    static void features2FramePoints(const vector<SFMFeature> &sfm_features, const int frame_id,
-                                     vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
+    static void calcFeaturePtsInFrame(const vector<SFMFeature> &sfm_features, const int frame_id,
+                                      vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
             if (sfm.state && isFrameHasFeature(frame_id, sfm.feature)) {
                 cv::Point2f img_pts = sfm.feature.points[frame_id - sfm.feature.start_frame];
@@ -146,7 +146,7 @@ namespace vins {
     bool construct(int key_frame_num, int big_parallax_frame_id,
                    const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
                    Eigen::Quaterniond *q, Eigen::Vector3d *T,
-                   vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &sfm_tracked_points) {
+                   vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &feature_id_2_position) {
         Eigen::Matrix<double, 3, 4> Pose[key_frame_num];
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
@@ -166,7 +166,7 @@ namespace vins {
             Eigen::Vector3d P_initial = Pose[frame_id - 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
-            features2FramePoints(sfm_features, frame_id, pts_2_vector, pts_3_vector);
+            calcFeaturePtsInFrame(sfm_features, frame_id, pts_2_vector, pts_3_vector);
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial))
                 return false;
             Pose[frame_id].block<3, 3>(0, 0) = R_initial;
@@ -189,7 +189,7 @@ namespace vins {
             Eigen::Vector3d P_initial = Pose[frame_id + 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
-            features2FramePoints(sfm_features, frame_id, pts_2_vector, pts_3_vector);
+            calcFeaturePtsInFrame(sfm_features, frame_id, pts_2_vector, pts_3_vector);
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial))
                 return false;
             Pose[frame_id].block<3, 3>(0, 0) = R_initial;
@@ -255,7 +255,7 @@ namespace vins {
         }
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.state)
-                sfm_tracked_points[sfm.feature.feature_id] = sfm.position;
+                feature_id_2_position[sfm.feature.feature_id] = sfm.position;
         }
         return true;
     }
@@ -298,8 +298,8 @@ namespace vins {
         // 初始化所有关键帧的位姿，和特征点的深度
         Eigen::Quaterniond Q[Param::Instance().window_size + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
         Eigen::Vector3d T[Param::Instance().window_size + 1];
-        map<int, Eigen::Vector3d> sfm_tracked_points;
-        if (!construct(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T, sfm_features, sfm_tracked_points)) {
+        map<int, Eigen::Vector3d> feature_id_2_position;
+        if (!construct(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T, sfm_features, feature_id_2_position)) {
             LOG_D("global SFM failed!");
             return false;
         }
@@ -318,14 +318,12 @@ namespace vins {
             vector<cv::Point3f> pts_3_vector;
             vector<cv::Point2f> pts_2_vector;
             for (int i = 0; i < frame.points.size(); ++i) {
-                const auto it = sfm_tracked_points.find(frame.feature_ids[i]);
-                if (it != sfm_tracked_points.end()) {
-                    Eigen::Vector3d world_pts = it->second;
+                if (feature_id_2_position.count(frame.feature_ids[i])) {
+                    Eigen::Vector3d world_pts = feature_id_2_position[frame.feature_ids[i]];
                     pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
                     pts_2_vector.emplace_back(frame.points[i]);
                 }
             }
-            cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
             if (pts_3_vector.size() < 6) {
                 LOG_D("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
                 return false;
