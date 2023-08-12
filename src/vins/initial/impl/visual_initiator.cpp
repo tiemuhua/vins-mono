@@ -23,7 +23,7 @@ namespace vins {
 
     struct SFMFeature {
         bool has_been_triangulated = false;
-        Eigen::Vector3d position;
+        Eigen::Vector3d position = Eigen::Vector3d::Zero();
         Feature feature;
     };
 
@@ -112,6 +112,7 @@ namespace vins {
         cv::eigen2cv(T, t);
         cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
         if (!cv::solvePnP(pts_3_vector, pts_2_vector, K, D, rvec, t, use_extrinsic_guess)) {
+            LOG_E("solve pnp fail");
             return false;
         }
         cv::Rodrigues(rvec, r);
@@ -120,16 +121,41 @@ namespace vins {
         return true;
     }
 
-    bool calcKeyFramePosAndFeaturePointPosition(int key_frame_num, int big_parallax_frame_id,
-                                                const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
-                                                Eigen::Quaterniond *q, Eigen::Vector3d *T,
-                                                vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &feature_id_2_position) {
-        std::vector<Eigen::Matrix<double, 3, 4>> Pose(key_frame_num);
+    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
+                                           const int key_frame_num,
+                                           vector<Frame> &all_frames) {
+        // 计算sfm_features
+        vector<SFMFeature> sfm_features;
+        for (const Feature &feature: feature_manager.features_) {
+            SFMFeature sfm_feature;
+            sfm_feature.feature = feature;
+            sfm_features.push_back(sfm_feature);
+        }
+
+        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
+        Eigen::Matrix3d relative_R;
+        Eigen::Vector3d relative_T;
+        int big_parallax_frame_id = -1;
+        for (int i = 0; i < Param::Instance().window_size; ++i) {
+            vector<pair<cv::Point2f , cv::Point2f>> correspondences =
+                    feature_manager.getCorrespondences(i, Param::Instance().window_size);
+            constexpr double avg_parallax_threshold = 30.0/460;
+            if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
+                continue;
+            }
+            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T);
+            big_parallax_frame_id = i;
+            break;
+        }
+        if (big_parallax_frame_id == -1) {
+            LOG_E("Not enough features or parallax; Move device around");
+            return false;
+        }
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
         // 1: triangulate between l <-> frame_num - 1
+        std::vector<Eigen::Matrix<double, 3, 4>> Pose(key_frame_num, Eigen::Matrix<double, 3, 4>::Zero());
         Pose[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-        Pose[big_parallax_frame_id].block<3, 1>(0, 3) = Eigen::Vector3d::Zero();
         Pose[key_frame_num - 1].block<3, 3>(0, 0) = relative_R;
         Pose[key_frame_num - 1].block<3, 1>(0, 3) = relative_T;
         triangulateTwoFrames(big_parallax_frame_id, Pose[big_parallax_frame_id],
@@ -167,8 +193,9 @@ namespace vins {
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
             calcFeaturePtsInFrame(sfm_features, frame_id, pts_2_vector, pts_3_vector);
-            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial))
+            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial)) {
                 return false;
+            }
             Pose[frame_id].block<3, 3>(0, 0) = R_initial;
             Pose[frame_id].block<3, 1>(0, 3) = P_initial;
             //triangulate
@@ -188,7 +215,7 @@ namespace vins {
             sfm.has_been_triangulated = true;
         }
 
-        //full BA
+        //6: full BA
         ceres::Problem problem;
         ceres::Manifold *local_parameterization = new ceres::QuaternionManifold();
         double c_rotation[key_frame_num][4];
@@ -222,60 +249,24 @@ namespace vins {
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
         if (summary.termination_type != ceres::CONVERGENCE && summary.final_cost > 5e-03) {
+            LOG_E("full ba not convergence!, termination_type:%d, final_cost:%f",
+                  summary.termination_type, summary.final_cost);
             return false;
         }
+
+        //后续只需要Q、key_frames_pos、feature_id_2_position
+        vector<Eigen::Matrix3d> key_frames_rot(Param::Instance().window_size + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
+        vector<Eigen::Vector3d> key_frames_pos(Param::Instance().window_size + 1);
+        map<int, Eigen::Vector3d> feature_id_2_position;
         for (int i = 0; i < key_frame_num; i++) {
-            q[i] = utils::array2quat(c_rotation[i]);
+            key_frames_rot[i] = utils::array2quat(c_rotation[i]).toRotationMatrix();
         }
         for (int i = 0; i < key_frame_num; i++) {
-            T[i] = utils::array2vec3d(c_translation[i]);
+            key_frames_pos[i] = utils::array2vec3d(c_translation[i]);
         }
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated)
                 feature_id_2_position[sfm.feature.feature_id] = sfm.position;
-        }
-        return true;
-    }
-
-    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
-                                           const int key_frame_num,
-                                           vector<Frame> &all_frames) {
-        // 计算sfm_features
-        vector<SFMFeature> sfm_features;
-        for (const Feature &feature: feature_manager.features_) {
-            SFMFeature sfm_feature;
-            sfm_feature.feature = feature;
-            sfm_features.push_back(sfm_feature);
-        }
-
-        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
-        Eigen::Matrix3d relative_R;
-        Eigen::Vector3d relative_T;
-        int big_parallax_frame_id = -1;
-        for (int i = 0; i < Param::Instance().window_size; ++i) {
-            vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    feature_manager.getCorrespondences(i, Param::Instance().window_size);
-            constexpr double avg_parallax_threshold = 30.0/460;
-            if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
-                continue;
-            }
-            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T);
-            big_parallax_frame_id = i;
-            break;
-        }
-        if (big_parallax_frame_id == -1) {
-            LOG_E("Not enough features or parallax; Move device around");
-            return false;
-        }
-
-        // 初始化所有关键帧的位姿，和特征点的深度
-        Eigen::Quaterniond Q[Param::Instance().window_size + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
-        Eigen::Vector3d T[Param::Instance().window_size + 1];
-        map<int, Eigen::Vector3d> feature_id_2_position;
-        if (!calcKeyFramePosAndFeaturePointPosition(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T,
-                                                    sfm_features, feature_id_2_position)) {
-            LOG_D("global SFM failed!");
-            return false;
         }
 
         //利用关键帧位姿和特征点深度PNP求解非关键帧位姿
@@ -283,8 +274,8 @@ namespace vins {
         for (Frame &frame:all_frames) {
             // provide initial guess
             if (frame.is_key_frame_) {
-                frame.R = Q[key_frame_idx].toRotationMatrix();
-                frame.T = T[key_frame_idx];
+                frame.R = key_frames_rot[key_frame_idx];
+                frame.T = key_frames_pos[key_frame_idx];
                 key_frame_idx++;
                 continue;
             }
@@ -303,8 +294,8 @@ namespace vins {
                 return false;
             }
 
-            Eigen::Matrix3d R_initial = Q[key_frame_idx].toRotationMatrix();
-            Eigen::Vector3d P_initial = T[key_frame_idx];
+            Eigen::Matrix3d R_initial = key_frames_rot[key_frame_idx];
+            Eigen::Vector3d P_initial = key_frames_pos[key_frame_idx];
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
                 LOG_D("solve pnp fail!");
                 return false;
