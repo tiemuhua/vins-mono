@@ -52,28 +52,6 @@ namespace vins {
         cv::Point2f observed_point_;
     };
 
-    static bool isAccVariantBigEnough(const vector<Frame> &all_image_frame_) {
-        //check imu observability
-        Eigen::Vector3d sum_acc;
-        // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
-        for (const Frame &frame: all_image_frame_) {
-            double dt = frame.pre_integral_->deltaTime();
-            Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
-            sum_acc += tmp_acc;
-        }
-        Eigen::Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
-        double var = 0;
-        for (const Frame &frame:all_image_frame_) {
-            double dt = frame.pre_integral_->deltaTime();
-            Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
-            var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
-        }
-
-        var = sqrt(var / (double )all_image_frame_.size());
-        LOG_I("IMU acc variant:%f", var);
-        return var > 0.25;
-    }
-
     static double getAverageParallax(const vector<pair<cv::Point2f , cv::Point2f>>& correspondences) {
         double sum_parallax = 0;
         for (auto &correspond: correspondences) {
@@ -143,11 +121,11 @@ namespace vins {
         return true;
     }
 
-    bool construct(int key_frame_num, int big_parallax_frame_id,
-                   const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
-                   Eigen::Quaterniond *q, Eigen::Vector3d *T,
-                   vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &feature_id_2_position) {
-        Eigen::Matrix<double, 3, 4> Pose[key_frame_num];
+    bool calcKeyFramePosAndFeaturePointPosition(int key_frame_num, int big_parallax_frame_id,
+                                                const Eigen::Matrix3d &relative_R, const Eigen::Vector3d &relative_T,
+                                                Eigen::Quaterniond *q, Eigen::Vector3d *T,
+                                                vector<SFMFeature> &sfm_features, map<int, Eigen::Vector3d> &feature_id_2_position) {
+        std::vector<Eigen::Matrix<double, 3, 4>> Pose(key_frame_num);
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
         // 1: triangulate between l <-> frame_num - 1
@@ -263,10 +241,6 @@ namespace vins {
     bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
                                            const int key_frame_num,
                                            vector<Frame> &all_frames) {
-        if (!isAccVariantBigEnough(all_frames)) {
-            return false;
-        }
-
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
         for (const Feature &feature: feature_manager.features_) {
@@ -299,7 +273,8 @@ namespace vins {
         Eigen::Quaterniond Q[Param::Instance().window_size + 1]; // todo tiemuhuaguo Q和T是在哪个坐标系里谁的位姿？？？
         Eigen::Vector3d T[Param::Instance().window_size + 1];
         map<int, Eigen::Vector3d> feature_id_2_position;
-        if (!construct(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T, sfm_features, feature_id_2_position)) {
+        if (!calcKeyFramePosAndFeaturePointPosition(key_frame_num, big_parallax_frame_id, relative_R, relative_T, Q, T,
+                                                    sfm_features, feature_id_2_position)) {
             LOG_D("global SFM failed!");
             return false;
         }
