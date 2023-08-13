@@ -290,7 +290,7 @@ static void marginalize(const SlideWindowEstimatorParam &param,
 
 void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
                                  const int oldest_key_frame_id,
-                                 FeatureManager &feature_manager,
+                                 FeatureHelper &feature_manager,
                                  Window<EstimateState>& state_window,
                                  Window<ImuIntegrator>& pre_int_window) {
     std::vector<double *> reserve_block_origin;

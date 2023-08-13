@@ -34,6 +34,7 @@ namespace vins {
         double time_rolling_shatter;
         int window_size;
         std::string pattern_file;
+        double key_frame_parallax_threshold;
 
         double getTimeShatPerRol() {
             return time_rolling_shatter / camera.row;

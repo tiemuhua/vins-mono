@@ -33,13 +33,12 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
 }
 
 bool Initiate::initiate(int frame_cnt,
-                        RunInfo &run_info,
-                        FeatureManager &feature_manager) {
+                        RunInfo &run_info) {
     if (!isAccVariantBigEnough(run_info.all_frames)) {
         return false;
     }
 
-    bool visual_succ = VisualInitiator::initialStructure(feature_manager, frame_cnt, run_info.all_frames);
+    bool visual_succ = VisualInitiator::initialStructure(run_info.features, frame_cnt, run_info.all_frames);
     if (!visual_succ) {
         return false;
     }
@@ -88,12 +87,39 @@ bool Initiate::initiate(int frame_cnt,
     }
 
     //triangulate on cam pose , no tic
-    feature_manager.triangulate(state_window.pos_window, state_window.rot_window, Eigen::Vector3d::Zero(), RIC);
-    for (Feature &feature: feature_manager.features_) {
-        if (feature.points.size() < 2 || feature.start_frame >= Param::Instance().window_size - 2) {
+    //计算特征点深度，没有直接用
+    for (Feature &feature: run_info.features) {
+        if (!(feature.points.size() >= 2 && feature.start_frame < Param::Instance().window_size - 2))
             continue;
+
+        Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);
+
+        int imu_i = feature.start_frame;
+        Eigen::Vector3d t0 = state_window.at(imu_i).pos;
+        Eigen::Matrix3d R0 = state_window.at(imu_i).rot * RIC;
+
+        for (int i = 0; i < feature.points.size(); ++i) {
+            int imu_j = feature.start_frame + i;
+            Eigen::Vector3d t1 = state_window.at(imu_j).pos + state_window.at(imu_j).rot * RIC;
+            Eigen::Matrix3d R1 = state_window.at(imu_j).rot * RIC;
+            Eigen::Vector3d t = R0.transpose() * (t1 - t0);
+            Eigen::Matrix3d R = R0.transpose() * R1;
+            Eigen::Matrix<double, 3, 4> P;
+            P.leftCols<3>() = R.transpose();
+            P.rightCols<1>() = -R.transpose() * t;
+            const cv::Point2f &unified_point = feature.points[i];
+            Eigen::Vector3d f = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0).normalized();
+            svd_A.row(2 * i) = f[0] * P.row(2) - f[2] * P.row(0);
+            svd_A.row(2 * i + 1) = f[1] * P.row(2) - f[2] * P.row(1);
         }
-        feature.inv_depth *= scale; // todo tiemuhuaguo 这里是乘还是除？？
+        Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
+        double svd_method = svd_V[2] / svd_V[3];
+
+        if (svd_method < 0.1) {
+            feature.inv_depth = -1;
+        } else {
+            feature.inv_depth = svd_method * scale; // todo tiemuhuaguo 这里是乘还是除？？
+        }
     }
     return true;
 }

@@ -8,7 +8,7 @@
 #include "vins/vins_define_internal.h"
 #include "vins/vins_run_info.h"
 #include "vins/parameters.h"
-#include "vins/feature_manager.h"
+#include "vins/feature_helper.h"
 
 namespace vins::SlideWindowEstimator{
     void setLoopMatchInfo(vins::LoopMatchInfo*);
@@ -20,7 +20,7 @@ namespace vins::SlideWindowEstimator{
                   Eigen::Matrix3d &ric);
     void slide(const SlideWindowEstimatorParam &param,
                int oldest_key_frame_id,
-               FeatureManager &feature_manager,
+               FeatureHelper &feature_manager,
                Window<EstimateState>& state_window,
                Window<ImuIntegrator>& pre_int_window);
 }

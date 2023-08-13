@@ -7,14 +7,13 @@
 #include "vins_define_internal.h"
 #include "parameters.h"
 #include "vins_run_info.h"
-#include "feature_manager.h"
+#include "feature_helper.h"
 
 namespace vins {
     class Initiate {
     public:
         static bool initiate(int frame_cnt,
-                             RunInfo &run_info,
-                             FeatureManager &feature_manager);
+                             RunInfo &run_info);
     };
 }
 

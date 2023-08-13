@@ -55,9 +55,6 @@ namespace vins {
         Eigen::Vector3d bg;
     };
 
-    camodocal::CameraPtr CameraInstance();
-
-
     class RunInfo {
     public:
         Eigen::Vector3d tic;
@@ -69,6 +66,7 @@ namespace vins {
         Window<ImuIntegrator> pre_int_window;
 
         std::vector<Frame> all_frames;
+        std::vector<Feature> features;
 
         static RunInfo& Instance() {
             return run_info_;

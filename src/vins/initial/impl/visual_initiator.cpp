@@ -15,7 +15,7 @@
 #include "vins_utils.h"
 #include "parameters.h"
 
-#include "feature_manager.h"
+#include "feature_helper.h"
 #include "motion_estimator.h"
 
 namespace vins {
@@ -64,7 +64,8 @@ namespace vins {
         return feature.start_frame <= frame_id && frame_id < feature.start_frame + feature.points.size();
     }
 
-    static Eigen::Vector3d triangulatePoint(const Eigen::Matrix<double, 3, 4> &Pose0, const Eigen::Matrix<double, 3, 4> &Pose1,
+    using Mat34 = Eigen::Matrix<double, 3, 4>;
+    static Eigen::Vector3d triangulatePoint(const Mat34 &Pose0, const Mat34 &Pose1,
                                             const cv::Point2f &point0, const cv::Point2f &point1) {
         Eigen::Matrix4d design_matrix = Eigen::Matrix4d::Zero();
         design_matrix.row(0) = point0.x * Pose0.row(2) - Pose0.row(0);
@@ -76,8 +77,8 @@ namespace vins {
         return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
     }
 
-    static void triangulateTwoFrames(int frame0, const Eigen::Matrix<double, 3, 4> &Pose0,
-                                     int frame1, const Eigen::Matrix<double, 3, 4> &Pose1,
+    static void triangulateTwoFrames(int frame0, const Mat34 &Pose0,
+                                     int frame1, const Mat34 &Pose1,
                                      vector<SFMFeature> &sfm_features) {
         assert(frame0 != frame1);
         for (SFMFeature & sfm : sfm_features) {
@@ -121,12 +122,12 @@ namespace vins {
         return true;
     }
 
-    bool VisualInitiator::initialStructure(const FeatureManager& feature_manager,
+    bool VisualInitiator::initialStructure(const std::vector<Feature>& features,
                                            const int key_frame_num,
                                            vector<Frame> &all_frames) {
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
-        for (const Feature &feature: feature_manager.features_) {
+        for (const Feature &feature: features) {
             SFMFeature sfm_feature;
             sfm_feature.feature = feature;
             sfm_features.push_back(sfm_feature);
@@ -138,7 +139,7 @@ namespace vins {
         int big_parallax_frame_id = -1;
         for (int i = 0; i < Param::Instance().window_size; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    feature_manager.getCorrespondences(i, Param::Instance().window_size);
+                    FeatureHelper::getCorrespondences(i, Param::Instance().window_size, features);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
@@ -154,7 +155,7 @@ namespace vins {
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
         // 1: triangulate between l <-> frame_num - 1
-        std::vector<Eigen::Matrix<double, 3, 4>> Pose(key_frame_num, Eigen::Matrix<double, 3, 4>::Zero());
+        std::vector<Mat34> Pose(key_frame_num, Mat34::Zero());
         Pose[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
         Pose[key_frame_num - 1].block<3, 3>(0, 0) = relative_R;
         Pose[key_frame_num - 1].block<3, 1>(0, 3) = relative_T;

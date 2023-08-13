@@ -13,7 +13,7 @@
 namespace vins{
     class Frame;
     class RICEstimator;
-    class FeatureManager;
+    class FeatureHelper;
     class FeatureTracker;
 
     class VinsCore {
@@ -42,7 +42,7 @@ namespace vins{
         int cur_frame_id_;
 
         RICEstimator *ric_estimator_;
-        FeatureManager *feature_manager_;
+        FeatureHelper *feature_manager_;
         FeatureTracker *feature_tracker_;
     };
 }

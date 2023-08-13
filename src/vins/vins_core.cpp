@@ -7,7 +7,7 @@
 #include "initial/initiate.h"
 #include "feature_tracker.h"
 #include "ric_estimator.h"
-#include "feature_manager.h"
+#include "feature_helper.h"
 #include "slide_window_estimator/slide_window_estimator.h"
 
 namespace vins{
@@ -59,7 +59,7 @@ namespace vins{
             return kVinsStateEstimateExtrinsic;
         }
         PointCorrespondences correspondences =
-                feature_manager_->getCorrespondences(cur_frame_id_ - 1, cur_frame_id_);
+                FeatureHelper::getCorrespondences(cur_frame_id_ - 1, cur_frame_id_, RunInfo::Instance().features);
         Eigen::Quaterniond imu_quat = RunInfo::Instance().all_frames.back().pre_integral_->deltaQuat();
         bool succ = ric_estimator_->calibrateRotationExtrinsic(correspondences, imu_quat, RunInfo::Instance().ric);
         if (!succ) {
@@ -73,7 +73,7 @@ namespace vins{
             return kVinsStateInitial;
         }
         last_init_time_stamp_ = time_stamp;
-        bool rtn = Initiate::initiate(cur_frame_id_, RunInfo::Instance(), *feature_manager_);
+        bool rtn = Initiate::initiate(cur_frame_id_, RunInfo::Instance());
         if (!rtn) {
             return kVinsStateInitial;
         }
@@ -91,7 +91,7 @@ namespace vins{
                                     RunInfo::Instance().pre_int_window);
         // todo 什么时候往Window里面塞东西？
         SlideWindowEstimator::optimize(Param::Instance().slide_window,
-                                       feature_manager_->features_,
+                                       RunInfo::Instance().features,
                                        RunInfo::Instance().state_window,
                                        RunInfo::Instance().pre_int_window,
                                        RunInfo::Instance().tic,

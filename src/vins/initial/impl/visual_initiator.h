@@ -5,11 +5,11 @@
 #ifndef VINS_VISUAL_INITIATOR_H
 #define VINS_VISUAL_INITIATOR_H
 #include "vins_define_internal.h"
-#include "feature_manager.h"
+#include "feature_helper.h"
 namespace vins{
     class VisualInitiator {
     public:
-        static bool initialStructure(const FeatureManager& feature_manager,
+        static bool initialStructure(const std::vector<Feature>& features,
                                      int key_frame_num,
                                      std::vector<Frame> &all_frames);
     };
