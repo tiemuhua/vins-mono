@@ -45,7 +45,6 @@ namespace vins{
         int cur_frame_id_;
 
         RICEstimator *ric_estimator_;
-        FeatureHelper *feature_manager_;
         FeatureTracker *feature_tracker_;
 
         RunInfo* run_info_;

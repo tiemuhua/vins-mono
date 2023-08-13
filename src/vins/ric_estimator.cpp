@@ -7,9 +7,9 @@ namespace vins {
     using namespace Eigen;
     using namespace std;
 
-    bool RICEstimator::calibrateRotationExtrinsic(const PointCorrespondences & correspondences,
-                                                  ConstQuatRef delta_q_imu,
-                                                  Matrix3d &calib_ric_result) {
+    bool RICEstimator::estimate(const PointCorrespondences & correspondences,
+                                ConstQuatRef delta_q_imu,
+                                Matrix3d &calib_ric_result) {
         rot_visual_que_.emplace_back(solveRelativeR(correspondences));
         rot_imu_que_.emplace_back(delta_q_imu.toRotationMatrix());
         rot_imu_in_world_frame_que_.emplace_back(ric_.inverse() * delta_q_imu * ric_);

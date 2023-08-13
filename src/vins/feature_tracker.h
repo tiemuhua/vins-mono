@@ -20,17 +20,15 @@ using namespace std;
 using namespace camodocal;
 using namespace Eigen;
 
-bool inBorder(const cv::Point2f &pt);
-
 namespace vins{
     class FeatureTracker
     {
     public:
-        explicit FeatureTracker(const string &calib_file);
+        explicit FeatureTracker(Param *param);
 
         std::vector<FeaturePoint2D> extractFeatures(const cv::Mat &_img, double _cur_time);
 
-        static cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
+        cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
 
     private:
         cv::Mat prev_img_;
@@ -39,7 +37,8 @@ namespace vins{
         double prev_time_{};
         unordered_map<int, cv::Point2f> prev_feature_id_2_normalized_pts_;
         vector<int> feature_ids_;
-        static camodocal::CameraPtr m_camera_;
+        camodocal::CameraPtr camera_;
+        Param* param_;
 
         static int s_feature_id_cnt_;
     };

@@ -12,6 +12,7 @@ namespace vins {
         int col;
         int row;
         int focal;
+        std::string calib_file;
     };
     struct FrameTrackerParam{
         double fundamental_threshold;
@@ -24,7 +25,7 @@ namespace vins {
         int max_iter_num = 100;
     };
 
-    class Param{
+    class Param {
     public:
         CameraParam camera;
         FrameTrackerParam frame_tracker;
@@ -36,16 +37,9 @@ namespace vins {
         std::string pattern_file;
         double key_frame_parallax_threshold;
 
-        double getTimeShatPerRol() {
+        [[nodiscard]] double getTimeShatPerRol() const {
             return time_rolling_shatter / camera.row;
         }
-
-        static Param Instance() {
-            return param_;
-        }
-
-    private:
-        static Param param_;
     };
 
 }

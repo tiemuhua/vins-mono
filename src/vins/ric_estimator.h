@@ -14,8 +14,8 @@ namespace vins {
             window_size_ = window_size;
         }
 
-        bool calibrateRotationExtrinsic(const PointCorrespondences& correspondences, ConstQuatRef delta_q_imu,
-                                        Eigen::Matrix3d &calib_ric_result);
+        bool estimate(const PointCorrespondences& correspondences, ConstQuatRef delta_q_imu,
+                      Eigen::Matrix3d &calib_ric_result);
 
     private:
         static Eigen::Matrix3d solveRelativeR(const PointCorrespondences &correspondences);
@@ -32,7 +32,7 @@ namespace vins {
         std::vector<Eigen::Matrix3d> rot_imu_que_;
         std::vector<Eigen::Matrix3d> rot_imu_in_world_frame_que_;
         Eigen::Matrix3d ric_ = Eigen::Matrix3d::Identity();
-        int window_size_ = 10;
+        int window_size_ = -1;
     };
 }
 

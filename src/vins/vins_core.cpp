@@ -14,6 +14,8 @@ namespace vins{
     VinsCore::VinsCore(Param* param) {
         run_info_ = new RunInfo(param_->window_size);
         param_ = param;
+        ric_estimator_ = new RICEstimator(param->window_size);
+        feature_tracker_ = new FeatureTracker(param);
     }
 
     void VinsCore::handleIMU(ConstVec3dRef acc, ConstVec3dRef gyr, double time_stamp) {
@@ -65,7 +67,7 @@ namespace vins{
         PointCorrespondences correspondences =
                 FeatureHelper::getCorrespondences(cur_frame_id_ - 1, cur_frame_id_, run_info_->features);
         Eigen::Quaterniond imu_quat = run_info_->all_frames.back().pre_integral_->deltaQuat();
-        bool succ = ric_estimator_->calibrateRotationExtrinsic(correspondences, imu_quat, run_info_->ric);
+        bool succ = ric_estimator_->estimate(correspondences, imu_quat, run_info_->ric);
         if (!succ) {
             return kVinsStateEstimateExtrinsic;
         }
@@ -88,13 +90,13 @@ namespace vins{
         if (!is_key_frame) {
             return kVinsStateNormal;
         }
-        SlideWindowEstimator::slide(Param::Instance().slide_window,
+        SlideWindowEstimator::slide(param_->slide_window,
                                     run_info_->frame_id_window.at(0),
                                     run_info_->features,
                                     run_info_->state_window,
                                     run_info_->pre_int_window);
         // todo 什么时候往Window里面塞东西？
-        SlideWindowEstimator::optimize(Param::Instance().slide_window,
+        SlideWindowEstimator::optimize(param_->slide_window,
                                        run_info_->features,
                                        run_info_->state_window,
                                        run_info_->pre_int_window,

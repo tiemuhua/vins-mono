@@ -129,7 +129,6 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
 
     /*************** 1:边缘化 **************************/
     if (sp_marginal_info) {
-        // todo tiemuhuaguo last_marginal_param_blocks和sp_marginal_info是怎么维护的
         auto *cost_function = new MarginalCost(sp_marginal_info);
         problem.AddResidualBlock(cost_function, nullptr, s_marginal_blocks);
     }
