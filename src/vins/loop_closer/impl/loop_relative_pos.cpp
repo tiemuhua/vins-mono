@@ -2,11 +2,11 @@
 // Created by gjt on 6/9/23.
 //
 
-#include "feature_retriever.h"
+#include "loop_relative_pos.h"
 #include <vector>
 #include "vins/vins_utils.h"
+#include "vins/loop_closer/impl/keyframe.h"
 
-using namespace vins::LoopRelativePos;
 using namespace vins;
 using namespace DVision;
 using namespace Eigen;

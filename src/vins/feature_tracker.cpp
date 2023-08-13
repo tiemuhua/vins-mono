@@ -18,14 +18,14 @@ static inline bool inBorder(const cv::Point2f &pt, int col, int row) {
 FeatureTracker::FeatureTracker(Param* param) {
     LOG_I("reading parameter of camera %s", param->camera.calib_file.c_str());
     camera_ = CameraFactory::instance()->generateCameraFromYamlFile(param->camera.calib_file);
-    param_ = param;
+    sp_param = param;
 }
 
 cv::Point2f FeatureTracker::rawPoint2UniformedPoint(const cv::Point2f& p) {
     Eigen::Vector3d tmp_p;
     camera_->liftProjective(Eigen::Vector2d(p.x, p.y), tmp_p);
-    float col = param_->camera.focal * tmp_p.x() / tmp_p.z() + param_->camera.col / 2.0;
-    float row = param_->camera.focal * tmp_p.y() / tmp_p.z() + param_->camera.row / 2.0;
+    float col = sp_param->camera.focal * tmp_p.x() / tmp_p.z() + sp_param->camera.col / 2.0;
+    float row = sp_param->camera.focal * tmp_p.y() / tmp_p.z() + sp_param->camera.row / 2.0;
     return {col, row};
 }
 
@@ -44,7 +44,7 @@ std::vector<FeaturePoint2D> FeatureTracker::extractFeatures(const cv::Mat &_img,
         cv::calcOpticalFlowPyrLK(prev_img_, next_img, prev_raw_pts_, next_raw_pts, status, err, winSize, 3);
 
         for (int i = 0; i < int(next_raw_pts.size()); i++) {
-            status[i] = status[i] && inBorder(next_raw_pts[i], param_->camera.col, param_->camera.row);
+            status[i] = status[i] && inBorder(next_raw_pts[i], sp_param->camera.col, sp_param->camera.row);
         }
         utils::reduceVector(prev_raw_pts_, status);
         utils::reduceVector(next_raw_pts, status);
@@ -60,7 +60,7 @@ std::vector<FeaturePoint2D> FeatureTracker::extractFeatures(const cv::Mat &_img,
     if (next_raw_pts.size() >= 8) {
         vector<uchar> mask;
         cv::findFundamentalMat(prev_normalized_pts_, next_normalized_pts, cv::FM_RANSAC,
-                               param_->frame_tracker.fundamental_threshold, 0.99, mask);
+                               sp_param->frame_tracker.fundamental_threshold, 0.99, mask);
         size_t size_a = prev_raw_pts_.size();
         utils::reduceVector(prev_raw_pts_, mask);
         utils::reduceVector(next_raw_pts, mask);
@@ -71,18 +71,18 @@ std::vector<FeaturePoint2D> FeatureTracker::extractFeatures(const cv::Mat &_img,
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
-    cv::Mat mask = cv::Mat(param_->camera.row, param_->camera.col, CV_8UC1, cv::Scalar(255));
+    cv::Mat mask = cv::Mat(sp_param->camera.row, sp_param->camera.col, CV_8UC1, cv::Scalar(255));
     for (const cv::Point2f & p: next_raw_pts) {
         if (mask.at<uchar>(p.x, p.y) == 255) {
-            cv::circle(mask, p, param_->frame_tracker.min_dist, 0, -1);
+            cv::circle(mask, p, sp_param->frame_tracker.min_dist, 0, -1);
         }
     }
 
-    int max_new_pnt_num = param_->frame_tracker.max_cnt - static_cast<int>(next_raw_pts.size());
+    int max_new_pnt_num = sp_param->frame_tracker.max_cnt - static_cast<int>(next_raw_pts.size());
     if (max_new_pnt_num > 0) {
         vector<cv::Point2f> new_pts;
         constexpr double qualityLevel = 0.01;
-        cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, param_->frame_tracker.min_dist, mask);
+        cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, sp_param->frame_tracker.min_dist, mask);
         for (auto &p: new_pts) {
             next_raw_pts.push_back(p);
             next_normalized_pts.emplace_back(rawPoint2UniformedPoint(p));
