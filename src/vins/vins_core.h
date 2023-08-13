@@ -15,9 +15,12 @@ namespace vins{
     class RICEstimator;
     class FeatureHelper;
     class FeatureTracker;
+    class RunInfo;
+    class Param;
 
     class VinsCore {
     public:
+        VinsCore(Param* param);
         void handleImage(const cv::Mat &_img, double time_stamp);
         void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
 
@@ -44,6 +47,9 @@ namespace vins{
         RICEstimator *ric_estimator_;
         FeatureHelper *feature_manager_;
         FeatureTracker *feature_tracker_;
+
+        RunInfo* run_info_;
+        Param* param_;
     };
 }
 

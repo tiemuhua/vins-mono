@@ -11,6 +11,10 @@
 #include "slide_window_estimator/slide_window_estimator.h"
 
 namespace vins{
+    VinsCore::VinsCore(Param* param) {
+        run_info_ = new RunInfo(param_->window_size);
+        param_ = param;
+    }
 
     void VinsCore::handleIMU(ConstVec3dRef acc, ConstVec3dRef gyr, double time_stamp) {
         Synchronized(read_imu_buf_mutex_) {
@@ -35,11 +39,11 @@ namespace vins{
 
         std::vector<FeaturePoint2D> feature_points = feature_tracker_->extractFeatures(_img, time_stamp);
         cur_frame_id_++;
-        bool is_key_frame = FeatureHelper::isKeyFrame(cur_frame_id_, feature_points, RunInfo::Instance().features);
-        FeatureHelper::addFeatures(cur_frame_id_, time_stamp, feature_points, RunInfo::Instance().features);
-        RunInfo::Instance().all_frames.emplace_back(std::move(feature_points),
-                                                    std::move(imu_integrator),
-                                                    is_key_frame);
+        bool is_key_frame = FeatureHelper::isKeyFrame(cur_frame_id_, feature_points, run_info_->features);
+        FeatureHelper::addFeatures(cur_frame_id_, time_stamp, feature_points, run_info_->features);
+        run_info_->all_frames.emplace_back(std::move(feature_points),
+                                           std::move(imu_integrator),
+                                           is_key_frame);
 
         switch (vins_state_) {
             case kVinsStateEstimateExtrinsic:
@@ -55,13 +59,13 @@ namespace vins{
     }
 
     VinsCore::EVinsState VinsCore::_handleEstimateExtrinsic(){
-        if (RunInfo::Instance().all_frames.size() < 2) {
+        if (run_info_->all_frames.size() < 2) {
             return kVinsStateEstimateExtrinsic;
         }
         PointCorrespondences correspondences =
-                FeatureHelper::getCorrespondences(cur_frame_id_ - 1, cur_frame_id_, RunInfo::Instance().features);
-        Eigen::Quaterniond imu_quat = RunInfo::Instance().all_frames.back().pre_integral_->deltaQuat();
-        bool succ = ric_estimator_->calibrateRotationExtrinsic(correspondences, imu_quat, RunInfo::Instance().ric);
+                FeatureHelper::getCorrespondences(cur_frame_id_ - 1, cur_frame_id_, run_info_->features);
+        Eigen::Quaterniond imu_quat = run_info_->all_frames.back().pre_integral_->deltaQuat();
+        bool succ = ric_estimator_->calibrateRotationExtrinsic(correspondences, imu_quat, run_info_->ric);
         if (!succ) {
             return kVinsStateEstimateExtrinsic;
         }
@@ -73,7 +77,7 @@ namespace vins{
             return kVinsStateInitial;
         }
         last_init_time_stamp_ = time_stamp;
-        bool rtn = Initiate::initiate(cur_frame_id_, RunInfo::Instance());
+        bool rtn = Initiate::initiate(cur_frame_id_, *run_info_);
         if (!rtn) {
             return kVinsStateInitial;
         }
@@ -85,17 +89,17 @@ namespace vins{
             return kVinsStateNormal;
         }
         SlideWindowEstimator::slide(Param::Instance().slide_window,
-                                    RunInfo::Instance().frame_id_window.at(0),
-                                    RunInfo::Instance().features,
-                                    RunInfo::Instance().state_window,
-                                    RunInfo::Instance().pre_int_window);
+                                    run_info_->frame_id_window.at(0),
+                                    run_info_->features,
+                                    run_info_->state_window,
+                                    run_info_->pre_int_window);
         // todo 什么时候往Window里面塞东西？
         SlideWindowEstimator::optimize(Param::Instance().slide_window,
-                                       RunInfo::Instance().features,
-                                       RunInfo::Instance().state_window,
-                                       RunInfo::Instance().pre_int_window,
-                                       RunInfo::Instance().tic,
-                                       RunInfo::Instance().ric);
+                                       run_info_->features,
+                                       run_info_->state_window,
+                                       run_info_->pre_int_window,
+                                       run_info_->tic,
+                                       run_info_->ric);
         // todo 失败检测与状态恢复
         bool fail;
         if (fail) {

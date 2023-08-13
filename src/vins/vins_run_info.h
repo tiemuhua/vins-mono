@@ -15,7 +15,7 @@
 namespace vins {
 
     template<typename T>
-    class Window {
+    struct Window {
     public:
         Window(int capacity) {
             capacity_ = capacity;
@@ -55,8 +55,7 @@ namespace vins {
         Eigen::Vector3d bg;
     };
 
-    class RunInfo {
-    public:
+    struct RunInfo {
         Eigen::Vector3d tic;
         Eigen::Matrix3d ric;
         Eigen::Vector3d gravity;
@@ -67,12 +66,11 @@ namespace vins {
 
         std::vector<Frame> all_frames;
         std::vector<Feature> features;
-
-        static RunInfo& Instance() {
-            return run_info_;
+        RunInfo(int window_size)
+        : state_window(Window<EstimateState>(window_size))
+        , frame_id_window(Window<int>(window_size))
+        , pre_int_window(Window<ImuIntegrator>(window_size)) {
         }
-    private:
-        static RunInfo run_info_;
     };
 }
 

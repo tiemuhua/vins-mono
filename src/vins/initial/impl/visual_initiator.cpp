@@ -210,7 +210,7 @@ namespace vins {
             }
             int frame_0 = sfm.feature.start_frame;
             cv::Point2f point0 = sfm.feature.points.front();
-            int frame_1 = sfm.feature.start_frame + sfm.feature.points.size();
+            int frame_1 = sfm.feature.start_frame + (int )sfm.feature.points.size();
             cv::Point2f point1 = sfm.feature.points.back();
             sfm.position = triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1);
             sfm.has_been_triangulated = true;
@@ -218,19 +218,19 @@ namespace vins {
 
         //6: full BA
         ceres::Problem problem;
-        ceres::Manifold *local_parameterization = new ceres::QuaternionManifold();
-        double c_rotation[key_frame_num][4];
-        double c_translation[key_frame_num][3];
+        ceres::Manifold *quat_manifold = new ceres::QuaternionManifold();
+        double c_key_frames_rot[key_frame_num][4];
+        double c_key_frames_pos[key_frame_num][3];
         for (int i = 0; i < key_frame_num; i++) {
-            utils::quat2array(Eigen::Quaterniond(Pose[i].block<3, 3>(0, 0)), c_rotation[i]);
-            utils::vec3d2array(Pose[i].block<3, 1>(0, 3), c_translation[i]);
-            problem.AddParameterBlock(c_rotation[i], 4, local_parameterization);
-            problem.AddParameterBlock(c_translation[i], 3);
+            utils::quat2array(Eigen::Quaterniond(Pose[i].block<3, 3>(0, 0)), c_key_frames_rot[i]);
+            utils::vec3d2array(Pose[i].block<3, 1>(0, 3), c_key_frames_pos[i]);
+            problem.AddParameterBlock(c_key_frames_rot[i], 4, quat_manifold);
+            problem.AddParameterBlock(c_key_frames_pos[i], 3);
             if (i == big_parallax_frame_id) {
-                problem.SetParameterBlockConstant(c_rotation[i]);
+                problem.SetParameterBlockConstant(c_key_frames_rot[i]);
             }
             if (i == big_parallax_frame_id || i == key_frame_num - 1) {
-                problem.SetParameterBlockConstant(c_translation[i]);
+                problem.SetParameterBlockConstant(c_key_frames_pos[i]);
             }
         }
 
@@ -241,7 +241,9 @@ namespace vins {
                 ceres::CostFunction *cost_function =
                         ReProjectionError3D::Create(sfm.feature.points[frame_bias]);
                 problem.AddResidualBlock(cost_function, nullptr,
-                                         c_rotation[big_parallax_frame_id], c_translation[big_parallax_frame_id], sfm.position.data());
+                                         c_key_frames_rot[big_parallax_frame_id],
+                                         c_key_frames_pos[big_parallax_frame_id],
+                                         sfm.position.data());
             }
         }
         ceres::Solver::Options options;
@@ -255,15 +257,15 @@ namespace vins {
             return false;
         }
 
-        //后续只需要Q、key_frames_pos、feature_id_2_position
+        //后续只需要key_frames_rot、key_frames_pos、feature_id_2_position
         vector<Eigen::Matrix3d> key_frames_rot(Param::Instance().window_size + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
         vector<Eigen::Vector3d> key_frames_pos(Param::Instance().window_size + 1);
         map<int, Eigen::Vector3d> feature_id_2_position;
         for (int i = 0; i < key_frame_num; i++) {
-            key_frames_rot[i] = utils::array2quat(c_rotation[i]).toRotationMatrix();
+            key_frames_rot[i] = utils::array2quat(c_key_frames_rot[i]).toRotationMatrix();
         }
         for (int i = 0; i < key_frame_num; i++) {
-            key_frames_pos[i] = utils::array2vec3d(c_translation[i]);
+            key_frames_pos[i] = utils::array2vec3d(c_key_frames_pos[i]);
         }
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated)
