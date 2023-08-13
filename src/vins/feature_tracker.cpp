@@ -7,7 +7,7 @@ using namespace vins;
 
 int FeatureTracker::s_feature_id_cnt_ = 0;
 
-bool inBorder(const cv::Point2f &pt, int col, int row) {
+static inline bool inBorder(const cv::Point2f &pt, int col, int row) {
     constexpr int BORDER_SIZE = 1;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
