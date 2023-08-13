@@ -182,14 +182,14 @@ namespace vins {
         return reverse_yaw_rot2 * rot_gravity_to_z_axis_in_R0_frame;
     }
 
-    bool VisualInertialAligner::visualInitialAlignImpl(ConstVec3dRef TIC,
-                                                       ConstMat3dRef RIC,
-                                                       std::vector<Frame> &all_frames,
-                                                       Eigen::Vector3d& gravity,
-                                                       Eigen::Vector3d& delta_bg,
-                                                       Eigen::Matrix3d& rot_diff,
-                                                       std::vector<Eigen::Vector3d> &velocities,
-                                                       double &scale) {
+    bool alignVisualAndInertial(ConstVec3dRef TIC,
+                                ConstMat3dRef RIC,
+                                std::vector<Frame> &all_frames,
+                                Eigen::Vector3d& gravity,
+                                Eigen::Vector3d& delta_bg,
+                                Eigen::Matrix3d& rot_diff,
+                                std::vector<Eigen::Vector3d> &velocities,
+                                double &scale) {
         int frame_size = (int) all_frames.size();
 
         // todo solveGyroscopeBias求出来的是bg的值还是bg的变化值？

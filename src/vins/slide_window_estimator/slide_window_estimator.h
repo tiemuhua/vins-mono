@@ -6,7 +6,6 @@
 #define VINS_BATCH_ADJUSTER_H
 
 #include "vins/vins_define_internal.h"
-#include "vins/vins_run_info.h"
 #include "vins/parameters.h"
 #include "vins/feature_helper.h"
 
@@ -20,7 +19,7 @@ namespace vins::SlideWindowEstimator{
                   Eigen::Matrix3d &ric);
     void slide(const SlideWindowEstimatorParam &param,
                int oldest_key_frame_id,
-               FeatureHelper &feature_manager,
+               std::vector<Feature> &features,
                Window<EstimateState>& state_window,
                Window<ImuIntegrator>& pre_int_window);
 }

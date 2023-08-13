@@ -209,7 +209,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 
-    eigen2c(window, features, RunInfo::Instance().tic, RunInfo::Instance().ric);
+    eigen2c(window, features, tic, ric);
 }
 
 static void marginalize(const SlideWindowEstimatorParam &param,
@@ -290,15 +290,21 @@ static void marginalize(const SlideWindowEstimatorParam &param,
 
 void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
                                  const int oldest_key_frame_id,
-                                 FeatureHelper &feature_manager,
+                                 std::vector<Feature> &features,
                                  Window<EstimateState>& state_window,
                                  Window<ImuIntegrator>& pre_int_window) {
     std::vector<double *> reserve_block_origin;
-    marginalize(param, oldest_key_frame_id, feature_manager.features_, pre_int_window, reserve_block_origin);
+    marginalize(param, oldest_key_frame_id, features, pre_int_window, reserve_block_origin);
 
-    std::unordered_map<int, int> feature_id_2_idx_origin = feature_manager.getFeatureId2Index();
-    feature_manager.discardFeaturesOfFrameId(oldest_key_frame_id);
-    std::unordered_map<int, int> feature_id_2_idx_after_discard = feature_manager.getFeatureId2Index();
+    std::unordered_map<int, int> feature_id_2_idx_origin = FeatureHelper::getFeatureId2Index(features);
+    std::vector<Feature> new_features;
+    for (auto &feature:features) {
+        if (feature.start_frame > oldest_key_frame_id) {
+            features.emplace_back(std::move(feature));
+        }
+    }
+    features = std::move(new_features);
+    std::unordered_map<int, int> feature_id_2_idx_after_discard = FeatureHelper::getFeatureId2Index(features);
 
     std::unordered_map<double*, double*> slide_addr_map;
     for (const auto &id2idx_origin : feature_id_2_idx_origin) {

@@ -35,8 +35,8 @@ namespace vins{
 
         std::vector<FeaturePoint2D> feature_points = feature_tracker_->extractFeatures(_img, time_stamp);
         cur_frame_id_++;
-        bool is_key_frame = feature_manager_->isKeyFrame(cur_frame_id_, feature_points);
-        feature_manager_->addFeatures(cur_frame_id_, time_stamp, feature_points);
+        bool is_key_frame = FeatureHelper::isKeyFrame(cur_frame_id_, feature_points, RunInfo::Instance().features);
+        FeatureHelper::addFeatures(cur_frame_id_, time_stamp, feature_points, RunInfo::Instance().features);
         RunInfo::Instance().all_frames.emplace_back(std::move(feature_points),
                                                     std::move(imu_integrator),
                                                     is_key_frame);
@@ -86,7 +86,7 @@ namespace vins{
         }
         SlideWindowEstimator::slide(Param::Instance().slide_window,
                                     RunInfo::Instance().frame_id_window.at(0),
-                                    *feature_manager_,
+                                    RunInfo::Instance().features,
                                     RunInfo::Instance().state_window,
                                     RunInfo::Instance().pre_int_window);
         // todo 什么时候往Window里面塞东西？

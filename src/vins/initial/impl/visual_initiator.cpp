@@ -122,9 +122,9 @@ namespace vins {
         return true;
     }
 
-    bool VisualInitiator::initialStructure(const std::vector<Feature>& features,
-                                           const int key_frame_num,
-                                           vector<Frame> &all_frames) {
+    bool initiateByVisual(int key_frame_num,
+                          const std::vector<Feature>& features,
+                          vector<Frame> &all_frames) {
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
         for (const Feature &feature: features) {

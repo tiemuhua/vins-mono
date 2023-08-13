@@ -12,8 +12,7 @@
 namespace vins {
     class Initiate {
     public:
-        static bool initiate(int frame_cnt,
-                             RunInfo &run_info);
+        static bool initiate(int frame_cnt, RunInfo &run_info);
     };
 }
 

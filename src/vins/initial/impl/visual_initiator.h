@@ -7,12 +7,9 @@
 #include "vins_define_internal.h"
 #include "feature_helper.h"
 namespace vins{
-    class VisualInitiator {
-    public:
-        static bool initialStructure(const std::vector<Feature>& features,
-                                     int key_frame_num,
-                                     std::vector<Frame> &all_frames);
-    };
+    bool initiateByVisual(int key_frame_num,
+                          const std::vector<Feature>& features,
+                          std::vector<Frame> &all_frames);
 }
 
 #endif //VINS_VISUAL_INITIATOR_H

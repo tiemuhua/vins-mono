@@ -32,13 +32,12 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     return var > 0.25;
 }
 
-bool Initiate::initiate(int frame_cnt,
-                        RunInfo &run_info) {
+bool Initiate::initiate(int frame_cnt, RunInfo &run_info) {
     if (!isAccVariantBigEnough(run_info.all_frames)) {
         return false;
     }
 
-    bool visual_succ = VisualInitiator::initialStructure(run_info.features, frame_cnt, run_info.all_frames);
+    bool visual_succ = initiateByVisual(frame_cnt, run_info.features, run_info.all_frames);
     if (!visual_succ) {
         return false;
     }
@@ -47,14 +46,14 @@ bool Initiate::initiate(int frame_cnt,
     Eigen::Matrix3d rot_diff;
     std::vector<Eigen::Vector3d> velocities;
     double scale;
-    bool align_succ = VisualInertialAligner::visualInitialAlignImpl(run_info.tic,
-                                                                    run_info.ric,
-                                                                    run_info.all_frames,
-                                                                    run_info.gravity,
-                                                                    delta_bg,
-                                                                    rot_diff,
-                                                                    velocities,
-                                                                    scale);
+    bool align_succ = alignVisualAndInertial(run_info.tic,
+                                             run_info.ric,
+                                             run_info.all_frames,
+                                             run_info.gravity,
+                                             delta_bg,
+                                             rot_diff,
+                                             velocities,
+                                             scale);
     if (!align_succ) {
         return false;
     }
@@ -87,7 +86,7 @@ bool Initiate::initiate(int frame_cnt,
     }
 
     //triangulate on cam pose , no tic
-    //计算特征点深度，没有直接用
+    //计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
     for (Feature &feature: run_info.features) {
         if (!(feature.points.size() >= 2 && feature.start_frame < Param::Instance().window_size - 2))
             continue;
@@ -100,7 +99,7 @@ bool Initiate::initiate(int frame_cnt,
 
         for (int i = 0; i < feature.points.size(); ++i) {
             int imu_j = feature.start_frame + i;
-            Eigen::Vector3d t1 = state_window.at(imu_j).pos + state_window.at(imu_j).rot * RIC;
+            Eigen::Vector3d t1 = state_window.at(imu_j).pos;
             Eigen::Matrix3d R1 = state_window.at(imu_j).rot * RIC;
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;
