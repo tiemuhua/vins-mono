@@ -23,6 +23,18 @@ namespace vins {
             return str;
         }
 
+        inline Eigen::Vector3d cvPoint3dToEigenVec3d(const cv::Point3f &p3d) {
+            Eigen::Vector3d vec;
+            vec << p3d.x, p3d.y, p3d.z;
+            return vec;
+        }
+
+        inline Eigen::Vector3d cvPoint2dToEigenVec3d(const cv::Point2f &p2d, double depth) {
+            Eigen::Vector3d vec;
+            vec << p2d.x, p2d.y, 1.0;
+            return vec*depth;
+        }
+
         /**
          * C数组的向量运算 todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
          * */

@@ -84,4 +84,11 @@ namespace vins {
         }
         return id2index;
     }
+
+    // 初始帧的坐标？
+    std::vector<Eigen::Vector3d> getPtsVecForFrame(const int frame_id, const std::vector<Feature>& features) {
+        for (const Feature& feature: features) {
+            if (feature.)
+        }
+    }
 }

@@ -182,7 +182,8 @@ namespace vins {
         return reverse_yaw_rot2 * rot_gravity_to_z_axis_in_R0_frame;
     }
 
-    bool alignVisualAndInertial(ConstVec3dRef TIC,
+    bool alignVisualAndInertial(const double gravity_norm,
+                                ConstVec3dRef TIC,
                                 ConstMat3dRef RIC,
                                 std::vector<Frame> &all_frames,
                                 Eigen::Vector3d& gravity,
@@ -199,10 +200,10 @@ namespace vins {
             all_frames[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), delta_bg);
         }
 
-        if (!linearAlignment(all_frames, TIC, Param::Instance().gravity_norm, gravity)) {
+        if (!linearAlignment(all_frames, TIC, gravity_norm, gravity)) {
             return false;
         }
-        refineGravity(all_frames, Param::Instance().gravity_norm, TIC, gravity, scale, velocities);
+        refineGravity(all_frames, gravity_norm, TIC, gravity, scale, velocities);
         if (scale < 1e-4) {
             return false;
         }

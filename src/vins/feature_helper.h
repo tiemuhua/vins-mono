@@ -27,6 +27,9 @@ namespace vins {
                                                                 const std::vector<Feature>& features);
 
         [[nodiscard]] static std::unordered_map<int, int> getFeatureId2Index(const std::vector<Feature>& features);
+
+        [[nodiscard]] static std::vector<Eigen::Vector3d> getPtsVecForFrame(const int frame_id,
+                                                                            const std::vector<Feature>& features);
     };
 }
 

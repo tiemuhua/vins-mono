@@ -122,7 +122,8 @@ namespace vins {
         return true;
     }
 
-    bool initiateByVisual(int key_frame_num,
+    bool initiateByVisual(const int window_wize,
+                          int key_frame_num,
                           const std::vector<Feature>& features,
                           vector<Frame> &all_frames) {
         // 计算sfm_features
@@ -137,9 +138,9 @@ namespace vins {
         Eigen::Matrix3d relative_R;
         Eigen::Vector3d relative_T;
         int big_parallax_frame_id = -1;
-        for (int i = 0; i < Param::Instance().window_size; ++i) {
+        for (int i = 0; i < window_wize; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    FeatureHelper::getCorrespondences(i, Param::Instance().window_size, features);
+                    FeatureHelper::getCorrespondences(i, window_wize, features);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
@@ -258,8 +259,8 @@ namespace vins {
         }
 
         //后续只需要key_frames_rot、key_frames_pos、feature_id_2_position
-        vector<Eigen::Matrix3d> key_frames_rot(Param::Instance().window_size + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
-        vector<Eigen::Vector3d> key_frames_pos(Param::Instance().window_size + 1);
+        vector<Eigen::Matrix3d> key_frames_rot(window_wize + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
+        vector<Eigen::Vector3d> key_frames_pos(window_wize + 1);
         map<int, Eigen::Vector3d> feature_id_2_position;
         for (int i = 0; i < key_frame_num; i++) {
             key_frames_rot[i] = utils::array2quat(c_key_frames_rot[i]).toRotationMatrix();

@@ -7,7 +7,8 @@
 #include "vins_define_internal.h"
 #include "feature_helper.h"
 namespace vins{
-    bool initiateByVisual(int key_frame_num,
+    bool initiateByVisual(int window_wize,
+                          int key_frame_num,
                           const std::vector<Feature>& features,
                           std::vector<Frame> &all_frames);
 }

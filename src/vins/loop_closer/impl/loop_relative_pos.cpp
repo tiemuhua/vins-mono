@@ -84,7 +84,9 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
 }
 
 static constexpr int min_loop_key_points_num = 25;
-bool find4DofLoopDrift(ConstKeyFramePtr& old_kf, const int old_kf_id, KeyFramePtr& new_kf) {
+bool vins::LoopRelativePos::find4DofLoopDrift(ConstKeyFramePtr &old_kf,
+                                              int old_kf_id,
+                                              const KeyFramePtr &new_kf) {
     vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_pts3d_;
     vector<uint8_t> status;
     vector<cv::Point2f> pts2d_in_old_frame;

@@ -9,7 +9,8 @@
 #include "vins_run_info.h"
 
 namespace vins {
-    bool alignVisualAndInertial(ConstVec3dRef TIC,
+    bool alignVisualAndInertial(double gravity_norm,
+                                ConstVec3dRef TIC,
                                 ConstMat3dRef RIC,
                                 std::vector<Frame> &all_frames,
                                 Eigen::Vector3d& gravity,

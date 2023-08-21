@@ -79,28 +79,24 @@ LoopCloser::~LoopCloser() {
 }
 
 // todo 若使用sift等耗时较长的描述字，可将提取描述子过程放入单独任务队列执行
-void LoopCloser::addKeyFrame(const Frame &base_frame, const cv::Mat &_image,
-                             const std::vector<cv::Point3f> &_point_3d,
-                             const std::vector<cv::Point2f> &_point_2d_uv) {
+void LoopCloser::addKeyFrame(const Frame &base_frame,
+                             const cv::Mat &_img,
+                             const std::vector<cv::Point3f> &key_pts_3d,
+                             const std::vector<cv::KeyPoint> &external_key_points_un_normalized,
+                             const std::vector<cv::Point2f> &external_key_pts2d) {
     std::vector<cv::KeyPoint> key_points;
-    for (auto & i : _point_2d_uv) {
+    for (auto & p : base_frame.points) {
         cv::KeyPoint key;
-        key.pt = i;
+        key.pt = p;
         key_points.push_back(key);
     }
     std::vector<DVision::BRIEF::bitset> descriptors;
-    brief_extractor_->brief_.compute(_image, key_points, descriptors);
+    brief_extractor_->brief_.compute(_img, key_points, descriptors);
 
-    const int fast_th = 20; // corner detector response threshold
-    std::vector<cv::KeyPoint> external_key_points_un_normalized;
-    cv::FAST(_image, external_key_points_un_normalized, fast_th, true);
     std::vector<DVision::BRIEF::bitset> external_descriptors;
-    brief_extractor_->brief_.compute(_image, external_key_points_un_normalized, external_descriptors);
-    std::vector<cv::Point2f> external_key_pts2d;
-    for (const cv::KeyPoint & keypoint : external_key_points_un_normalized) {
-        external_key_pts2d.push_back(FeatureTracker::rawPoint2UniformedPoint(keypoint.pt));
-    }
-    auto cur_kf = std::make_shared<KeyFrame>(base_frame, _point_3d, descriptors, external_key_pts2d, external_descriptors);
+    brief_extractor_->brief_.compute(_img, external_key_points_un_normalized, external_descriptors);
+
+    auto cur_kf = std::make_shared<KeyFrame>(base_frame, key_pts_3d, descriptors, external_key_pts2d, external_descriptors);
 
     Synchronized(key_frame_buffer_mutex_) {
         key_frame_buffer_.emplace_back(cur_kf);

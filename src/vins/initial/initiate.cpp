@@ -32,12 +32,12 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     return var > 0.25;
 }
 
-bool Initiate::initiate(int frame_cnt, RunInfo &run_info) {
+bool Initiate::initiate(const double gravity_norm, const int window_size, const int latest_frame_id, RunInfo &run_info) {
     if (!isAccVariantBigEnough(run_info.all_frames)) {
         return false;
     }
 
-    bool visual_succ = initiateByVisual(frame_cnt, run_info.features, run_info.all_frames);
+    bool visual_succ = initiateByVisual(window_size, latest_frame_id, run_info.features, run_info.all_frames);
     if (!visual_succ) {
         return false;
     }
@@ -46,7 +46,8 @@ bool Initiate::initiate(int frame_cnt, RunInfo &run_info) {
     Eigen::Matrix3d rot_diff;
     std::vector<Eigen::Vector3d> velocities;
     double scale;
-    bool align_succ = alignVisualAndInertial(run_info.tic,
+    bool align_succ = alignVisualAndInertial(gravity_norm,
+                                             run_info.tic,
                                              run_info.ric,
                                              run_info.all_frames,
                                              run_info.gravity,
@@ -88,7 +89,7 @@ bool Initiate::initiate(int frame_cnt, RunInfo &run_info) {
     //triangulate on cam pose , no tic
     //计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
     for (Feature &feature: run_info.features) {
-        if (!(feature.points.size() >= 2 && feature.start_frame < Param::Instance().window_size - 2))
+        if (!(feature.points.size() >= 2 && feature.start_frame < window_size - 2))
             continue;
 
         Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);

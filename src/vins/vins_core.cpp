@@ -3,12 +3,14 @@
 //
 
 #include "vins_core.h"
+#include "vins_utils.h"
 #include "vins_define_internal.h"
 #include "initial/initiate.h"
 #include "feature_tracker.h"
 #include "ric_estimator.h"
 #include "feature_helper.h"
 #include "slide_window_estimator/slide_window_estimator.h"
+#include "loop_closer/loop_closer.h"
 
 namespace vins{
     VinsCore::VinsCore(Param* param) {
@@ -16,6 +18,7 @@ namespace vins{
         param_ = param;
         ric_estimator_ = new RICEstimator(param->window_size);
         feature_tracker_ = new FeatureTracker(param);
+        loop_closer_ = new LoopCloser();
     }
 
     void VinsCore::handleIMU(ConstVec3dRef acc, ConstVec3dRef gyr, double time_stamp) {
@@ -55,7 +58,7 @@ namespace vins{
                 vins_state_ = _handleInitial(time_stamp);
                 break;
             case kVinsStateNormal:
-                vins_state_ = _handleNormal(is_key_frame);
+                vins_state_ = _handleNormal(_img, is_key_frame);
                 break;
         }
     }
@@ -79,14 +82,14 @@ namespace vins{
             return kVinsStateInitial;
         }
         last_init_time_stamp_ = time_stamp;
-        bool rtn = Initiate::initiate(cur_frame_id_, *run_info_);
+        bool rtn = Initiate::initiate(param_->gravity_norm, param_->window_size, cur_frame_id_, *run_info_);
         if (!rtn) {
             return kVinsStateInitial;
         }
         return kVinsStateNormal;
     }
 
-    VinsCore::EVinsState VinsCore::_handleNormal(bool is_key_frame){
+    VinsCore::EVinsState VinsCore::_handleNormal(const cv::Mat &_img, bool is_key_frame){
         if (!is_key_frame) {
             return kVinsStateNormal;
         }
@@ -107,6 +110,26 @@ namespace vins{
         if (fail) {
             return kVinsStateInitial;
         }
+
+        // 如果有个特征点第一帧不是关键帧，应该怎么办？
+        vector<cv::Point3f> key_pts_3d;
+        for (const cv::Point2f &p2d:run_info_->all_frames.back().points) {
+            Eigen::Vector3d p3d = utils::cvPoint2dToEigenVec3d(p2d, );
+        }
+
+        const int fast_th = 20; // corner detector response threshold
+        std::vector<cv::KeyPoint> external_key_points_un_normalized;
+        cv::FAST(_img, external_key_points_un_normalized, fast_th, true);
+        std::vector<cv::Point2f> external_key_pts2d;
+        for (const cv::KeyPoint & keypoint : external_key_points_un_normalized) {
+            external_key_pts2d.push_back(feature_tracker_->rawPoint2UniformedPoint(keypoint.pt));
+        }
+
+        loop_closer_->addKeyFrame(run_info_->all_frames.back(),
+                                  _img,
+                                  key_pts_3d,
+                                  external_key_points_un_normalized,
+                                  external_key_pts2d);
         return kVinsStateNormal;
     }
 }

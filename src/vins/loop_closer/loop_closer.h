@@ -27,9 +27,11 @@ namespace vins{
 
         ~LoopCloser();
 
-        void addKeyFrame(const vins::Frame &base_frame, const cv::Mat &_image,
-                         const std::vector<cv::Point3f> &_point_3d,
-                         const std::vector<cv::Point2f> &_point_2d_uv);
+        void addKeyFrame(const Frame &base_frame,
+                         const cv::Mat &_img,
+                         const std::vector<cv::Point3f> &key_pts_3d,
+                         const std::vector<cv::KeyPoint> &external_key_points_un_normalized,
+                         const std::vector<cv::Point2f> &external_key_pts2d);
 
     private:
         [[noreturn]] void optimize4DoF();

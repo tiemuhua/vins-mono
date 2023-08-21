@@ -13,8 +13,9 @@
 namespace vins{
     class Frame;
     class RICEstimator;
-    class FeatureHelper;
+    class BriefExtractor;
     class FeatureTracker;
+    class LoopCloser;
     class RunInfo;
     class Param;
 
@@ -32,7 +33,7 @@ namespace vins{
         } vins_state_ = kVinsStateEstimateExtrinsic;
         EVinsState _handleEstimateExtrinsic();
         EVinsState _handleInitial(double time_stamp);
-        EVinsState _handleNormal(bool is_key_frame);
+        EVinsState _handleNormal(const cv::Mat &_img, bool is_key_frame);
 
     private:
         std::mutex read_imu_buf_mutex_;
@@ -46,6 +47,7 @@ namespace vins{
 
         RICEstimator *ric_estimator_;
         FeatureTracker *feature_tracker_;
+        LoopCloser *loop_closer_;
 
         RunInfo* run_info_;
         Param* param_;

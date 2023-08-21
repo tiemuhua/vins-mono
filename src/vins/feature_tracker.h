@@ -28,7 +28,7 @@ namespace vins{
 
         std::vector<FeaturePoint2D> extractFeatures(const cv::Mat &_img, double _cur_time);
 
-        static cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
+        cv::Point2f rawPoint2UniformedPoint(const cv::Point2f& p);
 
     private:
         cv::Mat prev_img_;
