@@ -11,13 +11,15 @@
 #include "feature_helper.h"
 #include "slide_window_estimator/slide_window_estimator.h"
 #include "loop_closer/loop_closer.h"
+#include "camera_wrapper.h"
 
 namespace vins{
     VinsCore::VinsCore(Param* param) {
         run_info_ = new RunInfo(param_->window_size);
         param_ = param;
         ric_estimator_ = new RICEstimator(param->window_size);
-        feature_tracker_ = new FeatureTracker(param);
+        camera_wrapper_ = new CameraWrapper(param);
+        feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
         loop_closer_ = new LoopCloser();
     }
 
@@ -29,7 +31,7 @@ namespace vins{
         }
     }
 
-    static Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+    static const Eigen::Vector3d zero = Eigen::Vector3d::Zero();
 
     void VinsCore::handleImage(const cv::Mat &_img, double time_stamp) {
         auto imu_integrator = std::make_shared<ImuIntegrator>(0,0,0,0,0,zero,zero,zero,zero,zero);
@@ -111,10 +113,11 @@ namespace vins{
             return kVinsStateInitial;
         }
 
-        // 如果有个特征点第一帧不是关键帧，应该怎么办？
-        vector<cv::Point3f> key_pts_3d;
+        // todo 如果有个特征点第一帧不是关键帧，应该怎么办？
+        std::vector<cv::Point3f> key_pts_3d;
         for (const cv::Point2f &p2d:run_info_->all_frames.back().points) {
-            Eigen::Vector3d p3d = utils::cvPoint2dToEigenVec3d(p2d, );
+            double depth = -1; // todo
+            key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
         const int fast_th = 20; // corner detector response threshold
@@ -122,7 +125,7 @@ namespace vins{
         cv::FAST(_img, external_key_points_un_normalized, fast_th, true);
         std::vector<cv::Point2f> external_key_pts2d;
         for (const cv::KeyPoint & keypoint : external_key_points_un_normalized) {
-            external_key_pts2d.push_back(feature_tracker_->rawPoint2UniformedPoint(keypoint.pt));
+            external_key_pts2d.push_back(camera_wrapper_->rawPoint2UniformedPoint(keypoint.pt));
         }
 
         loop_closer_->addKeyFrame(run_info_->all_frames.back(),

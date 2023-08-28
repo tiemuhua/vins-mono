@@ -18,6 +18,7 @@ namespace vins{
     class LoopCloser;
     class RunInfo;
     class Param;
+    class CameraWrapper;
 
     class VinsCore {
     public:
@@ -47,6 +48,7 @@ namespace vins{
 
         RICEstimator *ric_estimator_;
         FeatureTracker *feature_tracker_;
+        CameraWrapper *camera_wrapper_;
         LoopCloser *loop_closer_;
 
         RunInfo* run_info_;

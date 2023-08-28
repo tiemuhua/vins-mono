@@ -23,16 +23,30 @@ namespace vins {
             return str;
         }
 
-        inline Eigen::Vector3d cvPoint3dToEigenVec3d(const cv::Point3f &p3d) {
+        inline Eigen::Vector3d cvPoint3fToEigenVec3d(const cv::Point3f &cv_p3) {
             Eigen::Vector3d vec;
-            vec << p3d.x, p3d.y, p3d.z;
+            vec << cv_p3.x, cv_p3.y, cv_p3.z;
             return vec;
         }
 
-        inline Eigen::Vector3d cvPoint2dToEigenVec3d(const cv::Point2f &p2d, double depth) {
+        inline cv::Point3f eigenVec3dToCvPoint3f(const Eigen::Vector3d & eigen_p3) {
+            cv::Point3f cv_p3;
+            cv_p3.x = eigen_p3(0);
+            cv_p3.y = eigen_p3(1);
+            cv_p3.z = eigen_p3(2);
+            return cv_p3;
+        }
+
+        inline Eigen::Vector3d cvPoint2fToEigenVec3d(const cv::Point2f &p2d, double depth) {
             Eigen::Vector3d vec;
             vec << p2d.x, p2d.y, 1.0;
-            return vec*depth;
+            return vec * depth;
+        }
+
+        inline cv::Point3f cvPoint2fToCvPoint3f(const cv::Point2f &p2d, double depth) {
+            Eigen::Vector3d vec;
+            vec << p2d.x, p2d.y, 1.0;
+            return eigenVec3dToCvPoint3f(vec * depth);
         }
 
         /**
