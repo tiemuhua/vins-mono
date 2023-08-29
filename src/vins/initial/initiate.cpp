@@ -37,7 +37,7 @@ bool Initiate::initiate(const double gravity_norm, const int window_size, const 
         return false;
     }
 
-    bool visual_succ = initiateByVisual(window_size, latest_frame_id, run_info.features, run_info.all_frames);
+    bool visual_succ = initiateByVisual(window_size, latest_frame_id, run_info.feature_window, run_info.all_frames);
     if (!visual_succ) {
         return false;
     }
@@ -88,7 +88,7 @@ bool Initiate::initiate(const double gravity_norm, const int window_size, const 
 
     //triangulate on cam pose , no tic
     //计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
-    for (Feature &feature: run_info.features) {
+    for (Feature &feature: run_info.feature_window) {
         if (!(feature.points.size() >= 2 && feature.start_kf_idx < window_size - 2))
             continue;
 

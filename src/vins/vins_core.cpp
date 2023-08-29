@@ -46,8 +46,8 @@ namespace vins{
 
         std::vector<FeaturePoint2D> feature_points = feature_tracker_->extractFeatures(_img, time_stamp);
         cur_frame_id_++;
-        bool is_key_frame = FeatureHelper::isKeyFrame(cur_frame_id_, feature_points, run_info_->features);
-        FeatureHelper::addFeatures(cur_frame_id_, time_stamp, feature_points, run_info_->features);
+        bool is_key_frame = FeatureHelper::isKeyFrame(cur_frame_id_, feature_points, run_info_->feature_window);
+        FeatureHelper::addFeatures(cur_frame_id_, time_stamp, feature_points, run_info_->feature_window);
         run_info_->all_frames.emplace_back(std::move(feature_points),
                                            std::move(imu_integrator),
                                            is_key_frame);
@@ -70,7 +70,7 @@ namespace vins{
             return kVinsStateEstimateExtrinsic;
         }
         PointCorrespondences correspondences =
-                FeatureHelper::getCorrespondences(cur_frame_id_ - 1, cur_frame_id_, run_info_->features);
+                FeatureHelper::getCorrespondences(cur_frame_id_ - 1, cur_frame_id_, run_info_->feature_window);
         Eigen::Quaterniond imu_quat = run_info_->all_frames.back().pre_integral_->deltaQuat();
         bool succ = ric_estimator_->estimate(correspondences, imu_quat, run_info_->ric);
         if (!succ) {
@@ -97,12 +97,12 @@ namespace vins{
         }
         SlideWindowEstimator::slide(param_->slide_window,
                                     run_info_->frame_id_window.at(0),
-                                    run_info_->features,
+                                    run_info_->feature_window,
                                     run_info_->state_window,
                                     run_info_->pre_int_window);
         // todo 什么时候往Window里面塞东西？
         SlideWindowEstimator::optimize(param_->slide_window,
-                                       run_info_->features,
+                                       run_info_->feature_window,
                                        run_info_->state_window,
                                        run_info_->pre_int_window,
                                        run_info_->tic,

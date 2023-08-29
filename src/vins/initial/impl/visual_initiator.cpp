@@ -123,11 +123,11 @@ namespace vins {
 
     bool initiateByVisual(const int window_wize,
                           int key_frame_num,
-                          const std::vector<Feature>& features,
+                          const std::vector<Feature>& feature_window,
                           vector<Frame> &all_frames) {
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
-        for (const Feature &feature: features) {
+        for (const Feature &feature: feature_window) {
             SFMFeature sfm_feature;
             sfm_feature.feature = feature;
             sfm_features.push_back(sfm_feature);
@@ -139,7 +139,7 @@ namespace vins {
         int big_parallax_frame_id = -1;
         for (int i = 0; i < window_wize; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    FeatureHelper::getCorrespondences(i, window_wize, features);
+                    FeatureHelper::getCorrespondences(i, window_wize, feature_window);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
@@ -149,7 +149,7 @@ namespace vins {
             break;
         }
         if (big_parallax_frame_id == -1) {
-            LOG_E("Not enough features or parallax; Move device around");
+            LOG_E("Not enough feature_window or parallax; Move device around");
             return false;
         }
 

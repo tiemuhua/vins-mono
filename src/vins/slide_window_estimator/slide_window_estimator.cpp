@@ -45,7 +45,7 @@ using namespace vins;
 using namespace std;
 
 static void eigen2c(const std::vector<State>& window,
-                    const std::vector<Feature> &features,
+                    const std::vector<Feature> &feature_window,
                     const Eigen::Vector3d& tic,
                     const Eigen::Matrix3d &ric){
     for (int i = 0; i < window.size(); ++i) {
@@ -56,11 +56,11 @@ static void eigen2c(const std::vector<State>& window,
         utils::vec3d2array(window.at(i).bg, c_bg[i]);
     }
 
-    for (int i = 0; i < features.size(); ++i) {
-        if (features[i].points.size() < 2 || features[i].start_kf_idx >= WINDOW_SIZE - 2) {
+    for (int i = 0; i < feature_window.size(); ++i) {
+        if (feature_window[i].points.size() < 2 || feature_window[i].start_kf_idx >= WINDOW_SIZE - 2) {
             continue;
         }
-        c_inv_depth[i][0] = features[i].inv_depth;
+        c_inv_depth[i][0] = feature_window[i].inv_depth;
     }
 
     utils::vec3d2array(tic, c_tic);
@@ -68,7 +68,7 @@ static void eigen2c(const std::vector<State>& window,
 }
 
 static void c2eigen(std::vector<State>& window,
-                    std::vector<Feature> &features,
+                    std::vector<Feature> &feature_window,
                     Eigen::Vector3d& tic,
                     Eigen::Matrix3d &ric) {
     for (int i = 0; i < window.size(); ++i) {
@@ -79,11 +79,11 @@ static void c2eigen(std::vector<State>& window,
         window.at(i).bg = utils::array2vec3d(c_bg[i]);
     }
 
-    for (int i = 0; i < features.size(); ++i) {
-        if (features[i].points.size() < 2 || features[i].start_kf_idx >= WINDOW_SIZE - 2) {
+    for (int i = 0; i < feature_window.size(); ++i) {
+        if (feature_window[i].points.size() < 2 || feature_window[i].start_kf_idx >= WINDOW_SIZE - 2) {
             continue;
         }
-        features[i].inv_depth = c_inv_depth[i][0];
+        feature_window[i].inv_depth = c_inv_depth[i][0];
     }
 
     tic = utils::array2vec3d(c_tic);

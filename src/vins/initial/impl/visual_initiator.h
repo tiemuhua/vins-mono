@@ -9,7 +9,7 @@
 namespace vins{
     bool initiateByVisual(int window_wize,
                           int key_frame_num,
-                          const std::vector<Feature>& features,
+                          const std::vector<Feature>& feature_window,
                           std::vector<Frame> &all_frames);
 }
 

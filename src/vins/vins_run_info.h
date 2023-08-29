@@ -26,12 +26,15 @@ namespace vins {
         Eigen::Matrix3d ric;
         Eigen::Vector3d gravity;
 
+        // 下面三个window的大小都是Param.window_size
         std::vector<State> state_window;
         std::vector<int> frame_id_window;
         std::vector<ImuIntegrator> pre_int_window;
 
+        // 滑动窗口中所有关键帧所观测到的特征点的集合
+        std::vector<Feature> feature_window;
+
         std::vector<Frame> all_frames;
-        std::vector<Feature> features;
     };
 }
 

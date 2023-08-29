@@ -107,10 +107,10 @@ std::vector<FeaturePoint2D> FeatureTracker::extractFeatures(const cv::Mat &_img,
     prev_normalized_pts_ = std::move(next_normalized_pts);
 
     int feature_points_num = prev_raw_pts_.size();
-    std::vector<FeaturePoint2D> features(feature_points_num);
+    std::vector<FeaturePoint2D> feature_window(feature_points_num);
     for (int i = 0; i < feature_points_num; ++i) {
-        features[i].feature_id = feature_ids_[i];
-        features[i].point = prev_normalized_pts_[i];
-        features[i].velocity = pts_velocity[i];
+        feature_window[i].feature_id = feature_ids_[i];
+        feature_window[i].point = prev_normalized_pts_[i];
+        feature_window[i].velocity = pts_velocity[i];
     }
 }
