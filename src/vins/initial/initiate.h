@@ -12,10 +12,7 @@
 namespace vins {
     class Initiate {
     public:
-        static bool initiate(const double gravity_norm,
-                             const int window_size,
-                             const int latest_frame_id,
-                             RunInfo &run_info);
+        static bool initiate(const double gravity_norm, RunInfo &run_info);
     };
 }
 

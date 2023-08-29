@@ -7,6 +7,7 @@
 
 #include <Eigen/Eigen>
 #include "vins_define_internal.h"
+#include "parameters.h"
 
 namespace vins {
     enum EStateOrder {
@@ -24,6 +25,14 @@ namespace vins {
         O_GW = 9
     };
 
+    struct PrevIMUInput {
+        Eigen::Vector3d acc = Eigen::Vector3d::Zero();
+        Eigen::Vector3d gyr = Eigen::Vector3d::Zero();
+        double time_stamp = 0;
+        Eigen::Vector3d ba = Eigen::Vector3d::Zero();
+        Eigen::Vector3d bg = Eigen::Vector3d::Zero();
+    };
+
     class ImuIntegrator {
     public:
         static constexpr int NoiseDim = 18;
@@ -33,9 +42,7 @@ namespace vins {
         typedef Eigen::Matrix<double, StateDim, 1> State;
 
         ImuIntegrator() = delete;
-        ImuIntegrator(double ACC_N,double ACC_W, double GYR_N, double GYR_W,
-                      double time_stamp, Eigen::Vector3d acc, Eigen::Vector3d gyr,
-                      Eigen::Vector3d ba, Eigen::Vector3d bg, Eigen::Vector3d gravity);
+        ImuIntegrator(IMUParam imu_param, PrevIMUInput prev_imu_imput, Eigen::Vector3d gravity);
 
         void predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr);
         void rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg);
@@ -90,6 +97,7 @@ namespace vins {
         std::vector<Eigen::Vector3d> acc_buf_;
         std::vector<Eigen::Vector3d> gyr_buf_;
     };
+    typedef std::shared_ptr<ImuIntegrator> ImuIntegratorPtr;
 }
 
 #endif //VINS_IMU_INTEGRATOR_H

@@ -28,7 +28,7 @@ namespace vins {
 
     struct Feature {
         int feature_id          = -1;
-        int start_kf_idx         = -1;
+        int start_kf_idx        = -1;
         bool is_outlier         = false;
         double inv_depth        = -1;
         std::vector<cv::Point2f> points;

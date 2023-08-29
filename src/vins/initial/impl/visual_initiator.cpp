@@ -121,8 +121,7 @@ namespace vins {
         return true;
     }
 
-    bool initiateByVisual(const int window_wize,
-                          int key_frame_num,
+    bool initiateByVisual(const int cur_window_size,
                           const std::vector<Feature>& feature_window,
                           vector<Frame> &all_frames) {
         // 计算sfm_features
@@ -137,9 +136,9 @@ namespace vins {
         Eigen::Matrix3d relative_R;
         Eigen::Vector3d relative_T;
         int big_parallax_frame_id = -1;
-        for (int i = 0; i < window_wize; ++i) {
+        for (int i = 0; i < cur_window_size; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
-                    FeatureHelper::getCorrespondences(i, window_wize, feature_window);
+                    FeatureHelper::getCorrespondences(i, cur_window_size, feature_window);
             constexpr double avg_parallax_threshold = 30.0/460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
@@ -155,16 +154,16 @@ namespace vins {
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
         // 1: triangulate between l <-> frame_num - 1
-        std::vector<Mat34> kf_poses(key_frame_num, Mat34::Zero());
+        std::vector<Mat34> kf_poses(cur_window_size, Mat34::Zero());
         kf_poses[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-        kf_poses[key_frame_num - 1].block<3, 3>(0, 0) = relative_R;
-        kf_poses[key_frame_num - 1].block<3, 1>(0, 3) = relative_T;
+        kf_poses[cur_window_size - 1].block<3, 3>(0, 0) = relative_R;
+        kf_poses[cur_window_size - 1].block<3, 1>(0, 3) = relative_T;
         triangulateTwoFrames(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
-                             key_frame_num - 1, kf_poses[key_frame_num - 1], sfm_features);
+                             cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
 
         // 2: solve pnp [l+1, frame_num-2]
         // triangulate [l+1, frame_num-2] <-> frame_num-1;
-        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < key_frame_num - 1; frame_idx++) {
+        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < cur_window_size - 1; frame_idx++) {
             // solve pnp
             Eigen::Matrix3d R_initial = kf_poses[frame_idx - 1].block<3, 3>(0, 0);
             Eigen::Vector3d P_initial = kf_poses[frame_idx - 1].block<3, 1>(0, 3);
@@ -177,11 +176,11 @@ namespace vins {
             kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
 
             // triangulate point based on to solve pnp result
-            triangulateTwoFrames(frame_idx, kf_poses[frame_idx], key_frame_num - 1, kf_poses[key_frame_num - 1], sfm_features);
+            triangulateTwoFrames(frame_idx, kf_poses[frame_idx], cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
         }
 
         //3: triangulate l <-> [l+1, frame_num -2]
-        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < key_frame_num - 1; frame_idx++) {
+        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < cur_window_size - 1; frame_idx++) {
             triangulateTwoFrames(big_parallax_frame_id, kf_poses[big_parallax_frame_id], frame_idx, kf_poses[frame_idx], sfm_features);
         }
 
@@ -219,9 +218,9 @@ namespace vins {
         //6: full BA
         ceres::Problem problem;
         ceres::Manifold *quat_manifold = new ceres::QuaternionManifold();
-        double c_key_frames_rot[key_frame_num][4];
-        double c_key_frames_pos[key_frame_num][3];
-        for (int i = 0; i < key_frame_num; i++) {
+        double c_key_frames_rot[cur_window_size][4];
+        double c_key_frames_pos[cur_window_size][3];
+        for (int i = 0; i < cur_window_size; i++) {
             utils::quat2array(Eigen::Quaterniond(kf_poses[i].block<3, 3>(0, 0)), c_key_frames_rot[i]);
             utils::vec3d2array(kf_poses[i].block<3, 1>(0, 3), c_key_frames_pos[i]);
             problem.AddParameterBlock(c_key_frames_rot[i], 4, quat_manifold);
@@ -229,7 +228,7 @@ namespace vins {
             if (i == big_parallax_frame_id) {
                 problem.SetParameterBlockConstant(c_key_frames_rot[i]);
             }
-            if (i == big_parallax_frame_id || i == key_frame_num - 1) {
+            if (i == big_parallax_frame_id || i == cur_window_size - 1) {
                 problem.SetParameterBlockConstant(c_key_frames_pos[i]);
             }
         }
@@ -258,13 +257,13 @@ namespace vins {
         }
 
         //后续只需要key_frames_rot、key_frames_pos、feature_id_2_position
-        vector<Eigen::Matrix3d> key_frames_rot(window_wize + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
-        vector<Eigen::Vector3d> key_frames_pos(window_wize + 1);
+        vector<Eigen::Matrix3d> key_frames_rot(cur_window_size + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
+        vector<Eigen::Vector3d> key_frames_pos(cur_window_size + 1);
         map<int, Eigen::Vector3d> feature_id_2_position;
-        for (int i = 0; i < key_frame_num; i++) {
+        for (int i = 0; i < cur_window_size; i++) {
             key_frames_rot[i] = utils::array2quat(c_key_frames_rot[i]).toRotationMatrix();
         }
-        for (int i = 0; i < key_frame_num; i++) {
+        for (int i = 0; i < cur_window_size; i++) {
             key_frames_pos[i] = utils::array2vec3d(c_key_frames_pos[i]);
         }
         for (SFMFeature & sfm : sfm_features) {

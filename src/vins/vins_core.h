@@ -19,6 +19,7 @@ namespace vins{
     class RunInfo;
     class Param;
     class CameraWrapper;
+    class ImuIntegrator;
 
     class VinsCore {
     public:
@@ -27,20 +28,21 @@ namespace vins{
         void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
 
     private:
-        enum EVinsState {
-            kVinsStateEstimateExtrinsic,    // 估计相机外参
-            kVinsStateInitial,              // 初始化
-            kVinsStateNormal,               // 正常优化
-        } vins_state_ = kVinsStateEstimateExtrinsic;
+        enum class EVinsState : int {
+            kNoIMUData,             // 尚未收到IMU数据
+            kNoImgData,             // 尚未收到图片数据
+            kEstimateExtrinsic,     // 估计相机外参
+            kInitial,               // 初始化
+            kNormal,                // 正常优化
+        } vins_state_ = EVinsState::kNoIMUData;
         EVinsState _handleEstimateExtrinsic();
         EVinsState _handleInitial(double time_stamp);
         EVinsState _handleNormal(const cv::Mat &_img, bool is_key_frame);
+        std::shared_ptr<ImuIntegrator> _readIMUBuffer(double time_stamp);
 
     private:
         std::mutex read_imu_buf_mutex_;
-        std::queue<Eigen::Vector3d> acc_buf_;
-        std::queue<Eigen::Vector3d> gyr_buf_;
-        std::queue<double> time_stamp_buf_;
+        std::shared_ptr<ImuIntegrator> cur_pre_integral_ptr_;
 
         double last_init_time_stamp_ = 0.0;
 

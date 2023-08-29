@@ -24,12 +24,19 @@ namespace vins {
         bool estimate_time_delay = true;
         int max_iter_num = 100;
     };
+    struct IMUParam {
+        double ACC_N;
+        double ACC_W;
+        double GYR_N;
+        double GYR_W;
+    };
 
     class Param {
     public:
         CameraParam camera;
         FrameTrackerParam frame_tracker;
         SlideWindowEstimatorParam slide_window;
+        IMUParam imu_param;
 
         double gravity_norm;
         double time_rolling_shatter;

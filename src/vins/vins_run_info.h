@@ -14,11 +14,11 @@
 
 namespace vins {
     struct State {
-        Eigen::Vector3d pos;
-        Eigen::Matrix3d rot;
-        Eigen::Vector3d vel;
-        Eigen::Vector3d ba;
-        Eigen::Vector3d bg;
+        Eigen::Vector3d pos = Eigen::Vector3d::Zero();
+        Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
+        Eigen::Vector3d vel = Eigen::Vector3d::Zero();
+        Eigen::Vector3d ba = Eigen::Vector3d::Zero();
+        Eigen::Vector3d bg = Eigen::Vector3d::Zero();
     };
 
     struct RunInfo {
@@ -26,7 +26,7 @@ namespace vins {
         Eigen::Matrix3d ric;
         Eigen::Vector3d gravity;
 
-        // 下面三个window的大小都是Param.window_size
+        // 关键帧的滑动窗口，大小都是Param.window_size
         std::vector<State> state_window;
         std::vector<ImuIntegrator> pre_int_window;
 
