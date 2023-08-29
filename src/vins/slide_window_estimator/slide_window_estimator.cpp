@@ -211,7 +211,6 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
 }
 
 static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
-                                 const int oldest_key_frame_id,
                                  const std::vector<Feature> &feature_window,
                                  const std::vector<ImuIntegrator>& pre_int_window,
                                  std::vector<double *> &reserve_block_origin) {
@@ -243,7 +242,7 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
     const vector<int> visual_discard_set = {0, 1, 6};
     for (int feature_idx = 0; feature_idx < feature_window.size(); ++feature_idx) {
         const Feature& feature = feature_window[feature_idx];
-        if (feature.start_kf_idx != oldest_key_frame_id) {
+        if (feature.start_kf_idx != 0) {
             continue;
         }
         const cv::Point2f & point0 = feature.points[0];
@@ -286,13 +285,12 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
 }
 
 void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
-                                 const int oldest_key_frame_id,
                                  std::vector<Feature> &feature_window,
                                  std::vector<State>& state_window,
                                  std::vector<ImuIntegrator>& pre_int_window) {
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
-    sp_marginal_info = marginalize(param, oldest_key_frame_id, feature_window, pre_int_window, reserve_block_origin);
+    sp_marginal_info = marginalize(param, feature_window, pre_int_window, reserve_block_origin);
 
     // 维护feature_window
     std::unordered_map<int, int> feature_id_2_idx_origin = FeatureHelper::getFeatureId2Index(feature_window);
@@ -303,6 +301,9 @@ void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
     for (Feature &feature:feature_window) {
         feature.start_kf_idx--;
     }
+
+    state_window.erase(state_window.begin());
+    pre_int_window.erase(pre_int_window.begin());
 
     std::unordered_map<double*, double*> slide_addr_map;
     for (const auto &id2idx_origin : feature_id_2_idx_origin) {

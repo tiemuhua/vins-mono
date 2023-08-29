@@ -18,7 +18,6 @@ namespace vins::SlideWindowEstimator{
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
     void slide(const SlideWindowEstimatorParam &param,
-               int oldest_key_frame_id,
                std::vector<Feature> &feature_window,
                std::vector<State>& state_window,
                std::vector<ImuIntegrator>& pre_int_window);

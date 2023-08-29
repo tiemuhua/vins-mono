@@ -96,7 +96,6 @@ namespace vins{
             return kVinsStateNormal;
         }
         SlideWindowEstimator::slide(param_->slide_window,
-                                    run_info_->frame_id_window.at(0),
                                     run_info_->feature_window,
                                     run_info_->state_window,
                                     run_info_->pre_int_window);
