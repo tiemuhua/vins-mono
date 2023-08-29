@@ -63,8 +63,8 @@ bool Initiate::initiate(const double gravity_norm, const int window_size, const 
     auto &all_frames = run_info.all_frames;
     auto &TIC = run_info.tic;
     auto RIC = run_info.ric;
-    for (int i = 0; i < state_window.size(); ++i) {
-        state_window.at(i).bg = state_window.at(i).bg + delta_bg;
+    for (State & state : state_window) {
+        state.bg = state.bg + delta_bg;
     }
     int frame_size = (int )all_frames.size();
     for (int frame_idx = 0, key_frame_id = 0; frame_idx < frame_size; frame_idx++) {

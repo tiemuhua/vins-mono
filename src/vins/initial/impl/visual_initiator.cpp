@@ -13,7 +13,6 @@
 
 #include "log.h"
 #include "vins_utils.h"
-#include "parameters.h"
 
 #include "feature_helper.h"
 #include "motion_estimator.h"

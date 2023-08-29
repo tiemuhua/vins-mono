@@ -15,7 +15,7 @@
 
 namespace vins{
     VinsCore::VinsCore(Param* param) {
-        run_info_ = new RunInfo(param_->window_size);
+        run_info_ = new RunInfo();
         param_ = param;
         ric_estimator_ = new RICEstimator(param->window_size);
         camera_wrapper_ = new CameraWrapper(param);
