@@ -58,6 +58,9 @@ namespace vins {
 
         Eigen::MatrixXd reserve_block_jacobians_;
         Eigen::VectorXd reserve_block_residuals_;
+
+        std::vector<double*> marginal_blocks;
+
         static constexpr double EPS = 1e-8;
     };
 
