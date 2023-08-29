@@ -6,7 +6,7 @@ namespace vins {
     using namespace std;
     using namespace Eigen;
 
-    bool FeatureHelper::isKeyFrame(int frame_id,
+    bool FeatureHelper::isKeyFrame(int frame_idx,
                                    const std::vector<FeaturePoint2D> &feature_points,
                                    const std::vector<Feature>& features) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )features.size());
@@ -22,15 +22,15 @@ namespace vins {
             }
         }
 
-        if (frame_id < 2 || last_track_num < 20)
+        if (frame_idx < 2 || last_track_num < 20)
             return true;
 
         int parallax_num = 0;
         double parallax_sum = 0;
         for (const Feature &feature: features) {
-            if (feature.start_frame <= frame_id - 2 && feature.start_frame + int(feature.points.size()) >= frame_id) {
-                cv::Point2f p_i = feature.points[frame_id - 2 - feature.start_frame];
-                cv::Point2f p_j = feature.points[frame_id - 1 - feature.start_frame];
+            if (feature.start_kf_idx <= frame_idx - 2 && feature.start_kf_idx + int(feature.points.size()) >= frame_idx) {
+                cv::Point2f p_i = feature.points[frame_idx - 2 - feature.start_kf_idx];
+                cv::Point2f p_j = feature.points[frame_idx - 1 - feature.start_kf_idx];
                 parallax_sum += cv::norm(p_i - p_j);
                 parallax_num++;
             }
@@ -44,7 +44,7 @@ namespace vins {
         return parallax_sum / parallax_num >= Param::Instance().key_frame_parallax_threshold;
     }
 
-    void FeatureHelper::addFeatures(int frame_id, double time_stamp,
+    void FeatureHelper::addFeatures(int frame_idx, double time_stamp,
                                     const std::vector<FeaturePoint2D> &feature_points,
                                     std::vector<Feature>& features) {
         for (const FeaturePoint2D &point: feature_points) {
@@ -53,7 +53,7 @@ namespace vins {
             });
 
             if (it == features.end()) {
-                features.emplace_back(Feature(point.feature_id, frame_id));
+                features.emplace_back(Feature(point.feature_id, frame_idx));
                 it = features.end()--;
             }
             it->points.push_back(point.point);
@@ -62,13 +62,13 @@ namespace vins {
         }
     }
 
-    Correspondences FeatureHelper::getCorrespondences(int frame_count_l, int frame_count_r,
+    Correspondences FeatureHelper::getCorrespondences(int frame_idx_left, int frame_idx_right,
                                                       const std::vector<Feature>& features) {
         Correspondences correspondences;
         for (const Feature &feature: features) {
-            if (feature.start_frame <= frame_count_l && feature.endFrame() >= frame_count_r) {
-                int idx_l = frame_count_l - feature.start_frame;
-                int idx_r = frame_count_r - feature.start_frame;
+            if (feature.start_kf_idx <= frame_idx_left && feature.endFrame() >= frame_idx_right) {
+                int idx_l = frame_idx_left - feature.start_kf_idx;
+                int idx_r = frame_idx_right - feature.start_kf_idx;
                 cv::Point2f a = feature.points[idx_l];
                 cv::Point2f b = feature.points[idx_r];
                 correspondences.emplace_back(make_pair(a, b));
@@ -86,7 +86,7 @@ namespace vins {
     }
 
     // 初始帧的坐标？
-    std::vector<Eigen::Vector3d> getPtsVecForFrame(const int frame_id, const std::vector<Feature>& features) {
+    std::vector<Eigen::Vector3d> getPtsVecForFrame(const int frame_idx, const std::vector<Feature>& features) {
         for (const Feature& feature: features) {
             if (feature.)
         }

@@ -58,7 +58,7 @@ static void eigen2c(const Window<EstimateState>& window,
     }
 
     for (int i = 0; i < features.size(); ++i) {
-        if (features[i].points.size() < 2 || features[i].start_frame >= WINDOW_SIZE - 2) {
+        if (features[i].points.size() < 2 || features[i].start_kf_idx >= WINDOW_SIZE - 2) {
             continue;
         }
         c_inv_depth[i][0] = features[i].inv_depth;
@@ -81,7 +81,7 @@ static void c2eigen(Window<EstimateState>& window,
     }
 
     for (int i = 0; i < features.size(); ++i) {
-        if (features[i].points.size() < 2 || features[i].start_frame >= WINDOW_SIZE - 2) {
+        if (features[i].points.size() < 2 || features[i].start_kf_idx >= WINDOW_SIZE - 2) {
             continue;
         }
         features[i].inv_depth = c_inv_depth[i][0];
@@ -147,9 +147,9 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     /*************** 3:特征点 **************************/
     for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
         const Feature &feature = features[feature_id];
-        if (feature.points.size() < 2 || feature.start_frame >= WINDOW_SIZE - 2)
+        if (feature.points.size() < 2 || feature.start_kf_idx >= WINDOW_SIZE - 2)
             continue;
-        int start_frame_id = feature.start_frame;
+        int start_frame_id = feature.start_kf_idx;
         const cv::Point2f & point0 = feature.points[0];
         const cv::Point2f & vel0 = feature.velocities[0];
         const double time_stamp0 = feature.time_stamps_ms[0];
@@ -179,7 +179,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
         const auto& peer_frame_feature_ids = sp_loop_match_info->peer_frame.feature_ids;
         for (int feature_id = 0; feature_id < features.size(); ++ feature_id) {
             Feature feature = features[feature_id];
-            int start = feature.start_frame;
+            int start = feature.start_kf_idx;
             if (feature.points.size() < 2 || start > WINDOW_SIZE - 2 || start < sp_loop_match_info->peer_frame_id) {
                 continue;
             }
@@ -244,7 +244,7 @@ static void marginalize(const SlideWindowEstimatorParam &param,
     const vector<int> visual_discard_set = {0, 1, 6};
     for (int feature_id = 0; feature_id < features.size(); ++feature_id) {
         const Feature& feature = features[feature_id];
-        if (feature.start_frame != oldest_key_frame_id) {
+        if (feature.start_kf_idx != oldest_key_frame_id) {
             continue;
         }
         const cv::Point2f & point0 = feature.points[0];
@@ -254,7 +254,7 @@ static void marginalize(const SlideWindowEstimatorParam &param,
             const cv::Point2f &point = feature.points[frame_id_bias];
             const cv::Point2f &vel = feature.velocities[frame_id_bias];
             const double time_stamp = feature.time_stamps_ms[frame_id_bias];
-            int cur_frame_id = feature.start_frame + frame_id_bias;
+            int cur_frame_id = feature.start_kf_idx + frame_id_bias;
             ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
             if (param.estimate_time_delay) {
                 auto *project_td_cost = new ProjectTdCost(point0, point, vel0, vel, time_stamp0, time_stamp);
@@ -298,7 +298,7 @@ void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
     std::unordered_map<int, int> feature_id_2_idx_origin = FeatureHelper::getFeatureId2Index(features);
     std::vector<Feature> new_features;
     for (auto &feature:features) {
-        if (feature.start_frame > oldest_key_frame_id) {
+        if (feature.start_kf_idx > oldest_key_frame_id) {
             features.emplace_back(std::move(feature));
         }
     }

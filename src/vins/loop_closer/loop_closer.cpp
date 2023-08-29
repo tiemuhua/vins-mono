@@ -161,28 +161,28 @@ void LoopCloser::optimize4DoFImpl() {
     ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
     ceres::Manifold *angle_manifold_pi = AngleManifoldPi::Create();
 
-    for (int frame_id = loop_interval_lower_bound_; frame_id <= loop_interval_upper_bound_; ++frame_id) {
-        auto kf = key_frame_list_[frame_id];
-        kf->getVioPose(t_array[frame_id], r_array[frame_id]);
-        euler_array[frame_id] = utils::rot2ypr(r_array[frame_id]);
+    for (int frame_idx = loop_interval_lower_bound_; frame_idx <= loop_interval_upper_bound_; ++frame_idx) {
+        auto kf = key_frame_list_[frame_idx];
+        kf->getVioPose(t_array[frame_idx], r_array[frame_idx]);
+        euler_array[frame_idx] = utils::rot2ypr(r_array[frame_idx]);
 
-        problem.AddParameterBlock(euler_array[frame_id].data(), 1, angle_manifold_pi);
-        problem.AddParameterBlock(t_array[frame_id].data(), 3);
+        problem.AddParameterBlock(euler_array[frame_idx].data(), 1, angle_manifold_pi);
+        problem.AddParameterBlock(t_array[frame_idx].data(), 3);
 
-        problem.SetParameterBlockConstant(euler_array[frame_id].data());
-        problem.SetParameterBlockConstant(t_array[frame_id].data());
+        problem.SetParameterBlockConstant(euler_array[frame_idx].data());
+        problem.SetParameterBlockConstant(t_array[frame_idx].data());
 
         //add sequential edge
-        for (int j = 1; j < 5 && frame_id - j >= 0; j++) {
-            int peer_id = frame_id - j;
+        for (int j = 1; j < 5 && frame_idx - j >= 0; j++) {
+            int peer_id = frame_idx - j;
             Vector3d peer_euler = euler_array[peer_id];
-            Vector3d relative_t = r_array[peer_id].transpose() * (t_array[frame_id] - t_array[peer_id]);
-            double relative_yaw = euler_array[frame_id].x() - euler_array[peer_id].x();
+            Vector3d relative_t = r_array[peer_id].transpose() * (t_array[frame_idx] - t_array[peer_id]);
+            double relative_yaw = euler_array[frame_idx].x() - euler_array[peer_id].x();
             ceres::CostFunction *cost_function =
                     Edge4Dof::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
             problem.AddResidualBlock(cost_function, nullptr,
                                      euler_array[peer_id].data(), t_array[peer_id].data(),
-                                     euler_array[frame_id].data(), t_array[frame_id].data());
+                                     euler_array[frame_idx].data(), t_array[frame_idx].data());
         }
 
         //add loop edge
@@ -196,7 +196,7 @@ void LoopCloser::optimize4DoFImpl() {
                     Edge4Dof::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
             problem.AddResidualBlock(cost_function, loss_function,
                                      euler_array[peer_frame_id].data(), t_array[peer_frame_id].data(),
-                                     euler_array[frame_id].data(), t_array[frame_id].data());
+                                     euler_array[frame_idx].data(), t_array[frame_idx].data());
         }
     }
 
@@ -207,14 +207,14 @@ void LoopCloser::optimize4DoFImpl() {
                                     last_loop_kf->vio_T_i_w_, utils::rot2ypr(last_loop_kf->vio_R_i_w_),
                                     t_drift, r_drift);
 
-    for (int frame_id = loop_interval_lower_bound_; frame_id <= loop_interval_upper_bound_; ++frame_id) {
-        Vector3d t = t_array[frame_id];
-        Matrix3d r = utils::ypr2rot(euler_array[frame_id]);
-        key_frame_list_[frame_id]->updateLoopedPose(t, r);
+    for (int frame_idx = loop_interval_lower_bound_; frame_idx <= loop_interval_upper_bound_; ++frame_idx) {
+        Vector3d t = t_array[frame_idx];
+        Matrix3d r = utils::ypr2rot(euler_array[frame_idx]);
+        key_frame_list_[frame_idx]->updateLoopedPose(t, r);
     }
 
-    for (int frame_id = loop_interval_upper_bound_ + 1; frame_id < key_frame_list_.size(); ++frame_id) {
-        key_frame_list_[frame_id]->updatePoseByDrift(t_drift, r_drift);
+    for (int frame_idx = loop_interval_upper_bound_ + 1; frame_idx < key_frame_list_.size(); ++frame_idx) {
+        key_frame_list_[frame_idx]->updatePoseByDrift(t_drift, r_drift);
     }
 
     // todo 更新滑动窗口中的位姿，vio中提供了关键帧之间的相对关系，利用drift更新位姿时应当利用相对位姿更新，而不是直接更新绝对位姿

@@ -15,20 +15,20 @@
 namespace vins {
     class FeatureHelper {
     public:
-        [[nodiscard]] static bool isKeyFrame(int frame_id,
+        [[nodiscard]] static bool isKeyFrame(int frame_idx,
                                              const std::vector<FeaturePoint2D> &feature_points,
                                              const std::vector<Feature>& features);
 
-        [[nodiscard]] static void addFeatures(int frame_id, double time_stamp,
+        [[nodiscard]] static void addFeatures(int frame_idx, double time_stamp,
                                               const std::vector<FeaturePoint2D> &feature_points,
                                               std::vector<Feature>& features);
 
-        [[nodiscard]] static Correspondences getCorrespondences(int frame_count_l, int frame_count_r,
+        [[nodiscard]] static Correspondences getCorrespondences(int frame_idx_left, int frame_idx_right,
                                                                 const std::vector<Feature>& features);
 
         [[nodiscard]] static std::unordered_map<int, int> getFeatureId2Index(const std::vector<Feature>& features);
 
-        [[nodiscard]] static std::vector<Eigen::Vector3d> getPtsVecForFrame(const int frame_id,
+        [[nodiscard]] static std::vector<Eigen::Vector3d> getPtsVecForFrame(const int frame_idx,
                                                                             const std::vector<Feature>& features);
     };
 }

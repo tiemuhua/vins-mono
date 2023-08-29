@@ -28,7 +28,7 @@ namespace vins {
 
     struct Feature {
         int feature_id          = -1;
-        int start_frame         = -1;
+        int start_kf_idx         = -1;
         bool is_outlier         = false;
         double inv_depth        = -1;
         std::vector<cv::Point2f> points;
@@ -43,10 +43,10 @@ namespace vins {
 
         Feature() = default;
         Feature(int _feature_id, int _start_frame)
-                : feature_id(_feature_id), start_frame(_start_frame) {}
+                : feature_id(_feature_id), start_kf_idx(_start_frame) {}
 
         [[nodiscard]] int endFrame() const {
-            return start_frame + (int )points.size() - 1;
+            return start_kf_idx + (int )points.size() - 1;
         }
     };
 

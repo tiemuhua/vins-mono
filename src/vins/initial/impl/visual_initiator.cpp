@@ -60,8 +60,8 @@ namespace vins {
         return 1.0 * sum_parallax / int(correspondences.size());
     }
 
-    inline bool isFrameHasFeature(int frame_id, const Feature& feature) {
-        return feature.start_frame <= frame_id && frame_id < feature.start_frame + feature.points.size();
+    inline bool isFrameHasFeature(int frame_idx, const Feature& feature) {
+        return feature.start_kf_idx <= frame_idx && frame_idx < feature.start_kf_idx + feature.points.size();
     }
 
     using Mat34 = Eigen::Matrix<double, 3, 4>;
@@ -87,18 +87,18 @@ namespace vins {
             if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
                 continue;
             }
-            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_frame);
-            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_frame);
+            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_kf_idx);
+            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_kf_idx);
             sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
             sfm.has_been_triangulated = true;
         }
     }
 
-    static void calcFeaturePtsInFrame(const vector<SFMFeature> &sfm_features, const int frame_id,
+    static void calcFeaturePtsInFrame(const vector<SFMFeature> &sfm_features, const int frame_idx,
                                       vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
-            if (sfm.has_been_triangulated && isFrameHasFeature(frame_id, sfm.feature)) {
-                cv::Point2f img_pts = sfm.feature.points[frame_id - sfm.feature.start_frame];
+            if (sfm.has_been_triangulated && isFrameHasFeature(frame_idx, sfm.feature)) {
+                cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_idx];
                 pts_2_vector.emplace_back(img_pts);
                 pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
@@ -156,52 +156,52 @@ namespace vins {
 
         // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
         // 1: triangulate between l <-> frame_num - 1
-        std::vector<Mat34> Pose(key_frame_num, Mat34::Zero());
-        Pose[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
-        Pose[key_frame_num - 1].block<3, 3>(0, 0) = relative_R;
-        Pose[key_frame_num - 1].block<3, 1>(0, 3) = relative_T;
-        triangulateTwoFrames(big_parallax_frame_id, Pose[big_parallax_frame_id],
-                             key_frame_num - 1, Pose[key_frame_num - 1], sfm_features);
+        std::vector<Mat34> kf_poses(key_frame_num, Mat34::Zero());
+        kf_poses[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+        kf_poses[key_frame_num - 1].block<3, 3>(0, 0) = relative_R;
+        kf_poses[key_frame_num - 1].block<3, 1>(0, 3) = relative_T;
+        triangulateTwoFrames(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
+                             key_frame_num - 1, kf_poses[key_frame_num - 1], sfm_features);
 
         // 2: solve pnp [l+1, frame_num-2]
         // triangulate [l+1, frame_num-2] <-> frame_num-1;
-        for (int frame_id = big_parallax_frame_id + 1; frame_id < key_frame_num - 1; frame_id++) {
+        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < key_frame_num - 1; frame_idx++) {
             // solve pnp
-            Eigen::Matrix3d R_initial = Pose[frame_id - 1].block<3, 3>(0, 0);
-            Eigen::Vector3d P_initial = Pose[frame_id - 1].block<3, 1>(0, 3);
+            Eigen::Matrix3d R_initial = kf_poses[frame_idx - 1].block<3, 3>(0, 0);
+            Eigen::Vector3d P_initial = kf_poses[frame_idx - 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
-            calcFeaturePtsInFrame(sfm_features, frame_id, pts_2_vector, pts_3_vector);
+            calcFeaturePtsInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial))
                 return false;
-            Pose[frame_id].block<3, 3>(0, 0) = R_initial;
-            Pose[frame_id].block<3, 1>(0, 3) = P_initial;
+            kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
+            kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
 
             // triangulate point based on to solve pnp result
-            triangulateTwoFrames(frame_id, Pose[frame_id], key_frame_num - 1, Pose[key_frame_num - 1], sfm_features);
+            triangulateTwoFrames(frame_idx, kf_poses[frame_idx], key_frame_num - 1, kf_poses[key_frame_num - 1], sfm_features);
         }
 
         //3: triangulate l <-> [l+1, frame_num -2]
-        for (int frame_id = big_parallax_frame_id + 1; frame_id < key_frame_num - 1; frame_id++) {
-            triangulateTwoFrames(big_parallax_frame_id, Pose[big_parallax_frame_id], frame_id, Pose[frame_id], sfm_features);
+        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < key_frame_num - 1; frame_idx++) {
+            triangulateTwoFrames(big_parallax_frame_id, kf_poses[big_parallax_frame_id], frame_idx, kf_poses[frame_idx], sfm_features);
         }
 
         // 4: solve pnp for frame [0, l-1]
         //    triangulate [0, l-1] <-> l
-        for (int frame_id = big_parallax_frame_id - 1; frame_id >= 0; frame_id--) {
+        for (int frame_idx = big_parallax_frame_id - 1; frame_idx >= 0; frame_idx--) {
             //solve pnp
-            Eigen::Matrix3d R_initial = Pose[frame_id + 1].block<3, 3>(0, 0);
-            Eigen::Vector3d P_initial = Pose[frame_id + 1].block<3, 1>(0, 3);
+            Eigen::Matrix3d R_initial = kf_poses[frame_idx + 1].block<3, 3>(0, 0);
+            Eigen::Vector3d P_initial = kf_poses[frame_idx + 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
-            calcFeaturePtsInFrame(sfm_features, frame_id, pts_2_vector, pts_3_vector);
+            calcFeaturePtsInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial)) {
                 return false;
             }
-            Pose[frame_id].block<3, 3>(0, 0) = R_initial;
-            Pose[frame_id].block<3, 1>(0, 3) = P_initial;
+            kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
+            kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
             //triangulate
-            triangulateTwoFrames(frame_id, Pose[frame_id], big_parallax_frame_id, Pose[big_parallax_frame_id], sfm_features);
+            triangulateTwoFrames(frame_idx, kf_poses[frame_idx], big_parallax_frame_id, kf_poses[big_parallax_frame_id], sfm_features);
         }
 
         //5: triangulate all others points
@@ -209,11 +209,11 @@ namespace vins {
             if (sfm.has_been_triangulated || sfm.feature.points.size() < 2) {
                 continue;
             }
-            int frame_0 = sfm.feature.start_frame;
+            int frame_0 = sfm.feature.start_kf_idx;
             cv::Point2f point0 = sfm.feature.points.front();
-            int frame_1 = sfm.feature.start_frame + (int )sfm.feature.points.size();
+            int frame_1 = sfm.feature.start_kf_idx + (int )sfm.feature.points.size();
             cv::Point2f point1 = sfm.feature.points.back();
-            sfm.position = triangulatePoint(Pose[frame_0], Pose[frame_1], point0, point1);
+            sfm.position = triangulatePoint(kf_poses[frame_0], kf_poses[frame_1], point0, point1);
             sfm.has_been_triangulated = true;
         }
 
@@ -223,8 +223,8 @@ namespace vins {
         double c_key_frames_rot[key_frame_num][4];
         double c_key_frames_pos[key_frame_num][3];
         for (int i = 0; i < key_frame_num; i++) {
-            utils::quat2array(Eigen::Quaterniond(Pose[i].block<3, 3>(0, 0)), c_key_frames_rot[i]);
-            utils::vec3d2array(Pose[i].block<3, 1>(0, 3), c_key_frames_pos[i]);
+            utils::quat2array(Eigen::Quaterniond(kf_poses[i].block<3, 3>(0, 0)), c_key_frames_rot[i]);
+            utils::vec3d2array(kf_poses[i].block<3, 1>(0, 3), c_key_frames_pos[i]);
             problem.AddParameterBlock(c_key_frames_rot[i], 4, quat_manifold);
             problem.AddParameterBlock(c_key_frames_pos[i], 3);
             if (i == big_parallax_frame_id) {
