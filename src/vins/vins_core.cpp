@@ -121,63 +121,54 @@ namespace vins {
                                         feature_id_2_idx_after_discard);
         }
 
-        switch (vins_state_) {
-            case EVinsState::kEstimateExtrinsic:
-                vins_state_ = _handleEstimateExtrinsic();
-                break;
-            case EVinsState::kInitial:
-                vins_state_ = _handleInitial(time_stamp);
-                break;
-            case EVinsState::kNormal:
-                if (!is_key_frame) {
-                    return;
-                }
-                vins_state_ = _handleNormal(_img);
-                break;
+        /******************初始化RIC*******************/
+        if (vins_state_ == EVinsState::kEstimateExtrinsic) {
+            if (run_info_->frame_window.size() < 2) {
+                return;
+            }
+            int cur_kf_window_size = run_info_->kf_state_window.size();
+            PointCorrespondences correspondences = FeatureHelper::getCorrespondences(cur_kf_window_size - 1,
+                                                                                     cur_kf_window_size,
+                                                                                     run_info_->feature_window);
+            Eigen::Quaterniond imu_quat = run_info_->pre_int_window.back().deltaQuat();
+            bool succ = ric_estimator_->estimate(correspondences, imu_quat, run_info_->ric);
+            if (!succ) {
+                LOG_E("estimate extrinsic false, please rotate rapidly");
+                return;
+            }
+            vins_state_ = EVinsState::kInitial;
+            return;
         }
-    }
 
-    VinsCore::EVinsState VinsCore::_handleEstimateExtrinsic() {
-        if (run_info_->frame_window.size() < 2) {
-            return EVinsState::kEstimateExtrinsic;
+        /******************初始化系统状态、机体坐标系*******************/
+        if (vins_state_ == EVinsState::kInitial) {
+            if (time_stamp - last_init_time_stamp_ < 0.1) {
+                return;
+            }
+            last_init_time_stamp_ = time_stamp;
+            bool rtn = Initiate::initiate(param_->gravity_norm, *run_info_);
+            if (!rtn) {
+                return;
+            }
+            vins_state_ = EVinsState::kNormal;
+            return;
         }
-        int cur_kf_window_size = run_info_->kf_state_window.size();
-        PointCorrespondences correspondences = FeatureHelper::getCorrespondences(cur_kf_window_size - 1,
-                                                                                 cur_kf_window_size,
-                                                                                 run_info_->feature_window);
-        Eigen::Quaterniond imu_quat = run_info_->frame_window.back().pre_integral_->deltaQuat();
-        bool succ = ric_estimator_->estimate(correspondences, imu_quat, run_info_->ric);
-        if (!succ) {
-            LOG_E("estimate extrinsic false, please rotate rapidly");
-            return EVinsState::kEstimateExtrinsic;
-        }
-        return EVinsState::kInitial;
-    }
 
-    VinsCore::EVinsState VinsCore::_handleInitial(double time_stamp) {
-        if (time_stamp - last_init_time_stamp_ < 0.1) {
-            return EVinsState::kInitial;
-        }
-        last_init_time_stamp_ = time_stamp;
-        bool rtn = Initiate::initiate(param_->gravity_norm, *run_info_);
-        if (!rtn) {
-            return EVinsState::kInitial;
-        }
-        return EVinsState::kNormal;
-    }
-
-    VinsCore::EVinsState VinsCore::_handleNormal(const cv::Mat &_img) {
+        /******************滑窗优化*******************/
         SlideWindowEstimator::optimize(param_->slide_window,
                                        run_info_->feature_window,
                                        run_info_->kf_state_window,
                                        run_info_->pre_int_window,
                                        run_info_->tic,
                                        run_info_->ric);
+
+        /******************错误检测*******************/
         bool fail;
         if (fail) {
             delete run_info_;
             run_info_ = new RunInfo;
-            return EVinsState::kInitial;
+            vins_state_ = EVinsState::kInitial;
+            return;
         }
 
         /******************准备回环*******************/
@@ -203,6 +194,6 @@ namespace vins {
                                   key_pts_3d,
                                   external_key_points_un_normalized,
                                   external_key_pts2d);
-        return EVinsState::kNormal;
+        // todo SlideWindowEstimator::setLoopMatchInfo
     }
 }
