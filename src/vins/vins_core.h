@@ -37,7 +37,7 @@ namespace vins{
         } vins_state_ = EVinsState::kNoIMUData;
         EVinsState _handleEstimateExtrinsic();
         EVinsState _handleInitial(double time_stamp);
-        EVinsState _handleNormal(const cv::Mat &_img, bool is_key_frame);
+        EVinsState _handleNormal(const cv::Mat &_img);
         std::shared_ptr<ImuIntegrator> _readIMUBuffer(double time_stamp);
 
     private:
@@ -45,8 +45,6 @@ namespace vins{
         std::shared_ptr<ImuIntegrator> cur_pre_integral_ptr_;
 
         double last_init_time_stamp_ = 0.0;
-
-        int cur_frame_id_;
 
         RICEstimator *ric_estimator_;
         FeatureTracker *feature_tracker_;

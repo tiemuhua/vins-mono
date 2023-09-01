@@ -33,13 +33,13 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
 }
 
 bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
-    if (!isAccVariantBigEnough(run_info.all_frames)) {
+    if (!isAccVariantBigEnough(run_info.frame_window)) {
         return false;
     }
 
-    bool visual_succ = initiateByVisual(run_info.state_window.size(),
+    bool visual_succ = initiateByVisual(run_info.kf_state_window.size(),
                                         run_info.feature_window,
-                                        run_info.all_frames);
+                                        run_info.frame_window);
     if (!visual_succ) {
         return false;
     }
@@ -51,7 +51,7 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
     bool align_succ = alignVisualAndInertial(gravity_norm,
                                              run_info.tic,
                                              run_info.ric,
-                                             run_info.all_frames,
+                                             run_info.frame_window,
                                              run_info.gravity,
                                              delta_bg,
                                              rot_diff,
@@ -61,11 +61,11 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
         return false;
     }
 
-    auto &state_window = run_info.state_window;
-    auto &all_frames = run_info.all_frames;
+    auto &state_window = run_info.kf_state_window;
+    auto &all_frames = run_info.frame_window;
     auto &TIC = run_info.tic;
     auto RIC = run_info.ric;
-    for (State & state : state_window) {
+    for (KeyFrameState & state : state_window) {
         state.bg = state.bg + delta_bg;
     }
     int frame_size = (int )all_frames.size();
@@ -91,7 +91,7 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
     //triangulate on cam pose , no tic
     //计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
     for (Feature &feature: run_info.feature_window) {
-        if (!(feature.points.size() >= 2 && feature.start_kf_idx < run_info.state_window.size() - 2))
+        if (!(feature.points.size() >= 2 && feature.start_kf_idx < run_info.kf_state_window.size() - 2))
             continue;
 
         Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);

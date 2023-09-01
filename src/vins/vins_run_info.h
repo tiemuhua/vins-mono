@@ -13,7 +13,7 @@
 #include "imu_integrator.h"
 
 namespace vins {
-    struct State {
+    struct KeyFrameState {
         Eigen::Vector3d pos = Eigen::Vector3d::Zero();
         Eigen::Matrix3d rot = Eigen::Matrix3d::Identity();
         Eigen::Vector3d vel = Eigen::Vector3d::Zero();
@@ -26,14 +26,14 @@ namespace vins {
         Eigen::Matrix3d ric;
         Eigen::Vector3d gravity;
 
-        // 关键帧的滑动窗口，大小都是Param.window_size
-        std::vector<State> state_window;
+        // 所有帧
+        std::vector<Frame> frame_window;
+        // 关键帧，大小为Param.window_size
+        std::vector<KeyFrameState> kf_state_window;
+        // 预积分，大小为Param.window_size-1
         std::vector<ImuIntegrator> pre_int_window;
-
-        // 滑动窗口中所有关键帧所观测到的特征点的集合
+        // 滑窗中关键帧所观测到的特征点的集合
         std::vector<Feature> feature_window;
-
-        std::vector<Frame> all_frames;
     };
 }
 

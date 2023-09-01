@@ -44,7 +44,7 @@ static vins::LoopMatchInfo* sp_loop_match_info;
 using namespace vins;
 using namespace std;
 
-static void eigen2c(const std::vector<State>& window,
+static void eigen2c(const std::vector<KeyFrameState>& window,
                     const std::vector<Feature> &feature_window,
                     const Eigen::Vector3d& tic,
                     const Eigen::Matrix3d &ric){
@@ -67,7 +67,7 @@ static void eigen2c(const std::vector<State>& window,
     utils::quat2array(Eigen::Quaterniond(ric), c_ric);
 }
 
-static void c2eigen(std::vector<State>& window,
+static void c2eigen(std::vector<KeyFrameState>& window,
                     std::vector<Feature> &feature_window,
                     Eigen::Vector3d& tic,
                     Eigen::Matrix3d &ric) {
@@ -96,7 +96,7 @@ void SlideWindowEstimator::setLoopMatchInfo(vins::LoopMatchInfo* loop_match_info
 
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
                                     std::vector<Feature> &feature_window,
-                                    std::vector<State>& state_window,
+                                    std::vector<KeyFrameState>& state_window,
                                     std::vector<ImuIntegrator>& pre_int_window,
                                     Eigen::Vector3d &tic,
                                     Eigen::Matrix3d &ric) {
@@ -286,7 +286,7 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
 
 void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
                                  std::vector<Feature> &feature_window,
-                                 std::vector<State>& state_window,
+                                 std::vector<KeyFrameState>& state_window,
                                  std::vector<ImuIntegrator>& pre_int_window) {
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
