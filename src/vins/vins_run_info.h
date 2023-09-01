@@ -19,6 +19,7 @@ namespace vins {
         Eigen::Vector3d vel = Eigen::Vector3d::Zero();
         Eigen::Vector3d ba = Eigen::Vector3d::Zero();
         Eigen::Vector3d bg = Eigen::Vector3d::Zero();
+        double time_stamp;
     };
 
     struct RunInfo {

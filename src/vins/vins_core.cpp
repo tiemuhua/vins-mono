@@ -14,8 +14,8 @@
 #include "camera_wrapper.h"
 #include "log.h"
 
-namespace vins{
-    VinsCore::VinsCore(Param* param) {
+namespace vins {
+    VinsCore::VinsCore(Param *param) {
         run_info_ = new RunInfo();
         param_ = param;
         ric_estimator_ = new RICEstimator(param->window_size);
@@ -45,10 +45,10 @@ namespace vins{
 
     static const Eigen::Vector3d zero = Eigen::Vector3d::Zero();
 
-    static KeyFrameState recurseByImu(const KeyFrameState& prev_state, const ImuIntegrator& pre_integral) {
-        const Eigen::Vector3d& delta_pos = pre_integral.deltaPos();
-        const Eigen::Vector3d& delta_vel = pre_integral.deltaVel();
-        const Eigen::Quaterniond& delta_quat = pre_integral.deltaQuat();
+    static KeyFrameState recurseByImu(const KeyFrameState &prev_state, const ImuIntegrator &pre_integral) {
+        const Eigen::Vector3d &delta_pos = pre_integral.deltaPos();
+        const Eigen::Vector3d &delta_vel = pre_integral.deltaVel();
+        const Eigen::Quaterniond &delta_quat = pre_integral.deltaQuat();
 
         Eigen::Vector3d prev_pos = prev_state.pos;
         Eigen::Vector3d prev_vel = prev_state.vel;
@@ -84,10 +84,41 @@ namespace vins{
         }
 
         if (is_key_frame) {
-            FeatureHelper::addFeatures(prev_kf_window_size, time_stamp, std::move(feature_points), run_info_->feature_window);
-            run_info_->kf_state_window.emplace_back(recurseByImu(run_info_->kf_state_window.back(), *cur_pre_integral_ptr_));
+            FeatureHelper::addFeatures(prev_kf_window_size, time_stamp, std::move(feature_points),
+                                       run_info_->feature_window);
+            run_info_->kf_state_window.emplace_back(
+                    recurseByImu(run_info_->kf_state_window.back(), *cur_pre_integral_ptr_));
             run_info_->pre_int_window.emplace_back(*cur_pre_integral_ptr_);
             cur_pre_integral_ptr_ = std::make_shared<ImuIntegrator>(param_->imu_param, s_prev_imu_input, zero);
+        }
+
+        /******************扔掉最老的关键帧并边缘化*******************/
+        std::unordered_map<int, int> feature_id_2_idx_origin =
+                FeatureHelper::getFeatureId2Index(run_info_->feature_window);
+        auto oldest_features_begin = std::remove_if(run_info_->feature_window.begin(),
+                                                    run_info_->feature_window.end(), [](const Feature &feature) {
+                    return feature.start_kf_idx == 0;
+                });
+        std::vector<Feature> oldest_feature(oldest_features_begin, run_info_->feature_window.end());
+        run_info_->feature_window.erase(oldest_features_begin, run_info_->feature_window.end());
+        std::unordered_map<int, int> feature_id_2_idx_after_discard =
+                FeatureHelper::getFeatureId2Index(run_info_->feature_window);
+        for (Feature &feature: run_info_->feature_window) {
+            feature.start_kf_idx--;
+        }
+        run_info_->frame_window.erase(
+                run_info_->frame_window.begin(),
+                std::find_if(run_info_->frame_window.begin(), run_info_->frame_window.end(), [&](const Frame &frame) {
+                    return frame.time_stamp > run_info_->kf_state_window.begin()->time_stamp;
+                }));
+        run_info_->kf_state_window.erase(run_info_->kf_state_window.begin());
+        run_info_->pre_int_window.erase(run_info_->pre_int_window.begin());
+        if (vins_state_ == EVinsState::kNormal) {
+            SlideWindowEstimator::slide(*param_,
+                                        oldest_feature,
+                                        run_info_->pre_int_window.front(),
+                                        feature_id_2_idx_origin,
+                                        feature_id_2_idx_after_discard);
         }
 
         switch (vins_state_) {
@@ -106,7 +137,7 @@ namespace vins{
         }
     }
 
-    VinsCore::EVinsState VinsCore::_handleEstimateExtrinsic(){
+    VinsCore::EVinsState VinsCore::_handleEstimateExtrinsic() {
         if (run_info_->frame_window.size() < 2) {
             return EVinsState::kEstimateExtrinsic;
         }
@@ -123,7 +154,7 @@ namespace vins{
         return EVinsState::kInitial;
     }
 
-    VinsCore::EVinsState VinsCore::_handleInitial(double time_stamp){
+    VinsCore::EVinsState VinsCore::_handleInitial(double time_stamp) {
         if (time_stamp - last_init_time_stamp_ < 0.1) {
             return EVinsState::kInitial;
         }
@@ -135,12 +166,7 @@ namespace vins{
         return EVinsState::kNormal;
     }
 
-    VinsCore::EVinsState VinsCore::_handleNormal(const cv::Mat &_img){
-        // todo 不是normal状态的时候怎么滑
-        SlideWindowEstimator::slide(param_->slide_window,
-                                    run_info_->feature_window,
-                                    run_info_->kf_state_window,
-                                    run_info_->pre_int_window);
+    VinsCore::EVinsState VinsCore::_handleNormal(const cv::Mat &_img) {
         SlideWindowEstimator::optimize(param_->slide_window,
                                        run_info_->feature_window,
                                        run_info_->kf_state_window,
@@ -168,7 +194,7 @@ namespace vins{
         std::vector<cv::KeyPoint> external_key_points_un_normalized;
         cv::FAST(_img, external_key_points_un_normalized, fast_th, true);
         std::vector<cv::Point2f> external_key_pts2d;
-        for (const cv::KeyPoint & keypoint : external_key_points_un_normalized) {
+        for (const cv::KeyPoint &keypoint: external_key_points_un_normalized) {
             external_key_pts2d.push_back(camera_wrapper_->rawPoint2UniformedPoint(keypoint.pt));
         }
 

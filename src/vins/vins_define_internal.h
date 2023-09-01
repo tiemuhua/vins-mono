@@ -70,6 +70,7 @@ namespace vins {
         Eigen::Vector3d T;
         std::shared_ptr<ImuIntegrator> pre_integral_;
         bool is_key_frame_ = false;
+        double time_stamp = -1;
     };
 
     struct LoopMatchInfo {

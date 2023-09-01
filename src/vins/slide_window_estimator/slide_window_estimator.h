@@ -17,10 +17,11 @@ namespace vins::SlideWindowEstimator{
                   std::vector<ImuIntegrator>& pre_int_window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
-    void slide(const SlideWindowEstimatorParam &param,
-               std::vector<Feature> &feature_window,
-               std::vector<KeyFrameState>& state_window,
-               std::vector<ImuIntegrator>& pre_int_window);
+    void slide(const Param &param,
+               const std::vector<Feature> &oldest_features,
+               const ImuIntegrator& oldest_pre_integral,
+               const std::unordered_map<int, int> &feature_id_2_idx_origin,
+               const std::unordered_map<int, int> &feature_id_2_idx_after_discard);
 }
 
 #endif //VINS_BATCH_ADJUSTER_H

@@ -211,8 +211,8 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
 }
 
 static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
-                                 const std::vector<Feature> &feature_window,
-                                 const std::vector<ImuIntegrator>& pre_int_window,
+                                 const std::vector<Feature> &oldest_features,
+                                 const ImuIntegrator& oldest_pre_integral,
                                  std::vector<double *> &reserve_block_origin) {
     auto *marginal_info = new MarginalInfo();
 
@@ -229,7 +229,7 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
     }
 
     // 最老帧的imu约束
-    auto *imu_cost = new IMUCost(pre_int_window.at(0));
+    auto *imu_cost = new IMUCost(oldest_pre_integral);
     vector<double *> imu_param_blocks = {
             c_pos[0], c_quat[0], c_vel[0], c_ba[0], c_bg[0],
             c_pos[1], c_quat[1], c_vel[1], c_ba[1], c_bg[1],
@@ -240,11 +240,8 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
 
     // 最老帧的视觉约束
     const vector<int> visual_discard_set = {0, 1, 6};
-    for (int feature_idx = 0; feature_idx < feature_window.size(); ++feature_idx) {
-        const Feature& feature = feature_window[feature_idx];
-        if (feature.start_kf_idx != 0) {
-            continue;
-        }
+    for (int feature_idx = 0; feature_idx < oldest_features.size(); ++feature_idx) {
+        const Feature& feature = oldest_features[feature_idx];
         const cv::Point2f & point0 = feature.points[0];
         const cv::Point2f & vel0 = feature.velocities[0];
         const double time_stamp0 = feature.time_stamps_ms[0];
@@ -284,35 +281,23 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
     return marginal_info;
 }
 
-void SlideWindowEstimator::slide(const SlideWindowEstimatorParam &param,
-                                 std::vector<Feature> &feature_window,
-                                 std::vector<KeyFrameState>& state_window,
-                                 std::vector<ImuIntegrator>& pre_int_window) {
+void SlideWindowEstimator::slide(const Param &param,
+                                 const std::vector<Feature> &oldest_features,
+                                 const ImuIntegrator& oldest_pre_integral,
+                                 const std::unordered_map<int, int> &feature_id_2_idx_origin,
+                                 const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
-    sp_marginal_info = marginalize(param, feature_window, pre_int_window, reserve_block_origin);
-
-    // 维护feature_window
-    std::unordered_map<int, int> feature_id_2_idx_origin = FeatureHelper::getFeatureId2Index(feature_window);
-    feature_window.erase(std::remove_if(feature_window.begin(), feature_window.end(), [](const Feature& feature) {
-        return feature.start_kf_idx == 0;
-    }), feature_window.end());
-    std::unordered_map<int, int> feature_id_2_idx_after_discard = FeatureHelper::getFeatureId2Index(feature_window);
-    for (Feature &feature:feature_window) {
-        feature.start_kf_idx--;
-    }
-
-    state_window.erase(state_window.begin());
-    pre_int_window.erase(pre_int_window.begin());
+    sp_marginal_info = marginalize(param.slide_window, oldest_features, oldest_pre_integral, reserve_block_origin);
 
     std::unordered_map<double*, double*> slide_addr_map;
     for (const auto &id2idx_origin : feature_id_2_idx_origin) {
         int id = id2idx_origin.first;
         int idx_origin = id2idx_origin.second;
-        int idx_after_discard = feature_id_2_idx_after_discard[id];
+        int idx_after_discard = feature_id_2_idx_after_discard.at(id);
         slide_addr_map[c_inv_depth[idx_origin]] = c_inv_depth[idx_after_discard];
     }
-    for (int frame_idx = 0; frame_idx < state_window.size() - 1; ++frame_idx) {
+    for (int frame_idx = 0; frame_idx < param.window_size - 1; ++frame_idx) {
         slide_addr_map[c_pos[frame_idx]] = c_pos[frame_idx + 1];
         slide_addr_map[c_quat[frame_idx]] = c_quat[frame_idx + 1];
         slide_addr_map[c_vel[frame_idx]] = c_vel[frame_idx + 1];
