@@ -147,16 +147,20 @@ namespace vins{
                                        run_info_->pre_int_window,
                                        run_info_->tic,
                                        run_info_->ric);
-        // todo 失败检测与状态恢复
         bool fail;
         if (fail) {
+            delete run_info_;
+            run_info_ = new RunInfo;
             return EVinsState::kInitial;
         }
 
-        // todo 如果有个特征点第一帧不是关键帧，应该怎么办？
+        /******************准备回环*******************/
         std::vector<cv::Point3f> key_pts_3d;
-        for (const cv::Point2f &p2d:run_info_->frame_window.back().points) {
-            double depth = -1; // todo
+        int key_pts_num = run_info_->frame_window.back().points.size();
+        for (int i = 0; i < key_pts_num; ++i) {
+            cv::Point2f p2d = run_info_->frame_window.back().points[i];
+            double depth = FeatureHelper::featureIdToDepth(run_info_->frame_window.back().feature_ids[i],
+                                                           run_info_->feature_window);
             key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
