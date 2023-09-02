@@ -97,7 +97,7 @@ void SlideWindowEstimator::setLoopMatchInfo(vins::LoopMatchInfo* loop_match_info
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
                                     std::vector<Feature> &feature_window,
                                     std::vector<KeyFrameState>& state_window,
-                                    std::vector<ImuIntegrator>& pre_int_window,
+                                    std::vector<ImuIntegratorPtr>& pre_int_window,
                                     Eigen::Vector3d &tic,
                                     Eigen::Matrix3d &ric) {
     eigen2c(state_window, feature_window, tic, ric);
@@ -135,9 +135,9 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     /*************** 2:IMU **************************/
     for (int i = 0; i < pre_int_window.size(); i++) {
         int j = i + 1;
-        if (pre_int_window.at(i).deltaTime() > 10.0)// todo why???
+        if (pre_int_window.at(i)->deltaTime() > 10.0)// todo why???
             continue;
-        auto *cost_function = new IMUCost(pre_int_window.at(i));
+        auto *cost_function = new IMUCost(*pre_int_window.at(i));
         problem.AddResidualBlock(cost_function, nullptr,
                                  c_pos[i], c_quat[i], c_vel[i], c_ba[i], c_bg[i],
                                  c_pos[j], c_quat[j], c_vel[j], c_ba[j], c_bg[j]);

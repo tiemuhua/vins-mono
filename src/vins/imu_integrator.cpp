@@ -8,22 +8,27 @@
 
 using namespace Eigen;
 namespace vins {
-    ImuIntegrator::ImuIntegrator(double ACC_N,double ACC_W, double GYR_N, double GYR_W,
-                                 double time_stamp, Eigen::Vector3d acc, Eigen::Vector3d gyr,
-                                 Eigen::Vector3d ba, Eigen::Vector3d bg, Eigen::Vector3d gravity):
-            ba_{std::move(ba)},
-            bg_{std::move(bg)},
+    ImuIntegrator::ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity):
+            ba_{std::move(prev_imu_state.ba)},
+            bg_{std::move(prev_imu_state.bg)},
             gravity_(std::move(gravity)) {
-        acc_buf_.emplace_back(std::move(acc));
-        gyr_buf_.emplace_back(std::move(gyr));
-        time_stamp_buf_.emplace_back(time_stamp);
+        acc_buf_.emplace_back(std::move(prev_imu_state.acc));
+        gyr_buf_.emplace_back(std::move(prev_imu_state.gyr));
+        time_stamp_buf_.emplace_back(prev_imu_state.time_stamp);
 
-        noise_.block<3, 3>(0, 0) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(3, 3) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(6, 6) = (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(9, 9) = (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(12, 12) = (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(15, 15) = (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(0, 0) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(3, 3) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(6, 6) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(9, 9) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(12, 12) = (imu_param.ACC_W * imu_param.ACC_W) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(15, 15) = (imu_param.GYR_W * imu_param.GYR_W) * Eigen::Matrix3d::Identity();
+    }
+
+    void ImuIntegrator::jointLaterIntegrator(const ImuIntegrator &later_int) {
+        int size = later_int.time_stamp_buf_.size();
+        for (int i = 1; i < size; ++i) {
+            predict(later_int.time_stamp_buf_[i], later_int.acc_buf_[i], later_int.gyr_buf_[i]);
+        }
     }
 
     ImuIntegrator::State ImuIntegrator::evaluate(

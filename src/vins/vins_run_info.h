@@ -32,9 +32,11 @@ namespace vins {
         // 关键帧，大小为Param.window_size
         std::vector<KeyFrameState> kf_state_window;
         // 预积分，大小为Param.window_size-1
-        std::vector<ImuIntegrator> pre_int_window;
+        std::vector<ImuIntegratorPtr> pre_int_window;
         // 滑窗中关键帧所观测到的特征点的集合
         std::vector<Feature> feature_window;
+
+        PrevIMUState prev_imu_state;
     };
 }
 

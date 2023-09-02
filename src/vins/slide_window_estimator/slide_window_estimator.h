@@ -14,7 +14,7 @@ namespace vins::SlideWindowEstimator{
     void optimize(const SlideWindowEstimatorParam &param,
                   std::vector<Feature> &feature_window,
                   std::vector<KeyFrameState>& state_window,
-                  std::vector<ImuIntegrator>& pre_int_window,
+                  std::vector<ImuIntegratorPtr>& pre_int_window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
     void slide(const Param &param,

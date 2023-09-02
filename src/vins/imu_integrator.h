@@ -25,7 +25,7 @@ namespace vins {
         O_GW = 9
     };
 
-    struct PrevIMUInput {
+    struct PrevIMUState {
         Eigen::Vector3d acc = Eigen::Vector3d::Zero();
         Eigen::Vector3d gyr = Eigen::Vector3d::Zero();
         double time_stamp = 0;
@@ -42,12 +42,13 @@ namespace vins {
         typedef Eigen::Matrix<double, StateDim, 1> State;
 
         ImuIntegrator() = delete;
-        ImuIntegrator(IMUParam imu_param, PrevIMUInput prev_imu_imput, Eigen::Vector3d gravity);
+        ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity);
 
         void predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr);
         void rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg);
         [[nodiscard]] State evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
                                      ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
+        void jointLaterIntegrator(const ImuIntegrator &later_int);
 
         [[nodiscard]] const Eigen::Vector3d& deltaPos() const {
             return pos_;
@@ -74,6 +75,11 @@ namespace vins {
             return bg_;
         }
 
+    public:
+        std::vector<double> time_stamp_buf_;
+        std::vector<Eigen::Vector3d> acc_buf_;
+        std::vector<Eigen::Vector3d> gyr_buf_;
+
     private:
         static void midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
                                      double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
@@ -93,9 +99,6 @@ namespace vins {
         Covariance covariance_ = Covariance::Zero();
         Noise noise_ = Noise::Zero();
 
-        std::vector<double> time_stamp_buf_;
-        std::vector<Eigen::Vector3d> acc_buf_;
-        std::vector<Eigen::Vector3d> gyr_buf_;
     };
     typedef std::shared_ptr<ImuIntegrator> ImuIntegratorPtr;
 }
