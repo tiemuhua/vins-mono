@@ -1,12 +1,14 @@
 #include "feature_helper.h"
 #include "log.h"
-#include "vins/impl/param.h"
+#include "vins/param.h"
 
 namespace vins {
     using namespace std;
     using namespace Eigen;
 
-    bool FeatureHelper::isKeyFrame(int frame_idx,
+    bool FeatureHelper::isKeyFrame(const int key_frame_idx,
+                                   const double focal,
+                                   const double kf_parallax_threshold,
                                    const std::vector<FeaturePoint2D> &feature_points,
                                    const std::vector<Feature>& feature_window) {
         LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )feature_window.size());
@@ -22,15 +24,15 @@ namespace vins {
             }
         }
 
-        if (frame_idx < 2 || last_track_num < 20)
+        if (key_frame_idx < 2 || last_track_num < 20)
             return true;
 
         int parallax_num = 0;
         double parallax_sum = 0;
         for (const Feature &feature: feature_window) {
-            if (feature.start_kf_window_idx <= frame_idx - 2 && feature.start_kf_window_idx + int(feature.points.size()) >= frame_idx) {
-                cv::Point2f p_i = feature.points[frame_idx - 2 - feature.start_kf_window_idx];
-                cv::Point2f p_j = feature.points[frame_idx - 1 - feature.start_kf_window_idx];
+            if (feature.start_kf_window_idx <= key_frame_idx - 2 && feature.start_kf_window_idx + int(feature.points.size()) >= key_frame_idx) {
+                cv::Point2f p_i = feature.points[key_frame_idx - 2 - feature.start_kf_window_idx];
+                cv::Point2f p_j = feature.points[key_frame_idx - 1 - feature.start_kf_window_idx];
                 parallax_sum += cv::norm(p_i - p_j);
                 parallax_num++;
             }
@@ -40,8 +42,8 @@ namespace vins {
             return true;
         }
         LOG_I("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
-        LOG_I("current parallax: %lf", parallax_sum / parallax_num * Param::Instance().camera.focal);
-        return parallax_sum / parallax_num >= Param::Instance().key_frame_parallax_threshold;
+        LOG_I("current parallax: %lf", parallax_sum / parallax_num * focal);
+        return parallax_sum / parallax_num >= kf_parallax_threshold;
     }
 
     void FeatureHelper::addFeatures(int frame_idx, double time_stamp,
@@ -83,5 +85,17 @@ namespace vins {
             id2index[feature_window[i].feature_id] = i;
         }
         return id2index;
+    }
+
+    double featureIdToDepth(const int feature_id, const std::vector<Feature>& feature_window) {
+        auto it = std::find_if(feature_window.begin(), feature_window.end(), [feature_id](const Feature&feature) {
+            return feature.feature_id == feature_id;
+        });
+        if (it == feature_window.end()) {
+            assert(false);
+            return -1;
+        }
+        assert(it->inv_depth > 0);
+        return 1.0 / it->inv_depth;
     }
 }

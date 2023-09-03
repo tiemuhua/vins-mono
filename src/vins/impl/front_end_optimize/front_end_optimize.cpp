@@ -2,7 +2,7 @@
 // Created by gjt on 5/14/23.
 //
 
-#include "front_end.h"
+#include "front_end_optimize.h"
 
 #include <ceres/ceres.h>
 
@@ -88,13 +88,13 @@ static void c2eigen(std::vector<KeyFrameState>& window,
     ric = utils::array2quat(c_ric).toRotationMatrix();
 }
 
-void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
-                                    const std::vector<ImuIntegratorPtr>& pre_int_window,
-                                    const std::vector<vins::LoopMatchInfo> &loop_match_infos,
-                                    std::vector<Feature> &feature_window,
-                                    std::vector<KeyFrameState>& state_window,
-                                    Eigen::Vector3d &tic,
-                                    Eigen::Matrix3d &ric) {
+void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
+                                const std::vector<ImuIntegratorPtr>& pre_int_window,
+                                const std::vector<vins::LoopMatchInfo> &loop_match_infos,
+                                std::vector<Feature> &feature_window,
+                                std::vector<KeyFrameState>& state_window,
+                                Eigen::Vector3d &tic,
+                                Eigen::Matrix3d &ric) {
     eigen2c(state_window, feature_window, tic, ric);
 
     ceres::Problem problem;
@@ -201,10 +201,10 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
 
-    eigen2c(state_window, feature_window, tic, ric);
+    c2eigen(state_window, feature_window, tic, ric);
 }
 
-static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
+static MarginalInfo* marginalize(const FrontEndOptimizeParam &param,
                                  const std::vector<Feature> &oldest_features,
                                  const ImuIntegrator& oldest_pre_integral,
                                  std::vector<double *> &reserve_block_origin) {
@@ -275,11 +275,11 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
     return marginal_info;
 }
 
-void SlideWindowEstimator::slide(const Param &param,
-                                 const std::vector<Feature> &oldest_features,
-                                 const ImuIntegrator& oldest_pre_integral,
-                                 const std::unordered_map<int, int> &feature_id_2_idx_origin,
-                                 const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
+void FrontEndOptimize::slide(const Param &param,
+                             const std::vector<Feature> &oldest_features,
+                             const ImuIntegrator& oldest_pre_integral,
+                             const std::unordered_map<int, int> &feature_id_2_idx_origin,
+                             const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
     sp_marginal_info = marginalize(param.slide_window, oldest_features, oldest_pre_integral, reserve_block_origin);

@@ -5,12 +5,12 @@
 #ifndef VINS_BATCH_ADJUSTER_H
 #define VINS_BATCH_ADJUSTER_H
 
+#include "vins/param.h"
 #include "vins/impl/vins_define_internal.h"
-#include "vins/impl/param.h"
 #include "vins/impl/feature_helper.h"
 
-namespace vins::SlideWindowEstimator{
-    void optimize(const SlideWindowEstimatorParam &param,
+namespace vins::FrontEndOptimize {
+    void optimize(const FrontEndOptimizeParam &param,
                   const std::vector<ImuIntegratorPtr>& pre_int_window,
                   const std::vector<vins::LoopMatchInfo> &loop_match_infos,
                   std::vector<Feature> &feature_window,

@@ -19,7 +19,7 @@ namespace vins {
         int min_dist;
         int max_cnt;
     };
-    struct SlideWindowEstimatorParam{
+    struct FrontEndOptimizeParam{
         bool fix_extrinsic = false;
         bool estimate_time_delay = true;
         int max_iter_num = 100;
@@ -35,7 +35,7 @@ namespace vins {
     public:
         CameraParam camera;
         FrameTrackerParam frame_tracker;
-        SlideWindowEstimatorParam slide_window;
+        FrontEndOptimizeParam slide_window;
         IMUParam imu_param;
 
         double gravity_norm;

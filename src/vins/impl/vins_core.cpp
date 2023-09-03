@@ -10,7 +10,7 @@
 #include "feature_tracker.h"
 #include "ric_estimator.h"
 #include "feature_helper.h"
-#include "slide_window_estimator/slide_window_estimator.h"
+#include "impl/front_end_optimize/front_end_optimize.h"
 #include "loop_closer/loop_closer.h"
 #include "camera_wrapper.h"
 #include "log.h"
@@ -136,7 +136,11 @@ namespace vins {
         }
 
         /******************非首帧图像加入滑动窗口*******************/
-        bool is_key_frame = FeatureHelper::isKeyFrame(prev_kf_window_size, feature_pts, run_info_->feature_window);
+        bool is_key_frame = FeatureHelper::isKeyFrame(param_->camera.focal,
+                                                      param_->key_frame_parallax_threshold,
+                                                      prev_kf_window_size,
+                                                      feature_pts,
+                                                      run_info_->feature_window);
         run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame);
         if (!is_key_frame) {
             return;
@@ -180,11 +184,11 @@ namespace vins {
                 run_info_->loop_match_infos.erase(run_info_->loop_match_infos.begin());
             }
             if (vins_state_ == EVinsState::kNormal) {
-                SlideWindowEstimator::slide(*param_,
-                                            oldest_feature,
-                                            *run_info_->pre_int_window.front(),
-                                            feature_id_2_idx_origin,
-                                            feature_id_2_idx_after_discard);
+                FrontEndOptimize::slide(*param_,
+                                        oldest_feature,
+                                        *run_info_->pre_int_window.front(),
+                                        feature_id_2_idx_origin,
+                                        feature_id_2_idx_after_discard);
             }
         }
 
@@ -222,13 +226,13 @@ namespace vins {
         }
 
         /******************滑窗优化*******************/
-        SlideWindowEstimator::optimize(param_->slide_window,
-                                       run_info_->pre_int_window,
-                                       run_info_->loop_match_infos,
-                                       run_info_->feature_window,
-                                       run_info_->kf_state_window,
-                                       run_info_->tic,
-                                       run_info_->ric);
+        FrontEndOptimize::optimize(param_->slide_window,
+                                   run_info_->pre_int_window,
+                                   run_info_->loop_match_infos,
+                                   run_info_->feature_window,
+                                   run_info_->kf_state_window,
+                                   run_info_->tic,
+                                   run_info_->ric);
         run_info_->prev_imu_state.ba = run_info_->kf_state_window.back().ba;
         run_info_->prev_imu_state.bg = run_info_->kf_state_window.back().bg;
 
