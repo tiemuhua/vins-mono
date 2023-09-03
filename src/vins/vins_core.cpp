@@ -228,33 +228,36 @@ namespace vins {
             return;
         }
 
-        /******************寻找回环并加入滑动窗口*******************/
+        /******************寻找回环，加入滑动窗口，加入后端优化队列*******************/
+        // 额外的特征点
         const int fast_th = 20; // corner detector response threshold
         std::vector<cv::KeyPoint> external_raw_pts;
         cv::FAST(*img_ptr, external_raw_pts, fast_th, true);
 
+        // 描述符
         std::vector<DVision::BRIEF::bitset> descriptors;
         brief_extractor_->brief_.compute(*img_ptr, feature_raw_pts, descriptors);
         std::vector<DVision::BRIEF::bitset> external_descriptors;
         brief_extractor_->brief_.compute(*img_ptr, external_raw_pts, external_descriptors);
 
-
-
-
-        /******************准备回环*******************/
+        //.特征点三维坐标.
         std::vector<cv::Point3f> key_pts_3d;
         int key_pts_num = run_info_->frame_window.back().points.size();
         for (int i = 0; i < key_pts_num; ++i) {
-            cv::Point2f p2d = run_info_->frame_window.back().points[i];
+            int feature_id = run_info_->frame_window.back().feature_ids[i];
+            std::unordered_map<int,int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(run_info_->feature_window);
+            cv::Point2f p2d = run_info_->feature_window[feature_id_2_idx[feature_id]].points[0];
             double depth = FeatureHelper::featureIdToDepth(run_info_->frame_window.back().feature_ids[i],
                                                            run_info_->feature_window);
             key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
-        loop_closer_->addKeyFrame(run_info_->frame_window.back(),
-                                  *img_ptr,
-                                  key_pts_3d,
-                                  external_raw_pts,
-                                  external_pts);
+        auto cur_kf = std::make_shared<KeyFrame>(run_info_->frame_window.back(), key_pts_3d, descriptors, external_descriptors);
+        LoopMatchInfo info;
+        info.window_idx = run_info_->kf_state_window.size() - 1;
+        if (loop_closer_->findLoop(cur_kf, info)) {
+            run_info_->loop_match_infos.emplace_back(std::move(info));
+        }
+        loop_closer_->addKeyFrame(cur_kf);
     }
 }

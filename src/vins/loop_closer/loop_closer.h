@@ -13,12 +13,11 @@
 #include <ceres/rotation.h>
 
 #include "vins/vins_define_internal.h"
+#include "keyframe.h"
+
 namespace vins{
 
     class LoopDetector;
-    class KeyFrame;
-    typedef std::shared_ptr<KeyFrame> KeyFramePtr;
-    typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;
 
     class LoopCloser {
     public:
@@ -26,16 +25,13 @@ namespace vins{
 
         ~LoopCloser();
 
-        void addKeyFrame(const Frame &base_frame,
-                         const cv::Mat &_img,
-                         const std::vector<cv::Point3f> &key_pts_3d,
-                         const std::vector<cv::KeyPoint> &external_key_points_un_normalized,
-                         const std::vector<cv::Point2f> &external_key_pts2d);
+        void addKeyFrame(const KeyFramePtr &kf_ptr);
+
+        bool findLoop(const KeyFramePtr& kf, LoopMatchInfo& info);
 
     private:
         [[noreturn]] void optimize4DoF();
         void optimize4DoFImpl();
-        bool findLoop(const KeyFramePtr& cur_kf, int& peer_loop_id);
 
         std::vector<KeyFramePtr> key_frame_list_;
         std::vector<KeyFramePtr> key_frame_buffer_;

@@ -5,7 +5,7 @@
 #include "loop_relative_pos.h"
 #include <vector>
 #include "vins/vins_utils.h"
-#include "vins/loop_closer/impl/keyframe.h"
+#include "vins/loop_closer/keyframe.h"
 
 using namespace vins;
 using namespace DVision;
@@ -85,11 +85,11 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
 }
 
 static constexpr int min_loop_key_points_num = 25;
-bool vins::LoopRelativePos::find4DofLoopDrift(ConstKeyFramePtr &old_kf,
-                                              int old_kf_id,
-                                              const KeyFramePtr &new_kf) {
-    vector<uint8_t> status;
-    vector<cv::Point2f> old_frame_pts2d;
+bool vins::buildLoopRelation(ConstKeyFramePtr &old_kf,
+                             int old_kf_id,
+                             const KeyFramePtr &new_kf,
+                             std::vector<uint8_t> &status,
+                             std::vector<cv::Point2f> &old_frame_pts2d) {
     searchByBRIEFDes(new_kf->descriptors_, old_kf->descriptors_, old_kf->base_frame_.points, old_frame_pts2d, status);
     utils::reduceVector(old_frame_pts2d, status);
     vector<cv::Point3f> new_frame_pts3d = new_kf->key_pts3d_;
@@ -113,6 +113,7 @@ bool vins::LoopRelativePos::find4DofLoopDrift(ConstKeyFramePtr &old_kf,
     if (old_frame_pts2d.size() < min_loop_key_points_num) {
         return false;
     }
+    PnpRANSAC(old_frame_pts2d, new_frame_pts3d, R_o_n_vio, T_o_n_vio, status, R_o_n_pnp, T_o_n_pnp);
 
     new_kf->loop_relative_pose_.relative_pos = T_o_n_pnp;
     double old_yaw = utils::rot2ypr(R_o_n_vio * new_kf->vio_R_i_w_).x();

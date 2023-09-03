@@ -170,10 +170,7 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     }
 
     /*************** 3:回环 **************************/
-    std::unordered_map<int,int> feature_id_2_idx;
-    for (int i = 0; i < feature_window.size(); ++i) {
-        feature_id_2_idx[feature_window[i].feature_id] = i;
-    }
+    std::unordered_map<int,int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(feature_window);
     for (const auto &loop_match_info : loop_match_infos) {
         for (int i = 0; i < loop_match_info.feature_ids.size(); ++i) {
             int feature_idx = feature_id_2_idx[loop_match_info.feature_ids[i]];

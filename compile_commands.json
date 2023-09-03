@@ -41,16 +41,6 @@
 },
 {
   "directory": "/Users/gjt/vins/gjt_vins",
-  "arguments": ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang", "-c", "-Qunused-arguments", "-target", "arm64-apple-macos13.0", "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk", "-g", "-O0", "-std=c++17", "-I/Users/gjt/3rd/eigen/install_mac_m1_dir/include/eigen3", "-I/Users/gjt/3rd/ceres-solver/install_mac_m1_dir/include", "-I/Users/gjt/3rd/boost/install_mac_m1_dir/include", "-I/Users/gjt/3rd/DBoW2/install_mac_m1_dir/include", "-I/Users/gjt/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4", "-I/Users/gjt/3rd/camodocal/include", "-I/Users/gjt/vins/gjt_vins/src", "-I/Users/gjt/vins/gjt_vins/src/vins", "-DCERES_EXPORT= ", "-o", "build/.objs/vins-mac/macosx/arm64/debug/src/vins/camera_wrapper.cpp.o", "src/vins/camera_wrapper.cpp"],
-  "file": "src/vins/camera_wrapper.cpp"
-},
-{
-  "directory": "/Users/gjt/vins/gjt_vins",
-  "arguments": ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang", "-c", "-Qunused-arguments", "-target", "arm64-apple-macos13.0", "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk", "-g", "-O0", "-std=c++17", "-I/Users/gjt/3rd/eigen/install_mac_m1_dir/include/eigen3", "-I/Users/gjt/3rd/ceres-solver/install_mac_m1_dir/include", "-I/Users/gjt/3rd/boost/install_mac_m1_dir/include", "-I/Users/gjt/3rd/DBoW2/install_mac_m1_dir/include", "-I/Users/gjt/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4", "-I/Users/gjt/3rd/camodocal/include", "-I/Users/gjt/vins/gjt_vins/src", "-I/Users/gjt/vins/gjt_vins/src/vins", "-DCERES_EXPORT= ", "-o", "build/.objs/vins-mac/macosx/arm64/debug/src/vins/loop_closer/impl/keyframe.cpp.o", "src/vins/loop_closer/impl/keyframe.cpp"],
-  "file": "src/vins/loop_closer/impl/keyframe.cpp"
-},
-{
-  "directory": "/Users/gjt/vins/gjt_vins",
   "arguments": ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang", "-c", "-Qunused-arguments", "-target", "arm64-apple-macos13.0", "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk", "-g", "-O0", "-std=c++17", "-I/Users/gjt/3rd/eigen/install_mac_m1_dir/include/eigen3", "-I/Users/gjt/3rd/ceres-solver/install_mac_m1_dir/include", "-I/Users/gjt/3rd/boost/install_mac_m1_dir/include", "-I/Users/gjt/3rd/DBoW2/install_mac_m1_dir/include", "-I/Users/gjt/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4", "-I/Users/gjt/3rd/camodocal/include", "-I/Users/gjt/vins/gjt_vins/src", "-I/Users/gjt/vins/gjt_vins/src/vins", "-DCERES_EXPORT= ", "-o", "build/.objs/vins-mac/macosx/arm64/debug/src/vins/loop_closer/impl/loop_relative_pos.cpp.o", "src/vins/loop_closer/impl/loop_relative_pos.cpp"],
   "file": "src/vins/loop_closer/impl/loop_relative_pos.cpp"
 },
@@ -63,6 +53,11 @@
   "directory": "/Users/gjt/vins/gjt_vins",
   "arguments": ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang", "-c", "-Qunused-arguments", "-target", "arm64-apple-macos13.0", "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk", "-g", "-O0", "-std=c++17", "-I/Users/gjt/3rd/eigen/install_mac_m1_dir/include/eigen3", "-I/Users/gjt/3rd/ceres-solver/install_mac_m1_dir/include", "-I/Users/gjt/3rd/boost/install_mac_m1_dir/include", "-I/Users/gjt/3rd/DBoW2/install_mac_m1_dir/include", "-I/Users/gjt/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4", "-I/Users/gjt/3rd/camodocal/include", "-I/Users/gjt/vins/gjt_vins/src", "-I/Users/gjt/vins/gjt_vins/src/vins", "-DCERES_EXPORT= ", "-o", "build/.objs/vins-mac/macosx/arm64/debug/src/vins/loop_closer/loop_closer.cpp.o", "src/vins/loop_closer/loop_closer.cpp"],
   "file": "src/vins/loop_closer/loop_closer.cpp"
+},
+{
+  "directory": "/Users/gjt/vins/gjt_vins",
+  "arguments": ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang", "-c", "-Qunused-arguments", "-target", "arm64-apple-macos13.0", "-isysroot", "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX13.0.sdk", "-g", "-O0", "-std=c++17", "-I/Users/gjt/3rd/eigen/install_mac_m1_dir/include/eigen3", "-I/Users/gjt/3rd/ceres-solver/install_mac_m1_dir/include", "-I/Users/gjt/3rd/boost/install_mac_m1_dir/include", "-I/Users/gjt/3rd/DBoW2/install_mac_m1_dir/include", "-I/Users/gjt/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4", "-I/Users/gjt/3rd/camodocal/include", "-I/Users/gjt/vins/gjt_vins/src", "-I/Users/gjt/vins/gjt_vins/src/vins", "-DCERES_EXPORT= ", "-o", "build/.objs/vins-mac/macosx/arm64/debug/src/vins/loop_closer/keyframe.cpp.o", "src/vins/loop_closer/keyframe.cpp"],
+  "file": "src/vins/loop_closer/keyframe.cpp"
 },
 {
   "directory": "/Users/gjt/vins/gjt_vins",

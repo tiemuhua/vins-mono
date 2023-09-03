@@ -1,11 +1,9 @@
 #include "loop_closer.h"
-#include "log.h"
 #include "vins/vins_utils.h"
-#include "vins/feature_tracker.h"
 #include <vins/slide_window_estimator/slide_window_estimator.h>
+#include "keyframe.h"
 #include "impl/loop_relative_pos.h"
 #include "impl/loop_detector.h"
-#include "impl/keyframe.h"
 
 using namespace vins;
 using namespace DVision;
@@ -79,24 +77,28 @@ LoopCloser::~LoopCloser() {
 }
 
 // todo 若使用sift等耗时较长的描述字，可将提取描述子过程放入单独任务队列执行
-void LoopCloser::addKeyFrame(const Frame &base_frame,
-                             const std::vector<cv::Point3f> &key_pts_3d,
-                             const std::vector<DVision::BRIEF::bitset> &descriptors,
-                             const std::vector<DVision::BRIEF::bitset> &external_descriptors) {
-    auto cur_kf = std::make_shared<KeyFrame>(base_frame, key_pts_3d, descriptors, external_descriptors);
-
+void LoopCloser::addKeyFrame(const KeyFramePtr &kf_ptr) {
     Synchronized(key_frame_buffer_mutex_) {
-        key_frame_buffer_.emplace_back(cur_kf);
+        key_frame_buffer_.emplace_back(kf_ptr);
     }
 }
 
-bool LoopCloser::findLoop(const KeyFramePtr& cur_kf, int& peer_loop_id) {
-    peer_loop_id = loop_detector_->detectSimilarDescriptor(cur_kf->external_descriptors_, key_frame_list_.size());
-    loop_detector_->addDescriptors(cur_kf->external_descriptors_);
+bool LoopCloser::findLoop(const KeyFramePtr& kf, LoopMatchInfo& info) {
+    int peer_loop_id = loop_detector_->detectSimilarDescriptor(kf->external_descriptors_, key_frame_list_.size());
+    loop_detector_->addDescriptors(kf->external_descriptors_);
     if (peer_loop_id == -1) {
         return false;
     }
-    return LoopRelativePos::find4DofLoopDrift(key_frame_list_[peer_loop_id], peer_loop_id, cur_kf);
+    std::vector<uint8_t> status;
+    std::vector<cv::Point2f> old_frame_pts2d;
+    bool succ = buildLoopRelation(key_frame_list_[peer_loop_id], peer_loop_id, kf, status, old_frame_pts2d);
+    if (!succ) {return false;}
+    for (int i = 0; i < kf->base_frame_.points.size(); ++i) {
+        if (status[i]) {
+            info.feature_ids.emplace_back(kf->base_frame_.feature_ids[i]);
+            info.peer_pts.emplace_back(old_frame_pts2d[i]);
+        }
+    }
 }
 
 [[noreturn]] void LoopCloser::optimize4DoF() {
@@ -112,20 +114,10 @@ void LoopCloser::optimize4DoFImpl() {
     Synchronized(key_frame_buffer_mutex_) {
         std::swap(key_frame_buffer_, tmp_key_frame_buffer);
     }
+    key_frame_list_.insert(key_frame_list_.end(), tmp_key_frame_buffer.begin(), tmp_key_frame_buffer.end());
 
-    for (const KeyFramePtr& kf:tmp_key_frame_buffer) {
-        kf->updatePoseByDrift(t_drift, r_drift);
-        int peer_loop_id = -1;
-        if (findLoop(kf, peer_loop_id)) {
-            assert(peer_loop_id != -1);
-            loop_interval_upper_bound_ = (int )key_frame_list_.size();
-            if (loop_interval_lower_bound_ > peer_loop_id || loop_interval_lower_bound_ == -1) {
-                loop_interval_lower_bound_ = peer_loop_id;
-            }
-            SlideWindowEstimator::setLoopMatchInfo(key_frame_buffer_[peer_loop_id]->base_frame_);
-        }
-        key_frame_list_.emplace_back(kf);
-    }
+    // todo 这里是ID还是idx？
+    loop_interval_upper_bound_ = key_frame_list_.back()->loop_relative_pose_.peer_frame_id;
 
     if (loop_interval_upper_bound_ == -1) { return; }
 

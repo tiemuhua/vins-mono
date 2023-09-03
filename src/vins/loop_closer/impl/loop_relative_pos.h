@@ -6,14 +6,16 @@
 #define VINS_FRAME_MATCHER_H
 #include "keyframe.h"
 
-namespace vins::LoopRelativePos{
+namespace vins{
     /**
-     * 若成功建立回环，返回true并设置new_kf->loop_relative_pose_
+     * 若成功建立回环，返回true并设置new_kf->loop_relative_pose_、status、old_frame_pts2d
      * 否则返回false
      * */
-    bool find4DofLoopDrift(ConstKeyFramePtr &old_kf,
+    bool buildLoopRelation(ConstKeyFramePtr &old_kf,
                            int old_kf_id,
-                           const KeyFramePtr &new_kf);
+                           const KeyFramePtr &new_kf,
+                           std::vector<uint8_t> &status,
+                           std::vector<cv::Point2f> &old_frame_pts2d);
 }
 
 #endif //VINS_FRAME_MATCHER_H
