@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Dense>
 
-#include "vins_define_internal.h"
+#include "vins/impl/vins_define_internal.h"
 
 namespace vins{
     class MotionEstimator {

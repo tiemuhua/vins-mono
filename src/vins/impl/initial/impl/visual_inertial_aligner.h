@@ -6,7 +6,7 @@
 #define VINS_VISUAL_INERTIAL_ALIGNER_H
 
 #include <Eigen/Eigen>
-#include "vins_run_info.h"
+#include "vins/impl/vins_run_info.h"
 
 namespace vins {
     bool alignVisualAndInertial(double gravity_norm,

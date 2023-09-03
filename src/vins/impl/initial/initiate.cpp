@@ -85,7 +85,7 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
     }
 
     for (int i = 0; i < (int) run_info.pre_int_window.size(); ++i) {
-        run_info.pre_int_window.at(i).rePredict(Eigen::Vector3d::Zero(), state_window.at(i).bg);
+        run_info.pre_int_window.at(i)->rePredict(Eigen::Vector3d::Zero(), state_window.at(i).bg);
     }
 
     //triangulate on cam pose , no tic

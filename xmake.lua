@@ -8,7 +8,9 @@ add_includedirs(
         "~/3rd/boost/install_mac_m1_dir/include",
         "~/3rd/DBoW2/install_mac_m1_dir/include",
         "~/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4",
-        "~/3rd/camodocal/include"
+        "~/3rd/camodocal/include",
+        "~/3rd/glog/install_mac_m1_dir/include",
+        "~/3rd/gflags/install_mac_m1_dir/include"
 )
 
 add_includedirs(

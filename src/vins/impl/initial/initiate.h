@@ -4,15 +4,15 @@
 
 #ifndef GJT_VINS_INITIATE_H
 #define GJT_VINS_INITIATE_H
-#include "vins_define_internal.h"
-#include "param.h"
-#include "vins_run_info.h"
-#include "feature_helper.h"
+
+#include "vins/param.h"
+
+#include "vins/impl/vins_run_info.h"
 
 namespace vins {
     class Initiate {
     public:
-        static bool initiate(const double gravity_norm, RunInfo &run_info);
+        static bool initiate(double gravity_norm, RunInfo &run_info);
     };
 }
 

@@ -4,7 +4,6 @@
 
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
-#include <opencv2/core/eigen.hpp>
 
 #include "DBoW2/DBoW2.h"
 #include "DVision/DVision.h"

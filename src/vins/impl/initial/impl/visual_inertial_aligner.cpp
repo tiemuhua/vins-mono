@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include "param.h"
 #include "log.h"
-#include "vins_utils.h"
+#include "vins/impl/vins_utils.h"
 
 namespace vins {
     static Eigen::Vector3d solveGyroBias(const std::vector<Frame> &all_image_frame) {

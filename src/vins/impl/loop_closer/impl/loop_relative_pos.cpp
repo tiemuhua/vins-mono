@@ -4,6 +4,7 @@
 
 #include "loop_relative_pos.h"
 #include <vector>
+#include <opencv2/core/eigen.hpp>
 #include "vins/impl/vins_utils.h"
 #include "vins/impl/loop_closer/keyframe.h"
 

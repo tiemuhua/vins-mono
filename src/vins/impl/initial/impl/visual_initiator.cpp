@@ -6,15 +6,13 @@
 
 #include <vector>
 
-#include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
 #include "log.h"
-#include "vins_utils.h"
-
-#include "feature_helper.h"
+#include "vins/impl/vins_utils.h"
+#include "vins/impl/feature_helper.h"
 #include "motion_estimator.h"
 
 namespace vins {

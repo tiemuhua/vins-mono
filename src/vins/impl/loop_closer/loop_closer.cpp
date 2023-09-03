@@ -2,7 +2,6 @@
 
 #include "loop_closer.h"
 #include "vins/impl/vins_utils.h"
-#include "vins/impl/slide_window_estimator/slide_window_estimator.h"
 #include "vins/vins_logic.h"
 #include "keyframe.h"
 #include "impl/loop_relative_pos.h"
