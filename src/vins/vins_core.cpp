@@ -61,15 +61,15 @@ namespace vins {
         const Eigen::Vector3d &delta_vel = pre_integral.deltaVel();
         const Eigen::Quaterniond &delta_quat = pre_integral.deltaQuat();
 
-        Eigen::Vector3d prev_pos = prev_state.pos;
-        Eigen::Vector3d prev_vel = prev_state.vel;
-        Eigen::Matrix3d prev_rot = prev_state.rot;
-        Eigen::Vector3d prev_ba = prev_state.ba;
-        Eigen::Vector3d prev_bg = prev_state.bg;
+        const Eigen::Vector3d & prev_pos = prev_state.pos;
+        const Eigen::Vector3d & prev_vel = prev_state.vel;
+        const Eigen::Vector3d & prev_rot = prev_state.rot;
+        const Eigen::Vector3d & prev_ba = prev_state.ba;
+        const Eigen::Vector3d & prev_bg = prev_state.bg;
 
-        Eigen::Vector3d cur_pos = prev_pos + prev_rot * delta_pos;
-        Eigen::Vector3d cur_vel = prev_vel + prev_rot * delta_vel;
-        Eigen::Matrix3d cur_rot = delta_quat.toRotationMatrix() * prev_rot;
+        const Eigen::Vector3d cur_pos = prev_pos + prev_rot * delta_pos;
+        const Eigen::Vector3d cur_vel = prev_vel + prev_rot * delta_vel;
+        const Eigen::Matrix3d cur_rot = delta_quat.toRotationMatrix() * prev_rot;
 
         KeyFrameState cur_state = {cur_pos, cur_rot, cur_vel, prev_ba, prev_bg};
         return cur_state;
@@ -96,13 +96,15 @@ namespace vins {
 
         /******************提取特征点*******************/
         int prev_kf_window_size = run_info_->kf_state_window.size();
-        std::vector<FeaturePoint2D> feature_points = feature_tracker_->extractFeatures(*img_ptr, img_time_stamp);
+        std::vector<FeaturePoint2D> feature_pts;
+        std::vector<cv::KeyPoint> feature_raw_pts;
+        feature_tracker_->extractFeatures(*img_ptr, img_time_stamp, feature_pts, feature_raw_pts);
 
         /******************首帧图像加入滑动窗口*******************/
         if (vins_state_ == EVinsState::kNoImgData) {
             run_info_->kf_state_window.push_back({});
-            run_info_->frame_window.emplace_back(feature_points, nullptr, true);
-            FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_points, run_info_->feature_window);
+            run_info_->frame_window.emplace_back(feature_pts, nullptr, true);
+            FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
             vins_state_ = EVinsState::kEstimateExtrinsic;
             return;
         }
@@ -121,12 +123,12 @@ namespace vins {
         }
 
         /******************非首帧图像加入滑动窗口*******************/
-        bool is_key_frame = FeatureHelper::isKeyFrame(prev_kf_window_size, feature_points, run_info_->feature_window);
-        run_info_->frame_window.emplace_back(feature_points, frame_pre_integral, is_key_frame);
+        bool is_key_frame = FeatureHelper::isKeyFrame(prev_kf_window_size, feature_pts, run_info_->feature_window);
+        run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame);
         if (!is_key_frame) {
             return;
         }
-        FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_points, run_info_->feature_window);
+        FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
         if (kf_pre_integral_ptr_ == nullptr) {
             kf_pre_integral_ptr_ =
                     std::make_shared<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
@@ -226,6 +228,19 @@ namespace vins {
             return;
         }
 
+        /******************寻找回环并加入滑动窗口*******************/
+        const int fast_th = 20; // corner detector response threshold
+        std::vector<cv::KeyPoint> external_raw_pts;
+        cv::FAST(*img_ptr, external_raw_pts, fast_th, true);
+
+        std::vector<DVision::BRIEF::bitset> descriptors;
+        brief_extractor_->brief_.compute(*img_ptr, feature_raw_pts, descriptors);
+        std::vector<DVision::BRIEF::bitset> external_descriptors;
+        brief_extractor_->brief_.compute(*img_ptr, external_raw_pts, external_descriptors);
+
+
+
+
         /******************准备回环*******************/
         std::vector<cv::Point3f> key_pts_3d;
         int key_pts_num = run_info_->frame_window.back().points.size();
@@ -236,18 +251,10 @@ namespace vins {
             key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
-        const int fast_th = 20; // corner detector response threshold
-        std::vector<cv::KeyPoint> external_key_points_un_normalized;
-        cv::FAST(*img_ptr, external_key_points_un_normalized, fast_th, true);
-        std::vector<cv::Point2f> external_key_pts2d;
-        for (const cv::KeyPoint &keypoint: external_key_points_un_normalized) {
-            external_key_pts2d.push_back(camera_wrapper_->rawPoint2UniformedPoint(keypoint.pt));
-        }
-
         loop_closer_->addKeyFrame(run_info_->frame_window.back(),
                                   *img_ptr,
                                   key_pts_3d,
-                                  external_key_points_un_normalized,
-                                  external_key_pts2d);
+                                  external_raw_pts,
+                                  external_pts);
     }
 }

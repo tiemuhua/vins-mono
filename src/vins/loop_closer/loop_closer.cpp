@@ -80,23 +80,10 @@ LoopCloser::~LoopCloser() {
 
 // todo 若使用sift等耗时较长的描述字，可将提取描述子过程放入单独任务队列执行
 void LoopCloser::addKeyFrame(const Frame &base_frame,
-                             const cv::Mat &_img,
                              const std::vector<cv::Point3f> &key_pts_3d,
-                             const std::vector<cv::KeyPoint> &external_key_points_un_normalized,
-                             const std::vector<cv::Point2f> &external_key_pts2d) {
-    std::vector<cv::KeyPoint> key_points;
-    for (auto & p : base_frame.points) {
-        cv::KeyPoint key;
-        key.pt = p;
-        key_points.push_back(key);
-    }
-    std::vector<DVision::BRIEF::bitset> descriptors;
-    brief_extractor_->brief_.compute(_img, key_points, descriptors);
-
-    std::vector<DVision::BRIEF::bitset> external_descriptors;
-    brief_extractor_->brief_.compute(_img, external_key_points_un_normalized, external_descriptors);
-
-    auto cur_kf = std::make_shared<KeyFrame>(base_frame, key_pts_3d, descriptors, external_key_pts2d, external_descriptors);
+                             const std::vector<DVision::BRIEF::bitset> &descriptors,
+                             const std::vector<DVision::BRIEF::bitset> &external_descriptors) {
+    auto cur_kf = std::make_shared<KeyFrame>(base_frame, key_pts_3d, descriptors, external_descriptors);
 
     Synchronized(key_frame_buffer_mutex_) {
         key_frame_buffer_.emplace_back(cur_kf);

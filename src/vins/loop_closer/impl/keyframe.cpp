@@ -11,7 +11,6 @@ using namespace std;
 KeyFrame::KeyFrame(const Frame& _base_frame,
                    const std::vector<cv::Point3f> &_point_3d,
                    const std::vector<DVision::BRIEF::bitset> &descriptors,
-                   const std::vector<cv::Point2f> &external_key_pts2d,
                    const std::vector<DVision::BRIEF::bitset> &external_descriptors) {
     base_frame_ = _base_frame;
     T_i_w_ = vio_T_i_w_;
@@ -19,7 +18,6 @@ KeyFrame::KeyFrame(const Frame& _base_frame,
     key_pts3d_ = _point_3d;
     descriptors_ = descriptors;
     external_descriptors_ = external_descriptors;
-    external_key_pts2d_ = external_key_pts2d;
 }
 
 void KeyFrame::getVioPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) const {

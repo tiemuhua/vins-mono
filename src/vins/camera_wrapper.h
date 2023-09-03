@@ -18,7 +18,7 @@ namespace vins {
             camera_ = camodocal::CameraFactory::instance()->generateCameraFromYamlFile(param->camera.calib_file);
             param_ = param;
         }
-        cv::Point2f rawPoint2UniformedPoint(const cv::Point2f &p) {
+        cv::Point2f rawPoint2NormPoint(const cv::Point2f &p) {
             Eigen::Vector3d tmp_p;
             camera_->liftProjective(Eigen::Vector2d(p.x, p.y), tmp_p);
             float col = param_->camera.focal * tmp_p.x() / tmp_p.z() + param_->camera.col / 2.0;

@@ -8,6 +8,7 @@
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 #include <utility>
+#include <DBoW2/DBoW2.h>
 
 namespace vins {
 #define Synchronized(mutex_)  for(ScopedLocker locker(mutex_); locker.cnt < 1; locker.cnt++)
@@ -85,6 +86,30 @@ namespace vins {
 
         int window_idx = -1;     //.当window_idx递减至-1时，从loop_match_infos中移出.
         int peer_kf_id = -1;    //.匹配帧的ID，通过kfIdToKfListIdx获取匹配帧在key_frame_list_中的下标.
+    };
+
+
+    class BriefExtractor {
+    public:
+        BriefExtractor(const std::string &pattern_file) {
+            // The DVision::BRIEF extractor computes a random pattern by default when
+            // the object is created.
+            // We load the pattern that we used to build the vocabulary, to make
+            // the descriptors compatible with the predefined vocabulary
+
+            // loads the pattern
+            cv::FileStorage fs(pattern_file.c_str(), cv::FileStorage::READ);
+            if (!fs.isOpened()) throw std::string("Could not open file ") + pattern_file;
+
+            std::vector<int> x1, y1, x2, y2;
+            fs["x1"] >> x1;
+            fs["x2"] >> x2;
+            fs["y1"] >> y1;
+            fs["y2"] >> y2;
+
+            brief_.importPairs(x1, y1, x2, y2);
+        }
+        DVision::BRIEF brief_;
     };
 
     typedef const Eigen::Matrix3d & ConstMat3dRef;

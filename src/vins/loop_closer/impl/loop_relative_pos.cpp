@@ -16,36 +16,37 @@ inline int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
     return (a ^ b).count();
 }
 
-static bool searchInArea(const DVision::BRIEF::bitset& descriptor,
-                         ConstKeyFramePtr old_kf,
-                         cv::Point2f &best_match_norm) {
+static bool searchInAreaForBestIdx(const DVision::BRIEF::bitset& new_descriptor,
+                                   const std::vector<DVision::BRIEF::bitset>& old_descriptors) {
     int bestDist = 128;
     int bestIndex = -1;
-    for (int i = 0; i < (int) old_kf->external_descriptors_.size(); i++) {
-        int dis = HammingDis(descriptor, old_kf->external_descriptors_[i]);
+    for (int i = 0; i < (int) old_descriptors.size(); i++) {
+        int dis = HammingDis(new_descriptor, old_descriptors[i]);
         if (dis < bestDist) {
             bestDist = dis;
             bestIndex = i;
         }
     }
-    if (bestIndex != -1 && bestDist < 80) {
-        best_match_norm = old_kf->external_key_pts2d_[bestIndex];
-        return true;
-    } else
-        return false;
+    if (bestDist > 80) {
+        return -1;
+    }
+    return bestIndex;
 }
 
-static void searchByBRIEFDes(ConstKeyFramePtr& old_kf,
-                             const std::vector<BRIEF::bitset> &descriptors,
-                             std::vector<cv::Point2f> &pts2d_in_old_frame,
+static void searchByBRIEFDes(const std::vector<DVision::BRIEF::bitset> &new_descriptors,
+                             const std::vector<DVision::BRIEF::bitset>& old_descriptors,
+                             const std::vector<cv::Point2f> &old_pts2d_without_order,
+                             std::vector<cv::Point2f> &old_pts2d,
                              std::vector<uchar> &status) {
-    for (const auto & descriptor : descriptors) {
-        cv::Point2f pt(0.f, 0.f);
-        if (searchInArea(descriptor, old_kf, pt))
-            status.push_back(1);
-        else
+    for (const auto & new_descriptor : new_descriptors) {
+        int idx = searchInAreaForBestIdx(new_descriptor, old_descriptors);
+        if (idx == -1) {
             status.push_back(0);
-        pts2d_in_old_frame.push_back(pt);
+            old_pts2d.emplace_back();
+        } else {
+            status.push_back(0);
+            old_pts2d.push_back(old_pts2d_without_order[idx]);
+        }
     }
 }
 
@@ -87,13 +88,13 @@ static constexpr int min_loop_key_points_num = 25;
 bool vins::LoopRelativePos::find4DofLoopDrift(ConstKeyFramePtr &old_kf,
                                               int old_kf_id,
                                               const KeyFramePtr &new_kf) {
-    vector<cv::Point3f> pts3d_in_new_frame = new_kf->key_pts3d_;
     vector<uint8_t> status;
-    vector<cv::Point2f> pts2d_in_old_frame;
-    searchByBRIEFDes(old_kf, new_kf->descriptors_, pts2d_in_old_frame, status);
-    utils::reduceVector(pts2d_in_old_frame, status);
-    utils::reduceVector(pts3d_in_new_frame, status);
-    if (pts2d_in_old_frame.size() < min_loop_key_points_num) {
+    vector<cv::Point2f> old_frame_pts2d;
+    searchByBRIEFDes(new_kf->descriptors_, old_kf->descriptors_, old_kf->base_frame_.points, old_frame_pts2d, status);
+    utils::reduceVector(old_frame_pts2d, status);
+    vector<cv::Point3f> new_frame_pts3d = new_kf->key_pts3d_;
+    utils::reduceVector(new_frame_pts3d, status);
+    if (old_frame_pts2d.size() < min_loop_key_points_num) {
         return false;
     }
 
@@ -106,10 +107,10 @@ bool vins::LoopRelativePos::find4DofLoopDrift(ConstKeyFramePtr &old_kf,
     Eigen::Matrix3d R_o_n_pnp;
     Eigen::Vector3d T_o_n_pnp;
     status.clear();
-    PnpRANSAC(pts2d_in_old_frame, pts3d_in_new_frame, R_o_n_vio, T_o_n_vio, status, R_o_n_pnp, T_o_n_pnp);
-    utils::reduceVector(pts2d_in_old_frame, status);
-    utils::reduceVector(pts3d_in_new_frame, status);
-    if (pts2d_in_old_frame.size() < min_loop_key_points_num) {
+    PnpRANSAC(old_frame_pts2d, new_frame_pts3d, R_o_n_vio, T_o_n_vio, status, R_o_n_pnp, T_o_n_pnp);
+    utils::reduceVector(old_frame_pts2d, status);
+    utils::reduceVector(new_frame_pts3d, status);
+    if (old_frame_pts2d.size() < min_loop_key_points_num) {
         return false;
     }
 

@@ -16,7 +16,6 @@
 namespace vins{
 
     class LoopDetector;
-    class BriefExtractor;
     class KeyFrame;
     typedef std::shared_ptr<KeyFrame> KeyFramePtr;
     typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;
@@ -50,7 +49,6 @@ namespace vins{
         int loop_interval_upper_bound_ = -1;
 
         LoopDetector* loop_detector_{};
-        BriefExtractor* brief_extractor_{};
     };
 
 }

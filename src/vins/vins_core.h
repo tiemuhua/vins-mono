@@ -56,6 +56,7 @@ namespace vins{
         FeatureTracker *feature_tracker_;
         CameraWrapper *camera_wrapper_;
         LoopCloser *loop_closer_;
+        BriefExtractor* brief_extractor_{};
 
         RunInfo* run_info_;
         Param* param_;
