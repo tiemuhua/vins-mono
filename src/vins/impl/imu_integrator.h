@@ -7,7 +7,7 @@
 
 #include <Eigen/Eigen>
 #include "vins_define_internal.h"
-#include "parameters.h"
+#include "param.h"
 
 namespace vins {
     enum EStateOrder {

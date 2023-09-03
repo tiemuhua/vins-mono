@@ -1,6 +1,6 @@
 #include "feature_helper.h"
 #include "log.h"
-#include "vins/parameters.h"
+#include "vins/impl/param.h"
 
 namespace vins {
     using namespace std;

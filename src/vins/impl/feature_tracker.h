@@ -6,7 +6,7 @@
 #include "opencv2/opencv.hpp"
 #include <Eigen/Dense>
 
-#include "parameters.h"
+#include "param.h"
 #include "vins_define_internal.h"
 #include "camera_wrapper.h"
 

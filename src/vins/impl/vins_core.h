@@ -26,7 +26,10 @@ namespace vins{
         VinsCore(Param* param);
         void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
         void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
-
+        void handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
+        VinsCore* getInstance() {
+            //
+        }
     private:
         void _handleData();
 
@@ -39,17 +42,19 @@ namespace vins{
             kNormal,                // 正常优化
         } vins_state_ = EVinsState::kNoIMUData;
 
-        std::mutex read_imu_buf_mutex_;
-        std::shared_ptr<ImuIntegrator> kf_pre_integral_ptr_;
-
-        double last_init_time_stamp_ = 0.0;
-
         //.数据缓冲区.
         std::queue<std::shared_ptr<cv::Mat>> img_buf_;
         std::queue<double> img_time_stamp_buf_;
         std::queue<Eigen::Vector3d> acc_buf_;
         std::queue<Eigen::Vector3d> gyr_buf_;
         std::queue<double> imu_time_stamp_buf_;
+        Eigen::Vector3d t_drift_;
+        Eigen::Matrix3d r_drift_;
+        std::mutex io_mutex_;
+
+        std::shared_ptr<ImuIntegrator> kf_pre_integral_ptr_;
+
+        double last_init_time_stamp_ = 0.0;
 
         //.子求解器.
         RICEstimator *ric_estimator_;

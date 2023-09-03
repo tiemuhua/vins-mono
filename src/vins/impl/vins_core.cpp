@@ -36,7 +36,7 @@ namespace vins {
     }
 
     void VinsCore::handleIMU(ConstVec3dRef acc, ConstVec3dRef gyr, double time_stamp) {
-        Synchronized(read_imu_buf_mutex_) {
+        Synchronized(io_mutex_) {
             if (vins_state_ == EVinsState::kNoIMUData) {
                 run_info_->prev_imu_state.acc = acc;
                 run_info_->prev_imu_state.gyr = gyr;
@@ -54,7 +54,19 @@ namespace vins {
         }
     }
 
-    static const Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+    void VinsCore::handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
+        Synchronized(io_mutex_) {
+            img_buf_.emplace(_img);
+            img_time_stamp_buf_.emplace(time_stamp);
+        }
+    }
+
+    void VinsCore::handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift) {
+        Synchronized(io_mutex_) {
+            t_drift_ = t_drift;
+            r_drift_ = r_drift;
+        }
+    }
 
     static KeyFrameState recurseByImu(const KeyFrameState &prev_state, const ImuIntegrator &pre_integral) {
         const Eigen::Vector3d &delta_pos = pre_integral.deltaPos();
@@ -75,24 +87,23 @@ namespace vins {
         return cur_state;
     }
 
-    void VinsCore::handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
-        img_buf_.emplace(_img);
-        img_time_stamp_buf_.emplace(time_stamp);
-    }
-
     void VinsCore::_handleData() {
         if (vins_state_ == EVinsState::kNoIMUData) {
             return;
         }
 
         /******************从缓冲区中读取图像数据*******************/
-        if (img_buf_.empty()) {
-            return;
+        double img_time_stamp = -1;
+        std::shared_ptr<cv::Mat> img_ptr = nullptr;
+        Synchronized(io_mutex_) {
+            if (img_buf_.empty()) {
+                return;
+            }
+            img_ptr = img_buf_.front();
+            img_time_stamp = img_time_stamp_buf_.front();
+            img_buf_.pop();
+            img_time_stamp_buf_.pop();
         }
-        auto img_ptr = img_buf_.front();
-        double img_time_stamp = img_time_stamp_buf_.front();
-        img_buf_.pop();
-        img_time_stamp_buf_.pop();
 
         /******************提取特征点*******************/
         int prev_kf_window_size = run_info_->kf_state_window.size();
@@ -112,14 +123,16 @@ namespace vins {
         /******************从缓冲区中读取惯导数据*******************/
         auto frame_pre_integral =
                 std::make_shared<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
-        run_info_->prev_imu_state.acc = acc_buf_.back();
-        run_info_->prev_imu_state.gyr = gyr_buf_.back();
-        run_info_->prev_imu_state.time_stamp = imu_time_stamp_buf_.back();
-        while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
-            frame_pre_integral->predict(imu_time_stamp_buf_.front(), acc_buf_.front(), gyr_buf_.front());
-            imu_time_stamp_buf_.pop();
-            acc_buf_.pop();
-            gyr_buf_.pop();
+        Synchronized(io_mutex_) {
+            while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
+                run_info_->prev_imu_state.acc = acc_buf_.front();
+                run_info_->prev_imu_state.gyr = gyr_buf_.front();
+                run_info_->prev_imu_state.time_stamp = imu_time_stamp_buf_.front();
+                frame_pre_integral->predict(imu_time_stamp_buf_.front(), acc_buf_.front(), gyr_buf_.front());
+                imu_time_stamp_buf_.pop();
+                acc_buf_.pop();
+                gyr_buf_.pop();
+            }
         }
 
         /******************非首帧图像加入滑动窗口*******************/
@@ -259,5 +272,17 @@ namespace vins {
             run_info_->loop_match_infos.emplace_back(std::move(info));
         }
         loop_closer_->addKeyFrame(cur_kf);
+
+        /******************后端线程算出结果后，前端线程相应校正*******************/
+        Synchronized(io_mutex_) {
+            if (r_drift_.norm() < 0.001) {
+                return;
+            }
+            for (KeyFrameState &state:run_info_->kf_state_window) {
+                state.pos = r_drift_ * state.pos + t_drift_;
+                state.rot = r_drift_ * state.rot;
+            }
+            r_drift_ = Eigen::Matrix3d::Zero();
+        }
     }
 }

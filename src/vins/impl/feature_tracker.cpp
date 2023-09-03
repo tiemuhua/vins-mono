@@ -1,7 +1,7 @@
 #include "feature_tracker.h"
 #include "log.h"
 #include "vins_utils.h"
-#include "parameters.h"
+#include "param.h"
 
 using namespace vins;
 

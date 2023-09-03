@@ -12,7 +12,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "vins/vins_define_internal.h"
+#include "vins/impl/vins_define_internal.h"
 #include "keyframe.h"
 
 namespace vins{

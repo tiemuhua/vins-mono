@@ -1,6 +1,9 @@
+#include <sys/time.h>
+
 #include "loop_closer.h"
-#include "vins/vins_utils.h"
-#include <vins/slide_window_estimator/slide_window_estimator.h>
+#include "vins/impl/vins_utils.h"
+#include "vins/impl/slide_window_estimator/slide_window_estimator.h"
+#include "vins/vins_logic.h"
 #include "keyframe.h"
 #include "impl/loop_relative_pos.h"
 #include "impl/loop_detector.h"
@@ -52,7 +55,6 @@ struct Edge4Dof {
         Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
         Vec3T t((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
         utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
-        // todo tiemuhua 论文里面没有说明为什么loop edge这里要除10
         residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw)) * yaw_weight_;
         return true;
     }
@@ -72,11 +74,6 @@ LoopCloser::LoopCloser() {
     thread_optimize_ = std::thread(&LoopCloser::optimize4DoF, this);
 }
 
-LoopCloser::~LoopCloser() {
-    thread_optimize_.join();
-}
-
-// todo 若使用sift等耗时较长的描述字，可将提取描述子过程放入单独任务队列执行
 void LoopCloser::addKeyFrame(const KeyFramePtr &kf_ptr) {
     Synchronized(key_frame_buffer_mutex_) {
         key_frame_buffer_.emplace_back(kf_ptr);
@@ -104,9 +101,14 @@ bool LoopCloser::findLoop(const KeyFramePtr& kf, LoopMatchInfo& info) {
 
 [[noreturn]] void LoopCloser::optimize4DoF() {
     while (true) {
-        std::chrono::milliseconds dura(2000);
-        std::this_thread::sleep_for(dura);
+        struct timeval tv1{}, tv2{};
+        gettimeofday(&tv1, nullptr);
         optimize4DoFImpl();
+        gettimeofday(&tv2, nullptr);
+        int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
+        if ( cost_us < 1 * 1000) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 }
 
@@ -193,5 +195,5 @@ void LoopCloser::optimize4DoFImpl() {
         key_frame_list_[frame_idx]->updatePoseByDrift(t_drift, r_drift);
     }
 
-    // todo 更新滑动窗口中的位姿，vio中提供了关键帧之间的相对关系，利用drift更新位姿时应当利用相对位姿更新，而不是直接更新绝对位姿
+    handleDriftCalibration(t_drift, r_drift);
 }

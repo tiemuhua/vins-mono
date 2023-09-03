@@ -4,7 +4,7 @@
 
 #include "visual_inertial_aligner.h"
 #include <cstdlib>
-#include "parameters.h"
+#include "param.h"
 #include "log.h"
 #include "vins_utils.h"
 

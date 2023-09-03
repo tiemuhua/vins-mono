@@ -6,7 +6,7 @@
 #include <ceres/ceres.h>
 
 #include "log.h"
-#include "vins/imu_integrator.h"
+#include "vins/impl/imu_integrator.h"
 
 namespace vins {
     // 残差为15维，位置、四元数、速度、角速度漂移、加速度漂移各5维

@@ -5,9 +5,9 @@
 #ifndef VINS_BATCH_ADJUSTER_H
 #define VINS_BATCH_ADJUSTER_H
 
-#include "vins/vins_define_internal.h"
-#include "vins/parameters.h"
-#include "vins/feature_helper.h"
+#include "vins/impl/vins_define_internal.h"
+#include "vins/impl/param.h"
+#include "vins/impl/feature_helper.h"
 
 namespace vins::SlideWindowEstimator{
     void optimize(const SlideWindowEstimatorParam &param,

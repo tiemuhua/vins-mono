@@ -1,7 +1,7 @@
 #include "project_td_cost.h"
 #include "log.h"
-#include "vins/parameters.h"
-#include "vins/vins_utils.h"
+#include "vins/impl/param.h"
+#include "vins/impl/vins_utils.h"
 
 using namespace vins;
 
