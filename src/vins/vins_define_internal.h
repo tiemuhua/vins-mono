@@ -28,7 +28,7 @@ namespace vins {
 
     struct Feature {
         int feature_id          = -1;
-        int start_kf_idx        = -1;
+        int start_kf_window_idx        = -1;
         bool is_outlier         = false;
         double inv_depth        = -1;
         std::vector<cv::Point2f> points;
@@ -43,10 +43,10 @@ namespace vins {
 
         Feature() = default;
         Feature(int _feature_id, int _start_frame)
-                : feature_id(_feature_id), start_kf_idx(_start_frame) {}
+                : feature_id(_feature_id), start_kf_window_idx(_start_frame) {}
 
         [[nodiscard]] int endFrame() const {
-            return start_kf_idx + (int )points.size() - 1;
+            return start_kf_window_idx + (int )points.size() - 1;
         }
     };
 
@@ -74,8 +74,17 @@ namespace vins {
     };
 
     struct LoopMatchInfo {
-        int peer_frame_id = -1;
-        Frame peer_frame;
+        //.特征点在当前帧中的ID.
+        std::vector<int> feature_ids;
+        //.特征点在匹配帧中的二维坐标.
+        std::vector<cv::Point2f> peer_pts;
+
+        //.匹配帧的位置与姿态.
+        Eigen::Vector3d peer_pos;
+        Eigen::Matrix3d peer_rot;
+
+        int window_idx = 0;     //.当window_idx递增至window_size时，从loop_match_infos中移出.
+        int peer_kf_id = -1;    //.匹配帧的ID，通过kfIdToKfListIdx获取匹配帧在key_frame_list_中的下标.
     };
 
     typedef const Eigen::Matrix3d & ConstMat3dRef;

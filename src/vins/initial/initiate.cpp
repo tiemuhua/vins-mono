@@ -91,17 +91,17 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
     //triangulate on cam pose , no tic
     //计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
     for (Feature &feature: run_info.feature_window) {
-        if (!(feature.points.size() >= 2 && feature.start_kf_idx < run_info.kf_state_window.size() - 2))
+        if (!(feature.points.size() >= 2 && feature.start_kf_window_idx < run_info.kf_state_window.size() - 2))
             continue;
 
         Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);
 
-        int imu_i = feature.start_kf_idx;
+        int imu_i = feature.start_kf_window_idx;
         Eigen::Vector3d t0 = state_window.at(imu_i).pos;
         Eigen::Matrix3d R0 = state_window.at(imu_i).rot * RIC;
 
         for (int i = 0; i < feature.points.size(); ++i) {
-            int imu_j = feature.start_kf_idx + i;
+            int imu_j = feature.start_kf_window_idx + i;
             Eigen::Vector3d t1 = state_window.at(imu_j).pos;
             Eigen::Matrix3d R1 = state_window.at(imu_j).rot * RIC;
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);

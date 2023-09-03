@@ -28,18 +28,16 @@ static arr3d c_vel[WINDOW_SIZE];
 static arr3d c_ba[WINDOW_SIZE];
 static arr3d c_bg[WINDOW_SIZE];
 
+static arr3d c_loop_peer_pos[WINDOW_SIZE];
+static arr4d c_loop_peer_quat[WINDOW_SIZE];
+
 static arr3d c_tic;
 static arr4d c_ric;
 
 static arr1d c_inv_depth[FeaturePointSize];
 static arr1d c_time_delay;
 
-static arr3d c_loop_peer_pos;
-static arr4d c_loop_peer_quat;
-
 static vins::MarginalInfo *sp_marginal_info;
-
-static vins::LoopMatchInfo* sp_loop_match_info;
 
 using namespace vins;
 using namespace std;
@@ -57,7 +55,7 @@ static void eigen2c(const std::vector<KeyFrameState>& window,
     }
 
     for (int i = 0; i < feature_window.size(); ++i) {
-        if (feature_window[i].points.size() < 2 || feature_window[i].start_kf_idx >= WINDOW_SIZE - 2) {
+        if (feature_window[i].points.size() < 2 || feature_window[i].start_kf_window_idx >= WINDOW_SIZE - 2) {
             continue;
         }
         c_inv_depth[i][0] = feature_window[i].inv_depth;
@@ -80,7 +78,7 @@ static void c2eigen(std::vector<KeyFrameState>& window,
     }
 
     for (int i = 0; i < feature_window.size(); ++i) {
-        if (feature_window[i].points.size() < 2 || feature_window[i].start_kf_idx >= WINDOW_SIZE - 2) {
+        if (feature_window[i].points.size() < 2 || feature_window[i].start_kf_window_idx >= WINDOW_SIZE - 2) {
             continue;
         }
         feature_window[i].inv_depth = c_inv_depth[i][0];
@@ -90,14 +88,11 @@ static void c2eigen(std::vector<KeyFrameState>& window,
     ric = utils::array2quat(c_ric).toRotationMatrix();
 }
 
-void SlideWindowEstimator::setLoopMatchInfo(vins::LoopMatchInfo* loop_match_info) {
-    sp_loop_match_info = loop_match_info;
-}
-
 void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
+                                    const std::vector<ImuIntegratorPtr>& pre_int_window,
+                                    const std::vector<vins::LoopMatchInfo> &loop_match_infos,
                                     std::vector<Feature> &feature_window,
                                     std::vector<KeyFrameState>& state_window,
-                                    std::vector<ImuIntegratorPtr>& pre_int_window,
                                     Eigen::Vector3d &tic,
                                     Eigen::Matrix3d &ric) {
     eigen2c(state_window, feature_window, tic, ric);
@@ -110,6 +105,11 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
         problem.AddParameterBlock(c_vel[i], 3);
         problem.AddParameterBlock(c_ba[i], 3);
         problem.AddParameterBlock(c_bg[i], 3);
+
+        problem.AddParameterBlock(c_loop_peer_pos[i], 3);
+        problem.AddParameterBlock(c_loop_peer_quat[i], 4, new ceres::EigenQuaternionManifold);
+        problem.SetParameterBlockConstant(c_loop_peer_pos[i]);
+        problem.SetParameterBlockConstant(c_loop_peer_quat[i]);
     }
     problem.AddParameterBlock(c_ric, 4, new ceres::EigenQuaternionManifold);
     problem.AddParameterBlock(c_tic, 3);
@@ -123,8 +123,6 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     if (param.estimate_time_delay) {
         problem.AddParameterBlock(c_time_delay, 1);
     }
-    problem.AddParameterBlock(c_loop_peer_pos, 3);
-    problem.AddParameterBlock(c_loop_peer_quat, 4, new ceres::EigenQuaternionManifold);
 
     /*************** 1:边缘化 **************************/
     if (sp_marginal_info) {
@@ -135,8 +133,6 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     /*************** 2:IMU **************************/
     for (int i = 0; i < pre_int_window.size(); i++) {
         int j = i + 1;
-        if (pre_int_window.at(i)->deltaTime() > 10.0)// todo why???
-            continue;
         auto *cost_function = new IMUCost(*pre_int_window.at(i));
         problem.AddResidualBlock(cost_function, nullptr,
                                  c_pos[i], c_quat[i], c_vel[i], c_ba[i], c_bg[i],
@@ -146,9 +142,9 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     /*************** 3:特征点 **************************/
     for (int feature_idx = 0; feature_idx < feature_window.size(); ++feature_idx) {
         const Feature &feature = feature_window[feature_idx];
-        if (feature.points.size() < 2 || feature.start_kf_idx >= WINDOW_SIZE - 2)
+        if (feature.points.size() < 2 || feature.start_kf_window_idx >= WINDOW_SIZE - 2)
             continue;
-        int start_kf_idx = feature.start_kf_idx;
+        int start_kf_idx = feature.start_kf_window_idx;
         const cv::Point2f & point0 = feature.points[0];
         const cv::Point2f & vel0 = feature.velocities[0];
         const double time_stamp0 = feature.time_stamps_ms[0];
@@ -174,29 +170,30 @@ void SlideWindowEstimator::optimize(const SlideWindowEstimatorParam &param,
     }
 
     /*************** 3:回环 **************************/
-    if (sp_loop_match_info) {
-        const auto& peer_frame_feature_ids = sp_loop_match_info->peer_frame.feature_ids;
-        for (int feature_id = 0; feature_id < feature_window.size(); ++ feature_id) {
-            Feature feature = feature_window[feature_id];
-            int start = feature.start_kf_idx;
-            if (feature.points.size() < 2 || start > WINDOW_SIZE - 2 || start < sp_loop_match_info->peer_frame_id) {
+    std::unordered_map<int,int> feature_id_2_idx;
+    for (int i = 0; i < feature_window.size(); ++i) {
+        feature_id_2_idx[feature_window[i].feature_id] = i;
+    }
+    for (const auto &loop_match_info : loop_match_infos) {
+        for (int i = 0; i < loop_match_info.feature_ids.size(); ++i) {
+            int feature_idx = feature_id_2_idx[loop_match_info.feature_ids[i]];
+            int start_kf_window_idx = feature_window[feature_idx].start_kf_window_idx;
+            int cur_kf_window_idx = loop_match_info.window_idx;
+            if (feature_window[feature_idx].points.size() < 2 || start_kf_window_idx > state_window.size() - 2) {
                 continue;
             }
-            int feature_idx = 0;
-            for (; feature_idx < peer_frame_feature_ids.size(); ++feature_idx) {
-                if (feature.feature_id == peer_frame_feature_ids[feature_idx]) {
-                    break;
-                }
-            }
-            if (feature_idx == peer_frame_feature_ids.size()) {
-                continue;
-            }
-            auto *cost_function = new ProjectCost(sp_loop_match_info->peer_frame.points[feature_idx], feature.points[0]);
+
+            cv::Point2f peer_point = loop_match_info.peer_pts[i];
+            cv::Point2f cur_point = feature_window[feature_idx].points[0];
+            vins::utils::vec3d2array(loop_match_info.peer_pos, c_loop_peer_pos[cur_kf_window_idx]);
+            vins::utils::quat2array(Eigen::Quaterniond(loop_match_info.peer_rot), c_loop_peer_pos[cur_kf_window_idx]);
+
+            auto *cost_function = new ProjectCost(peer_point, cur_point);
             problem.AddResidualBlock(cost_function, loss_function,
-                                     c_pos[start], c_quat[start],
-                                     c_loop_peer_pos, c_loop_peer_quat,
+                                     c_pos[start_kf_window_idx], c_quat[start_kf_window_idx],
+                                     c_loop_peer_pos[cur_kf_window_idx], c_loop_peer_quat[cur_kf_window_idx],
                                      c_tic, c_ric,
-                                     c_inv_depth[feature_id]);
+                                     c_inv_depth[feature_idx]);
         }
     }
 
@@ -249,7 +246,7 @@ static MarginalInfo* marginalize(const SlideWindowEstimatorParam &param,
             const cv::Point2f &point = feature.points[frame_idx_shift];
             const cv::Point2f &vel = feature.velocities[frame_idx_shift];
             const double time_stamp = feature.time_stamps_ms[frame_idx_shift];
-            int cur_frame_id = feature.start_kf_idx + frame_idx_shift;
+            int cur_frame_id = feature.start_kf_window_idx + frame_idx_shift;
             ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
             if (param.estimate_time_delay) {
                 auto *project_td_cost = new ProjectTdCost(point0, point, vel0, vel, time_stamp0, time_stamp);

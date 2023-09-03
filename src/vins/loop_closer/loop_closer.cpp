@@ -135,11 +135,7 @@ void LoopCloser::optimize4DoFImpl() {
             if (loop_interval_lower_bound_ > peer_loop_id || loop_interval_lower_bound_ == -1) {
                 loop_interval_lower_bound_ = peer_loop_id;
             }
-
-            LoopMatchInfo* loop_match_info_ptr = new LoopMatchInfo();
-            loop_match_info_ptr->peer_frame_id = peer_loop_id;
-            loop_match_info_ptr->peer_frame = key_frame_buffer_[peer_loop_id]->base_frame_;
-            SlideWindowEstimator::setLoopMatchInfo(loop_match_info_ptr);
+            SlideWindowEstimator::setLoopMatchInfo(key_frame_buffer_[peer_loop_id]->base_frame_);
         }
         key_frame_list_.emplace_back(kf);
     }

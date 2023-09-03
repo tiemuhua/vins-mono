@@ -60,7 +60,7 @@ namespace vins {
     }
 
     inline bool isFrameHasFeature(int frame_idx, const Feature& feature) {
-        return feature.start_kf_idx <= frame_idx && frame_idx < feature.start_kf_idx + feature.points.size();
+        return feature.start_kf_window_idx <= frame_idx && frame_idx < feature.start_kf_window_idx + feature.points.size();
     }
 
     using Mat34 = Eigen::Matrix<double, 3, 4>;
@@ -86,8 +86,8 @@ namespace vins {
             if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
                 continue;
             }
-            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_kf_idx);
-            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_kf_idx);
+            cv::Point2f point0 = sfm.feature.points.at(frame0 - sfm.feature.start_kf_window_idx);
+            cv::Point2f point1 = sfm.feature.points.at(frame1 - sfm.feature.start_kf_window_idx);
             sfm.position = triangulatePoint(Pose0, Pose1, point0, point1);
             sfm.has_been_triangulated = true;
         }
@@ -97,7 +97,7 @@ namespace vins {
                                       vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated && isFrameHasFeature(frame_idx, sfm.feature)) {
-                cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_idx];
+                cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_window_idx];
                 pts_2_vector.emplace_back(img_pts);
                 pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
@@ -207,9 +207,9 @@ namespace vins {
             if (sfm.has_been_triangulated || sfm.feature.points.size() < 2) {
                 continue;
             }
-            int frame_0 = sfm.feature.start_kf_idx;
+            int frame_0 = sfm.feature.start_kf_window_idx;
             cv::Point2f point0 = sfm.feature.points.front();
-            int frame_1 = sfm.feature.start_kf_idx + (int )sfm.feature.points.size();
+            int frame_1 = sfm.feature.start_kf_window_idx + (int )sfm.feature.points.size();
             cv::Point2f point1 = sfm.feature.points.back();
             sfm.position = triangulatePoint(kf_poses[frame_0], kf_poses[frame_1], point0, point1);
             sfm.has_been_triangulated = true;

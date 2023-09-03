@@ -28,9 +28,9 @@ namespace vins {
         int parallax_num = 0;
         double parallax_sum = 0;
         for (const Feature &feature: feature_window) {
-            if (feature.start_kf_idx <= frame_idx - 2 && feature.start_kf_idx + int(feature.points.size()) >= frame_idx) {
-                cv::Point2f p_i = feature.points[frame_idx - 2 - feature.start_kf_idx];
-                cv::Point2f p_j = feature.points[frame_idx - 1 - feature.start_kf_idx];
+            if (feature.start_kf_window_idx <= frame_idx - 2 && feature.start_kf_window_idx + int(feature.points.size()) >= frame_idx) {
+                cv::Point2f p_i = feature.points[frame_idx - 2 - feature.start_kf_window_idx];
+                cv::Point2f p_j = feature.points[frame_idx - 1 - feature.start_kf_window_idx];
                 parallax_sum += cv::norm(p_i - p_j);
                 parallax_num++;
             }
@@ -66,9 +66,9 @@ namespace vins {
                                                       const std::vector<Feature>& feature_window) {
         Correspondences correspondences;
         for (const Feature &feature: feature_window) {
-            if (feature.start_kf_idx <= frame_idx_left && feature.endFrame() >= frame_idx_right) {
-                int idx_l = frame_idx_left - feature.start_kf_idx;
-                int idx_r = frame_idx_right - feature.start_kf_idx;
+            if (feature.start_kf_window_idx <= frame_idx_left && feature.endFrame() >= frame_idx_right) {
+                int idx_l = frame_idx_left - feature.start_kf_window_idx;
+                int idx_r = frame_idx_right - feature.start_kf_window_idx;
                 cv::Point2f a = feature.points[idx_l];
                 cv::Point2f b = feature.points[idx_r];
                 correspondences.emplace_back(make_pair(a, b));

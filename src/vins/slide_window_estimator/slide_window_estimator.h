@@ -10,11 +10,11 @@
 #include "vins/feature_helper.h"
 
 namespace vins::SlideWindowEstimator{
-    void setLoopMatchInfo(vins::LoopMatchInfo*);
     void optimize(const SlideWindowEstimatorParam &param,
+                  const std::vector<ImuIntegratorPtr>& pre_int_window,
+                  const std::vector<vins::LoopMatchInfo> &loop_match_infos,
                   std::vector<Feature> &feature_window,
                   std::vector<KeyFrameState>& state_window,
-                  std::vector<ImuIntegratorPtr>& pre_int_window,
                   Eigen::Vector3d &tic,
                   Eigen::Matrix3d &ric);
     void slide(const Param &param,

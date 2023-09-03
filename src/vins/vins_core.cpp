@@ -85,26 +85,14 @@ namespace vins {
             return;
         }
 
-        /******************从缓冲区中读取数据*******************/
+        /******************从缓冲区中读取图像数据*******************/
         if (img_buf_.empty()) {
             return;
         }
-
         auto img_ptr = img_buf_.front();
         double img_time_stamp = img_time_stamp_buf_.front();
         img_buf_.pop();
         img_time_stamp_buf_.pop();
-        auto frame_pre_integral =
-                std::make_shared<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
-        run_info_->prev_imu_state.acc = acc_buf_.back();
-        run_info_->prev_imu_state.gyr = gyr_buf_.back();
-        run_info_->prev_imu_state.time_stamp = imu_time_stamp_buf_.back();
-        while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
-            frame_pre_integral->predict(imu_time_stamp_buf_.front(), acc_buf_.front(), gyr_buf_.front());
-            imu_time_stamp_buf_.pop();
-            acc_buf_.pop();
-            gyr_buf_.pop();
-        }
 
         /******************提取特征点*******************/
         int prev_kf_window_size = run_info_->kf_state_window.size();
@@ -117,6 +105,19 @@ namespace vins {
             FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_points, run_info_->feature_window);
             vins_state_ = EVinsState::kEstimateExtrinsic;
             return;
+        }
+
+        /******************从缓冲区中读取惯导数据*******************/
+        auto frame_pre_integral =
+                std::make_shared<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
+        run_info_->prev_imu_state.acc = acc_buf_.back();
+        run_info_->prev_imu_state.gyr = gyr_buf_.back();
+        run_info_->prev_imu_state.time_stamp = imu_time_stamp_buf_.back();
+        while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
+            frame_pre_integral->predict(imu_time_stamp_buf_.front(), acc_buf_.front(), gyr_buf_.front());
+            imu_time_stamp_buf_.pop();
+            acc_buf_.pop();
+            gyr_buf_.pop();
         }
 
         /******************非首帧图像加入滑动窗口*******************/
@@ -142,20 +143,19 @@ namespace vins {
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
             auto oldest_features_begin = std::remove_if(run_info_->feature_window.begin(),
                                                         run_info_->feature_window.end(), [](const Feature &feature) {
-                        return feature.start_kf_idx == 0;
+                        return feature.start_kf_window_idx == 0;
                     });
             std::vector<Feature> oldest_feature(oldest_features_begin, run_info_->feature_window.end());
             run_info_->feature_window.erase(oldest_features_begin, run_info_->feature_window.end());
             std::unordered_map<int, int> feature_id_2_idx_after_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
             for (Feature &feature: run_info_->feature_window) {
-                feature.start_kf_idx--;
+                feature.start_kf_window_idx--;
             }
-            run_info_->frame_window.erase(
-                    run_info_->frame_window.begin(),
-                    std::find_if(run_info_->frame_window.begin(), run_info_->frame_window.end(), [&](const Frame &frame) {
-                        return frame.time_stamp > run_info_->kf_state_window.begin()->time_stamp;
-                    }));
+            auto it = std::find_if(run_info_->frame_window.begin(), run_info_->frame_window.end(), [&](auto &frame) {
+                return frame.time_stamp >= run_info_->kf_state_window.begin()->time_stamp;
+            });
+            run_info_->frame_window.erase(run_info_->frame_window.begin(), it);
             run_info_->kf_state_window.erase(run_info_->kf_state_window.begin());
             run_info_->pre_int_window.erase(run_info_->pre_int_window.begin());
             if (vins_state_ == EVinsState::kNormal) {
@@ -202,9 +202,10 @@ namespace vins {
 
         /******************滑窗优化*******************/
         SlideWindowEstimator::optimize(param_->slide_window,
+                                       run_info_->pre_int_window,
+                                       run_info_->loop_match_infos,
                                        run_info_->feature_window,
                                        run_info_->kf_state_window,
-                                       run_info_->pre_int_window,
                                        run_info_->tic,
                                        run_info_->ric);
         run_info_->prev_imu_state.ba = run_info_->kf_state_window.back().ba;
@@ -242,6 +243,5 @@ namespace vins {
                                   key_pts_3d,
                                   external_key_points_un_normalized,
                                   external_key_pts2d);
-        // todo SlideWindowEstimator::setLoopMatchInfo
     }
 }
