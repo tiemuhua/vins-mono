@@ -99,6 +99,7 @@ bool LoopCloser::findLoop(const KeyFramePtr& kf, LoopMatchInfo& info) {
             info.peer_pts.emplace_back(old_frame_pts2d[i]);
         }
     }
+    return true;
 }
 
 [[noreturn]] void LoopCloser::optimize4DoF() {
