@@ -83,7 +83,7 @@ namespace vins {
         Eigen::Vector3d peer_pos;
         Eigen::Matrix3d peer_rot;
 
-        int window_idx = 0;     //.当window_idx递增至window_size时，从loop_match_infos中移出.
+        int window_idx = -1;     //.当window_idx递减至-1时，从loop_match_infos中移出.
         int peer_kf_id = -1;    //.匹配帧的ID，通过kfIdToKfListIdx获取匹配帧在key_frame_list_中的下标.
     };
 

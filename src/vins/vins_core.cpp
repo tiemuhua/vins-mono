@@ -158,6 +158,12 @@ namespace vins {
             run_info_->frame_window.erase(run_info_->frame_window.begin(), it);
             run_info_->kf_state_window.erase(run_info_->kf_state_window.begin());
             run_info_->pre_int_window.erase(run_info_->pre_int_window.begin());
+            for (LoopMatchInfo &info:run_info_->loop_match_infos) {
+                info.window_idx--;
+            }
+            if (!run_info_->loop_match_infos.empty() && run_info_->loop_match_infos[0].window_idx == -1) {
+                run_info_->loop_match_infos.erase(run_info_->loop_match_infos.begin());
+            }
             if (vins_state_ == EVinsState::kNormal) {
                 SlideWindowEstimator::slide(*param_,
                                             oldest_feature,
