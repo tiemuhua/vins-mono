@@ -2,6 +2,7 @@
 #include "log.h"
 #include "vins/impl/vins_utils.h"
 #include "vins/param.h"
+#include "vins/vins_logic.h"
 
 using namespace vins;
 
@@ -39,7 +40,7 @@ bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, d
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
-    Eigen::Matrix2d sqrt_info = vins::Param::Instance().camera.focal / 1.5 * Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d sqrt_info = vins::getParam()->camera.focal / 1.5 * Eigen::Matrix2d::Identity();
     residual =  sqrt_info * residual;
 
     assert(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3]);

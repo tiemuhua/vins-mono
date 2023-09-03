@@ -10,6 +10,9 @@ namespace vins {
     void init(vins::Param *param) {
         sp_vins_core = new VinsCore(param);
     }
+    vins::Param* getParam() {
+        return sp_vins_core->getParam();
+    }
     void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
         sp_vins_core->handleImage(_img, time_stamp);
     }

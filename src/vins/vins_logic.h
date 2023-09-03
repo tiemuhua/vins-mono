@@ -12,6 +12,7 @@
 
 namespace vins {
     void init(vins::Param *param);
+    vins::Param *getParam();
     void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
     void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
     void handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);

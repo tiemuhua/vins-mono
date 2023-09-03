@@ -75,7 +75,7 @@ namespace vins {
 
         const Eigen::Vector3d & prev_pos = prev_state.pos;
         const Eigen::Vector3d & prev_vel = prev_state.vel;
-        const Eigen::Vector3d & prev_rot = prev_state.rot;
+        const Eigen::Matrix3d & prev_rot = prev_state.rot;
         const Eigen::Vector3d & prev_ba = prev_state.ba;
         const Eigen::Vector3d & prev_bg = prev_state.bg;
 
