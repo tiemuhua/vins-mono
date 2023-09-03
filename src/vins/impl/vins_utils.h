@@ -23,35 +23,25 @@ namespace vins {
             return str;
         }
 
-        inline Eigen::Vector3d cvPoint3fToEigenVec3d(const cv::Point3f &cv_p3) {
-            Eigen::Vector3d vec;
-            vec << cv_p3.x, cv_p3.y, cv_p3.z;
-            return vec;
-        }
-
-        inline cv::Point3f eigenVec3dToCvPoint3f(const Eigen::Vector3d & eigen_p3) {
+        inline cv::Point3f cvPoint2fToCvPoint3f(const cv::Point2f &p2d, double depth) {
             cv::Point3f cv_p3;
-            cv_p3.x = eigen_p3(0);
-            cv_p3.y = eigen_p3(1);
-            cv_p3.z = eigen_p3(2);
+            cv_p3.x = p2d.x * depth;
+            cv_p3.y = p2d.y * depth;
+            cv_p3.z = 1.0 * depth;
             return cv_p3;
         }
 
-        inline Eigen::Vector3d cvPoint2fToEigenVec3d(const cv::Point2f &p2d, double depth) {
-            Eigen::Vector3d vec;
-            vec << p2d.x, p2d.y, 1.0;
-            return vec * depth;
+        template<typename Derived>
+        void reduceVector(std::vector<Derived> &v, const std::vector<uint8_t> &status) {
+            int j = 0;
+            for (int i = 0; i < int(v.size()); i++)
+                if (status[i])
+                    v[j++] = v[i];
+            v.resize(j);
         }
 
-        inline cv::Point3f cvPoint2fToCvPoint3f(const cv::Point2f &p2d, double depth) {
-            Eigen::Vector3d vec;
-            vec << p2d.x, p2d.y, 1.0;
-            return eigenVec3dToCvPoint3f(vec * depth);
-        }
-
-        /**
-         * C数组的向量运算 todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
-         * */
+        /****************** 向量运算 ******************/
+        //todo tiemuhua 使用map<Eigen::Vector>运算，比较eigen和原生C的速度
         template<typename T>
         inline void arrayMinus(const T * first, const T * second, T * target, int length) {
             for (int i = 0; i < length; ++i) {
@@ -71,9 +61,7 @@ namespace vins {
             }
         }
 
-        /**
-         * 角度运算
-         * */
+        /****************** 角度运算 ******************/
         template<typename T>
         T normalizeAngle180(const T &angle_degrees) {
             if (angle_degrees > T(180.0))
@@ -91,20 +79,9 @@ namespace vins {
                 return angle_degrees + 2*pi;
             else
                 return angle_degrees;
-        };
-
-        template<typename Derived>
-        void reduceVector(std::vector<Derived> &v, const std::vector<uint8_t> &status) {
-            int j = 0;
-            for (int i = 0; i < int(v.size()); i++)
-                if (status[i])
-                    v[j++] = v[i];
-            v.resize(j);
         }
 
-        /**
-         * 矩阵运算
-         * */
+        /****************** 矩阵运算 ******************/
         template<typename Derived>
         static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta) {
             typedef typename Derived::Scalar Scalar_t;
@@ -196,6 +173,7 @@ namespace vins {
             f(iter);
         }
 
+        /****************** C数组和eigen互转 ******************/
         inline void quat2array(const Eigen::Quaterniond &q, double *arr) {
             arr[0] = q.w();
             arr[1] = q.x();
@@ -209,6 +187,7 @@ namespace vins {
             q.x() = arr[1];
             q.y() = arr[2];
             q.z() = arr[3];
+            return q;
         }
 
         inline void vec3d2array(const Eigen::Vector3d &vec, double *arr) {
