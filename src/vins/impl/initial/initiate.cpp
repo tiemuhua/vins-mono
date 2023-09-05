@@ -13,7 +13,6 @@ using namespace std;
 static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     //check imu observability
     Eigen::Vector3d sum_acc;
-    // todo tiemuhuaguo 原始代码很奇怪，all_image_frame隔一个用一个，而且all_image_frame.size() - 1是什么意思？
     for (const Frame &frame: all_image_frame_) {
         double dt = frame.pre_integral_->deltaTime();
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
@@ -37,14 +36,22 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
         return false;
     }
 
-    bool visual_succ = initiateByVisual(run_info.kf_state_window.size(),
+    bool visual_succ = initiateByVisual((int )run_info.kf_state_window.size(),
                                         run_info.feature_window,
                                         run_info.frame_window);
     if (!visual_succ) {
         return false;
     }
 
-    Eigen::Vector3d delta_bg;
+    //.求解bg.
+    Eigen::Vector3d bg = solveGyroBias(run_info.frame_window);
+    if (bg.norm() > 1e4) {
+        return false;
+    }
+    for (int i = 1; i < run_info.frame_window.size(); ++i) {
+        run_info.frame_window[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
+    }
+
     Eigen::Matrix3d rot_diff;
     std::vector<Eigen::Vector3d> velocities;
     double scale;
@@ -53,7 +60,6 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
                                              run_info.ric,
                                              run_info.frame_window,
                                              run_info.gravity,
-                                             delta_bg,
                                              rot_diff,
                                              velocities,
                                              scale);
@@ -66,7 +72,7 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
     auto &TIC = run_info.tic;
     auto RIC = run_info.ric;
     for (KeyFrameState & state : state_window) {
-        state.bg = state.bg + delta_bg;
+        state.bg = bg;
     }
     int frame_size = (int )all_frames.size();
     for (int frame_idx = 0, key_frame_id = 0; frame_idx < frame_size; frame_idx++) {
@@ -96,14 +102,14 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
 
         Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);
 
-        int imu_i = feature.start_kf_window_idx;
-        Eigen::Vector3d t0 = state_window.at(imu_i).pos;
-        Eigen::Matrix3d R0 = state_window.at(imu_i).rot * RIC;
+        int start_kf_idx = feature.start_kf_window_idx;
+        Eigen::Vector3d t0 = state_window.at(start_kf_idx).pos;
+        Eigen::Matrix3d R0 = state_window.at(start_kf_idx).rot * RIC;
 
         for (int i = 0; i < feature.points.size(); ++i) {
-            int imu_j = feature.start_kf_window_idx + i;
-            Eigen::Vector3d t1 = state_window.at(imu_j).pos;
-            Eigen::Matrix3d R1 = state_window.at(imu_j).rot * RIC;
+            int kf_idx = start_kf_idx + i;
+            Eigen::Vector3d t1 = state_window.at(kf_idx).pos;
+            Eigen::Matrix3d R1 = state_window.at(kf_idx).rot * RIC;
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;
             Eigen::Matrix<double, 3, 4> P;

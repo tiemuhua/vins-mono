@@ -9,7 +9,9 @@
 #include "vins/impl/vins_utils.h"
 
 namespace vins {
-    static Eigen::Vector3d solveGyroBias(const std::vector<Frame> &all_image_frame) {
+    // 此时不知ba、bg、gravity，ba和gravity耦合，都和位移有关。而bg只和旋转有关，因此可以在不知道ba、gravity的情况下独立求解bg。
+    // 认为视觉求出来的旋转是准确的，通过IMU和视觉的差求出bg
+    Eigen::Vector3d solveGyroBias(const std::vector<Frame> &all_image_frame) {
         Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
         Eigen::Vector3d b = Eigen::Vector3d::Zero();
         for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
@@ -20,8 +22,8 @@ namespace vins {
             A += tmp_A.transpose() * tmp_A;
             b += tmp_A.transpose() * tmp_b;
         }
-        Eigen::Vector3d delta_bg = A.ldlt().solve(b);
-        return delta_bg;
+        Eigen::Vector3d bg = A.ldlt().solve(b);
+        return bg;
     }
 
     typedef Eigen::Matrix<double, 6, 10> Matrix_6_10;
@@ -126,7 +128,6 @@ namespace vins {
             Matrix_6_10 tmp_A = Matrix_6_10::Zero();
             Vector6d tmp_b =  Vector6d::Zero();
 
-            // todo tiemuhuaguo frame_i的预积分才有意义，这里的公式需要重新推导
             ImuIntegrator& pre_integral_j = *frame_j.pre_integral_;
             double dt = pre_integral_j.deltaTime();
             Eigen::Matrix3d R_i_inv = frame_i.R.transpose();
@@ -185,19 +186,9 @@ namespace vins {
                                 ConstMat3dRef RIC,
                                 std::vector<Frame> &all_frames,
                                 Eigen::Vector3d& gravity,
-                                Eigen::Vector3d& delta_bg,
                                 Eigen::Matrix3d& rot_diff,
                                 std::vector<Eigen::Vector3d> &velocities,
                                 double &scale) {
-        int frame_size = (int) all_frames.size();
-
-        // todo solveGyroscopeBias求出来的是bg的值还是bg的变化值？
-        delta_bg = solveGyroBias(all_frames);
-
-        for (int i = 0; i < frame_size - 1; ++i) {
-            all_frames[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), delta_bg);
-        }
-
         if (!linearAlignment(all_frames, TIC, gravity_norm, gravity)) {
             return false;
         }
