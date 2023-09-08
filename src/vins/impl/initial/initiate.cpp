@@ -52,20 +52,20 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
         run_info.frame_window[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
     }
 
-    Eigen::Matrix3d rot_diff;
-    std::vector<Eigen::Vector3d> velocities;
-    double scale;
-    bool align_succ = alignVisualAndInertial(gravity_norm,
-                                             run_info.tic,
-                                             run_info.ric,
-                                             run_info.frame_window,
-                                             run_info.gravity,
-                                             rot_diff,
-                                             velocities,
-                                             scale);
-    if (!align_succ) {
+    if (!linearAlignment(run_info.frame_window, run_info.tic, gravity_norm, run_info.gravity)) {
         return false;
     }
+    double scale;
+    std::vector<Eigen::Vector3d> velocities;
+    refineGravity(run_info.frame_window, gravity_norm, run_info.tic, run_info.gravity, scale, velocities);
+    if (scale < 1e-4) {
+        return false;
+    }
+    Eigen::Matrix3d R0 = std::find_if(run_info.frame_window.begin(),run_info.frame_window.end(),[](auto it){
+        return it.is_key_frame_;
+    })->R;
+    Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, R0);
+    run_info.gravity = rot_diff * run_info.gravity;
 
     auto &state_window = run_info.kf_state_window;
     auto &all_frames = run_info.frame_window;

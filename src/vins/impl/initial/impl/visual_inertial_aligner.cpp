@@ -54,8 +54,12 @@ namespace vins {
      * @param s 尺度
      * @param vel todo坐标系下的速度，长度为todo
      * */
-    static void refineGravity(const std::vector<Frame> &all_frames, const double gravity_norm, ConstVec3dRef TIC,
-                              Eigen::Vector3d &g, double &s, std::vector<Eigen::Vector3d> &vel) {
+    void refineGravity(const std::vector<Frame> &all_frames,
+                       const double gravity_norm,
+                       ConstVec3dRef TIC,
+                       Eigen::Vector3d &g,
+                       double &s,
+                       std::vector<Eigen::Vector3d> &vel) {
         const int frames_size = (int )all_frames.size();
         g = g.normalized() * gravity_norm;
         int n_state = frames_size * 3 + 2 + 1;
@@ -114,8 +118,8 @@ namespace vins {
         }
     }
 
-    static bool linearAlignment(const std::vector<Frame> &all_frames, ConstVec3dRef TIC,
-                                const double gravity_norm, Eigen::Vector3d &g) {
+    bool linearAlignment(const std::vector<Frame> &all_frames, ConstVec3dRef TIC,
+                         const double gravity_norm, Eigen::Vector3d &g) {
         int n_state = (int )all_frames.size() * 3 + 3 + 1;
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_state, n_state);
@@ -167,7 +171,7 @@ namespace vins {
         return true;
     }
 
-    static Eigen::Matrix3d rotGravityToZAxis(ConstVec3dRef gravity, ConstMat3dRef R0) {
+    Eigen::Matrix3d rotGravityToZAxis(ConstVec3dRef gravity, ConstMat3dRef R0) {
         Eigen::Vector3d ng1 = gravity.normalized();
         Eigen::Vector3d ng2{0, 0, 1.0};
         Eigen::Matrix3d rot_gravity_to_z_axis_in_R0_frame =
@@ -179,30 +183,5 @@ namespace vins {
         double yaw2 = utils::rot2ypr(rot_gravity_to_z_axis_in_R0_frame * R0).x();
         Eigen::Matrix3d reverse_yaw_rot2 = Eigen::AngleAxisd(-yaw2, Eigen::Vector3d::UnitZ()).toRotationMatrix();
         return reverse_yaw_rot2 * rot_gravity_to_z_axis_in_R0_frame;
-    }
-
-    bool alignVisualAndInertial(const double gravity_norm,
-                                ConstVec3dRef TIC,
-                                ConstMat3dRef RIC,
-                                std::vector<Frame> &all_frames,
-                                Eigen::Vector3d& gravity,
-                                Eigen::Matrix3d& rot_diff,
-                                std::vector<Eigen::Vector3d> &velocities,
-                                double &scale) {
-        if (!linearAlignment(all_frames, TIC, gravity_norm, gravity)) {
-            return false;
-        }
-        refineGravity(all_frames, gravity_norm, TIC, gravity, scale, velocities);
-        if (scale < 1e-4) {
-            return false;
-        }
-
-        Eigen::Matrix3d R0 = std::find_if(all_frames.begin(),all_frames.end(),[](auto it){
-            return it.is_key_frame_;
-        })->R;
-        rot_diff = rotGravityToZAxis(gravity, R0);
-        gravity = rot_diff * gravity;
-
-        return true;
     }
 }
