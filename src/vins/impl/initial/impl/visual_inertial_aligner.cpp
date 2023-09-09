@@ -128,21 +128,20 @@ namespace vins {
 
     bool linearAlignment(const std::vector<Frame> &all_frames, ConstVec3dRef TIC,
                          const double gravity_norm, Eigen::Vector3d &g) {
-        int n_state = (int )all_frames.size() * 3 + 3 + 1;
+        int frame_size = (int )all_frames.size();
+        int n_state = frame_size * 3 + 3 + 1;
+        int gravity_idx = frame_size * 3;
+        int scale_idx = frame_size * 3 + 3;
+        int n_equation = frame_size * 6;
 
-        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_state, n_state);
+        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_equation, n_state);
         Eigen::VectorXd b = Eigen::VectorXd::Zero(n_state);
 
         for (int i = 0; i < (int) all_frames.size() - 1; ++i) {
             const Frame& frame_i = all_frames[i];
             const Frame& frame_j = all_frames[i + 1];
 
-            Matrix_6_10 tmp_A = Matrix_6_10::Zero();
-            Vector6d tmp_b =  Vector6d::Zero();
-
-            const Eigen::Matrix3d &rot_i_inv = frame_i.R.transpose();
             const Eigen::Vector3d img_delta_pos = frame_j.T - frame_i.T;
-            const Eigen::Vector3d img_delta_rot = rot_i_inv * frame_j.R;
 
             const ImuIntegrator &pre_integral_j = *frame_j.pre_integral_;
             const double dt = pre_integral_j.deltaTime();
@@ -150,37 +149,31 @@ namespace vins {
             const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
             const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
 
-            //.位移方程.
-            tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();                //.速度->位移.
-            tmp_A.block<3, 3>(0, 6) = rot_i_inv * dt2 / 2;                              //.重力->位移.
-            tmp_A.block<3, 1>(0, 9) = rot_i_inv * (img_delta_pos) / 100.0;              //.尺度->位移.
-            tmp_b.block<3, 1>(0, 0) = imu_delta_pos + img_delta_rot * TIC - TIC;
+            //.在世界坐标系中写出位移方程.
+            // img_delta_pos * scale - rot_i * img_delta_rot * TIC + rot_i * TIC == rot_i * imu_delta_pos - 0.5 * gravity * dt^2 + dt * velocity_avg
+            //.整理为.
+            // img_delta_pos * scale + 0.5 * dt^2 * gravity - dt * 0.5 * (velocity[i] + velocity[j]) == rot_i * (imu_delta_pos + img_delta_rot * TIC - TIC)
+            A.block<3, 1>(i * 6, scale_idx) = img_delta_pos;
+            A.block<3, 3>(i * 6, gravity_idx) = 0.5 * dt2 * Eigen::Matrix3d::Identity();
+            A.block<3, 3>(i * 6, i * 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
+            A.block<3, 3>(i * 6, i * 3 + 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
+            b.block<3, 1>(i * 6, 0) = frame_i.R * imu_delta_pos + frame_j.R * TIC - frame_i.R * TIC;
 
-            //.速度方程.
-            tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();                     //.速度.
-            tmp_A.block<3, 3>(3, 3) = img_delta_rot;                                    //.速度.
-            tmp_A.block<3, 3>(3, 6) = rot_i_inv * dt;                                   //.重力.
-            tmp_b.block<3, 1>(3, 0) = imu_delta_vel;
-
-            Matrix10d r_A = tmp_A.transpose() * tmp_A;
-            Vector10d r_b = tmp_A.transpose() * tmp_b;
-
-            A.block<6, 6>(i * 3, i * 3) += r_A.topLeftCorner<6, 6>();
-            b.segment<6>(i * 3) += r_b.head<6>();
-
-            A.bottomRightCorner<4, 4>() += r_A.bottomRightCorner<4, 4>();
-            b.tail<4>() += r_b.tail<4>();
-
-            A.block<6, 4>(i * 3, n_state - 4) += r_A.topRightCorner<6, 4>();
-            A.block<4, 6>(n_state - 4, i * 3) += r_A.bottomLeftCorner<4, 6>();
+            //.在世界坐标系中写出速度方程.
+            // velocity[j] - velocity[i] = frame_i.R * imu_delta_vel - dt * gravity
+            //.整理为.
+            // dt * gravity - velocity[i] + velocity[j] = frame_i.R * imu_delta_vel
+            A.block<3, 3>(i * 6 + 3, gravity_idx) = dt * Eigen::Matrix3d::Identity();
+            A.block<3, 3>(i * 6 + 3, i * 3) = -Eigen::Matrix3d::Identity();
+            A.block<3, 3>(i * 6 + 3, i * 3 + 3) = Eigen::Matrix3d::Identity();
+            b.block<3, 1>(i * 6 + 3, 0) = frame_i.R * imu_delta_vel;
         }
-        A = A * 1000.0;
-        b = b * 1000.0;
-        Eigen::VectorXd x = A.ldlt().solve(b);
+        Eigen::VectorXd x = (A.transpose() * A).ldlt().solve(A.transpose() * b);
         double s = x(n_state - 1) / 100.0;
         LOG_I("estimated scale: %f", s);
         g = x.segment<3>(n_state - 4);
-        if (abs(g.norm() - gravity_norm) > 1.0 || s < 1e-4) {
+        constexpr double standard_gravity_norm = 9.8;
+        if (abs(g.norm() - standard_gravity_norm) > 1.0 || s < 1e-4) {
             LOG_E("fabs(g.norm() - G.norm()) > 1.0 || s < 0");
             return false;
         }
