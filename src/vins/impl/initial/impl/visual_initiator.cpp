@@ -219,18 +219,18 @@ namespace vins {
         //6: full BA
         ceres::Problem problem;
         ceres::Manifold *quat_manifold = new ceres::QuaternionManifold();
-        double c_key_frames_rot[cur_window_size][4];
-        double c_key_frames_pos[cur_window_size][3];
+        std::vector<std::array<double, 4>> c_key_frames_rot(cur_window_size);
+        std::vector<std::array<double, 3>> c_key_frames_pos(cur_window_size);
         for (int i = 0; i < cur_window_size; i++) {
-            utils::quat2array(Eigen::Quaterniond(kf_poses[i].block<3, 3>(0, 0)), c_key_frames_rot[i]);
-            utils::vec3d2array(kf_poses[i].block<3, 1>(0, 3), c_key_frames_pos[i]);
-            problem.AddParameterBlock(c_key_frames_rot[i], 4, quat_manifold);
-            problem.AddParameterBlock(c_key_frames_pos[i], 3);
+            utils::quat2array(Eigen::Quaterniond(kf_poses[i].block<3, 3>(0, 0)), c_key_frames_rot[i].data());
+            utils::vec3d2array(kf_poses[i].block<3, 1>(0, 3), c_key_frames_pos[i].data());
+            problem.AddParameterBlock(c_key_frames_rot[i].data(), 4, quat_manifold);
+            problem.AddParameterBlock(c_key_frames_pos[i].data(), 3);
             if (i == big_parallax_frame_id) {
-                problem.SetParameterBlockConstant(c_key_frames_rot[i]);
+                problem.SetParameterBlockConstant(c_key_frames_rot[i].data());
             }
             if (i == big_parallax_frame_id || i == cur_window_size - 1) {
-                problem.SetParameterBlockConstant(c_key_frames_pos[i]);
+                problem.SetParameterBlockConstant(c_key_frames_pos[i].data());
             }
         }
 
@@ -241,8 +241,8 @@ namespace vins {
                 ceres::CostFunction *cost_function =
                         ReProjectionError3D::Create(sfm.feature.points[frame_bias]);
                 problem.AddResidualBlock(cost_function, nullptr,
-                                         c_key_frames_rot[big_parallax_frame_id],
-                                         c_key_frames_pos[big_parallax_frame_id],
+                                         c_key_frames_rot[big_parallax_frame_id].data(),
+                                         c_key_frames_pos[big_parallax_frame_id].data(),
                                          sfm.position.data());
             }
         }
