@@ -74,9 +74,9 @@ namespace vins {
         return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
     }
 
-    static void triangulateTwoFrames(int frame0, const Mat34 &Pose0,
-                                     int frame1, const Mat34 &Pose1,
-                                     vector<SFMFeature> &sfm_features) {
+    static void triangulatePtsByFramePos(int frame0, const Mat34 &Pose0,
+                                         int frame1, const Mat34 &Pose1,
+                                         vector<SFMFeature> &sfm_features) {
         assert(frame0 != frame1);
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated)
@@ -156,8 +156,8 @@ namespace vins {
         kf_poses[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
         kf_poses[cur_window_size - 1].block<3, 3>(0, 0) = relative_R;
         kf_poses[cur_window_size - 1].block<3, 1>(0, 3) = relative_T;
-        triangulateTwoFrames(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
-                             cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
+        triangulatePtsByFramePos(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
+                                 cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
 
         // 2: solve pnp [l+1, frame_num-2]
         // triangulate [l+1, frame_num-2] <-> frame_num-1;
@@ -174,12 +174,14 @@ namespace vins {
             kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
 
             // triangulate point based on to solve pnp result
-            triangulateTwoFrames(frame_idx, kf_poses[frame_idx], cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
+            triangulatePtsByFramePos(frame_idx, kf_poses[frame_idx],
+                                     cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
         }
 
         //3: triangulate l <-> [l+1, frame_num -2]
         for (int frame_idx = big_parallax_frame_id + 1; frame_idx < cur_window_size - 1; frame_idx++) {
-            triangulateTwoFrames(big_parallax_frame_id, kf_poses[big_parallax_frame_id], frame_idx, kf_poses[frame_idx], sfm_features);
+            triangulatePtsByFramePos(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
+                                     frame_idx, kf_poses[frame_idx], sfm_features);
         }
 
         // 4: solve pnp for frame [0, l-1]
@@ -197,7 +199,8 @@ namespace vins {
             kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
             kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
             //triangulate
-            triangulateTwoFrames(frame_idx, kf_poses[frame_idx], big_parallax_frame_id, kf_poses[big_parallax_frame_id], sfm_features);
+            triangulatePtsByFramePos(frame_idx, kf_poses[frame_idx],
+                                     big_parallax_frame_id, kf_poses[big_parallax_frame_id], sfm_features);
         }
 
         //5: triangulate all others points
