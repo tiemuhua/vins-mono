@@ -92,24 +92,24 @@ namespace vins {
     }
 
     static void collectFeaturesInFrame(const vector<SFMFeature> &sfm_features, const int frame_idx,
-                                       vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
+                                       vector<cv::Point2f> &pts_2d, vector<cv::Point3f> &pts_3d) {
         for (const SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated && isFrameHasFeature(frame_idx, sfm.feature)) {
                 cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_window_idx];
-                pts_2_vector.emplace_back(img_pts);
-                pts_3_vector.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
+                pts_2d.emplace_back(img_pts);
+                pts_3d.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
         }
     }
 
-    static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2_vector, const vector<cv::Point3f> &pts_3_vector,
+    static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2d, const vector<cv::Point3f> &pts_3d,
                                 const bool use_extrinsic_guess, Eigen::Matrix3d &R, Eigen::Vector3d &T) {
         cv::Mat r, rvec, t, D, tmp_r;
         cv::eigen2cv(R, tmp_r);
         cv::Rodrigues(tmp_r, rvec);
         cv::eigen2cv(T, t);
         cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-        if (!cv::solvePnP(pts_3_vector, pts_2_vector, K, D, rvec, t, use_extrinsic_guess)) {
+        if (!cv::solvePnP(pts_3d, pts_2d, K, D, rvec, t, use_extrinsic_guess)) {
             LOG_E("solve pnp fail");
             return false;
         }
@@ -165,10 +165,10 @@ namespace vins {
             // solve pnp
             Eigen::Matrix3d R_initial = kf_poses[frame_idx - 1].block<3, 3>(0, 0);
             Eigen::Vector3d P_initial = kf_poses[frame_idx - 1].block<3, 1>(0, 3);
-            vector<cv::Point2f> pts_2_vector;
-            vector<cv::Point3f> pts_3_vector;
-            collectFeaturesInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
-            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial))
+            vector<cv::Point2f> pts_2d;
+            vector<cv::Point3f> pts_3d;
+            collectFeaturesInFrame(sfm_features, frame_idx, pts_2d, pts_3d);
+            if (!solveFrameByPnP(pts_2d, pts_3d, true, R_initial, P_initial))
                 return false;
             kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
             kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
@@ -188,16 +188,16 @@ namespace vins {
         //    triangulate [0, l-1] <-> l
         for (int frame_idx = big_parallax_frame_id - 1; frame_idx >= 0; frame_idx--) {
             //solve pnp
-            Eigen::Matrix3d R_initial = kf_poses[frame_idx + 1].block<3, 3>(0, 0);
-            Eigen::Vector3d P_initial = kf_poses[frame_idx + 1].block<3, 1>(0, 3);
-            vector<cv::Point2f> pts_2_vector;
-            vector<cv::Point3f> pts_3_vector;
-            collectFeaturesInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
-            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial)) {
+            Eigen::Matrix3d R_init = kf_poses[frame_idx + 1].block<3, 3>(0, 0);
+            Eigen::Vector3d T_init = kf_poses[frame_idx + 1].block<3, 1>(0, 3);
+            vector<cv::Point2f> pts_2d;
+            vector<cv::Point3f> pts_3d;
+            collectFeaturesInFrame(sfm_features, frame_idx, pts_2d, pts_3d);
+            if (!solveFrameByPnP(pts_2d, pts_3d, true, R_init, T_init)) {
                 return false;
             }
-            kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
-            kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
+            kf_poses[frame_idx].block<3, 3>(0, 0) = R_init;
+            kf_poses[frame_idx].block<3, 1>(0, 3) = T_init;
             //triangulate
             triangulatePtsByFramePos(frame_idx, kf_poses[frame_idx],
                                      big_parallax_frame_id, kf_poses[big_parallax_frame_id], sfm_features);
@@ -283,23 +283,23 @@ namespace vins {
                 continue;
             }
 
-            vector<cv::Point3f> pts_3_vector;
-            vector<cv::Point2f> pts_2_vector;
+            vector<cv::Point3f> pts_3d;
+            vector<cv::Point2f> pts_2d;
             for (int i = 0; i < frame.points.size(); ++i) {
                 if (feature_id_2_position.count(frame.feature_ids[i])) {
                     Eigen::Vector3d world_pts = feature_id_2_position[frame.feature_ids[i]];
-                    pts_3_vector.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                    pts_2_vector.emplace_back(frame.points[i]);
+                    pts_3d.emplace_back(world_pts(0), world_pts(1), world_pts(2));
+                    pts_2d.emplace_back(frame.points[i]);
                 }
             }
-            if (pts_3_vector.size() < 6) {
-                LOG_E("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3_vector.size());
+            if (pts_3d.size() < 6) {
+                LOG_E("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3d.size());
                 return false;
             }
 
             Eigen::Matrix3d R_initial = key_frames_rot[key_frame_idx];
             Eigen::Vector3d P_initial = key_frames_pos[key_frame_idx];
-            if (!solveFrameByPnP(pts_2_vector, pts_3_vector, false, R_initial, P_initial)) {
+            if (!solveFrameByPnP(pts_2d, pts_3d, false, R_initial, P_initial)) {
                 LOG_E("solve pnp fail!");
                 return false;
             }
