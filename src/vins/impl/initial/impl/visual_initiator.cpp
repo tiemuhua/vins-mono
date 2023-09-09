@@ -91,8 +91,8 @@ namespace vins {
         }
     }
 
-    static void calcFeaturePtsInFrame(const vector<SFMFeature> &sfm_features, const int frame_idx,
-                                      vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
+    static void collectFeaturesInFrame(const vector<SFMFeature> &sfm_features, const int frame_idx,
+                                       vector<cv::Point2f> &pts_2_vector, vector<cv::Point3f> &pts_3_vector) {
         for (const SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated && isFrameHasFeature(frame_idx, sfm.feature)) {
                 cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_window_idx];
@@ -167,7 +167,7 @@ namespace vins {
             Eigen::Vector3d P_initial = kf_poses[frame_idx - 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
-            calcFeaturePtsInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
+            collectFeaturesInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial))
                 return false;
             kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
@@ -192,7 +192,7 @@ namespace vins {
             Eigen::Vector3d P_initial = kf_poses[frame_idx + 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2_vector;
             vector<cv::Point3f> pts_3_vector;
-            calcFeaturePtsInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
+            collectFeaturesInFrame(sfm_features, frame_idx, pts_2_vector, pts_3_vector);
             if (!solveFrameByPnP(pts_2_vector, pts_3_vector, true, R_initial, P_initial)) {
                 return false;
             }
