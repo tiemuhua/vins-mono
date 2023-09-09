@@ -262,10 +262,10 @@ namespace vins {
         vector<Eigen::Vector3d> key_frames_pos(cur_window_size + 1);
         map<int, Eigen::Vector3d> feature_id_2_position;
         for (int i = 0; i < cur_window_size; i++) {
-            key_frames_rot[i] = utils::array2quat(c_key_frames_rot[i]).toRotationMatrix();
+            key_frames_rot[i] = utils::array2quat(c_key_frames_rot[i].data()).toRotationMatrix();
         }
         for (int i = 0; i < cur_window_size; i++) {
-            key_frames_pos[i] = utils::array2vec3d(c_key_frames_pos[i]);
+            key_frames_pos[i] = utils::array2vec3d(c_key_frames_pos[i].data());
         }
         for (SFMFeature & sfm : sfm_features) {
             if (sfm.has_been_triangulated)
