@@ -65,8 +65,8 @@ namespace vins {
         int n_state = frames_size * 3 + 2 + 1;
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_state, n_state);
-        Eigen::Vector3d b = Eigen::Vector3d::Zero(n_state);
-        Eigen::Vector3d x = Eigen::Vector3d::Zero(n_state);
+        Eigen::VectorXd b = Eigen::VectorXd::Zero(n_state);
+        Eigen::VectorXd x = Eigen::VectorXd::Zero(n_state);
         vel.resize(frames_size);
 
         for (int iter = 0; iter < 4; iter++) {
@@ -78,21 +78,26 @@ namespace vins {
                 Matrix_6_9 tmp_A = Matrix_6_9::Zero();
                 Vector6d tmp_b = Vector6d::Zero();
 
-                Eigen::Matrix3d rot_i_inv = frame_i.R.transpose();
-                ImuIntegrator & pre_integral_j = *frame_j.pre_integral_;
-                double dt = pre_integral_j.deltaTime();
-                double dt2 = dt * dt;
-                Eigen::Vector3d delta_pos_j = pre_integral_j.deltaPos();
-                Eigen::Vector3d delta_vel_j = pre_integral_j.deltaVel();
+                const Eigen::Vector3d &pos_i = frame_i.T;
+                const Eigen::Matrix3d &rot_i = frame_i.R;
+                const Eigen::Matrix3d &rot_i_inv = frame_i.R.transpose();
+                const Eigen::Vector3d img_delta_pos = frame_j.T - frame_i.T;
+                const Eigen::Vector3d img_delta_rot = rot_i_inv * frame_j.R;
+
+                const ImuIntegrator &pre_integral_j = *frame_j.pre_integral_;
+                const double dt = pre_integral_j.deltaTime();
+                const double dt2 = dt * dt;
+                const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
+                const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
+
                 tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
                 tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
-                tmp_A.block<3, 1>(0, 8) = rot_i_inv * (frame_j.T - frame_i.T) / 100.0;
-                tmp_b.block<3, 1>(0, 0) = delta_pos_j + rot_i_inv * frame_j.R * TIC - TIC - rot_i_inv * dt2 / 2 * g;
-
+                tmp_A.block<3, 1>(0, 8) = rot_i_inv * img_delta_pos / 100.0;
+                tmp_b.block<3, 1>(0, 0) = imu_delta_pos + img_delta_rot * TIC - TIC - rot_i_inv * dt2 / 2 * g;
                 tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
-                tmp_A.block<3, 3>(3, 3) = rot_i_inv * frame_j.R;
+                tmp_A.block<3, 3>(3, 3) = img_delta_rot;
                 tmp_A.block<3, 2>(3, 6) = rot_i_inv * dt * tangent_basis;
-                tmp_b.block<3, 1>(3, 0) = delta_vel_j - rot_i_inv * dt * Eigen::Matrix3d::Identity() * g;
+                tmp_b.block<3, 1>(3, 0) = imu_delta_vel - rot_i_inv * dt * Eigen::Matrix3d::Identity() * g;
 
                 Matrix9d r_A = tmp_A.transpose() * tmp_A;
                 Vector9d r_b = tmp_A.transpose() * tmp_b;
@@ -112,7 +117,7 @@ namespace vins {
             Eigen::Vector2d dg = x.segment<2>(n_state - 3);
             g = (g + tangent_basis * dg).normalized() * gravity_norm;
         }
-        s = (x.tail<1>())(0) / 100.0;
+        s = x(n_state - 1) / 100.0;
         for (int i = 0; i < frames_size; ++i) {
             vel[i] = all_frames[i].R * x.segment<3>(i * 3);
         }
@@ -132,19 +137,26 @@ namespace vins {
             Matrix_6_10 tmp_A = Matrix_6_10::Zero();
             Vector6d tmp_b =  Vector6d::Zero();
 
-            ImuIntegrator& pre_integral_j = *frame_j.pre_integral_;
-            double dt = pre_integral_j.deltaTime();
-            Eigen::Matrix3d R_i_inv = frame_i.R.transpose();
-            Eigen::Matrix3d R_j = frame_j.R;
+            const Eigen::Vector3d &pos_i = frame_i.T;
+            const Eigen::Matrix3d &rot_i = frame_i.R;
+            const Eigen::Matrix3d &rot_i_inv = frame_i.R.transpose();
+            const Eigen::Vector3d img_delta_pos = frame_j.T - frame_i.T;
+            const Eigen::Vector3d img_delta_rot = rot_i_inv * frame_j.R;
+
+            const ImuIntegrator &pre_integral_j = *frame_j.pre_integral_;
+            const double dt = pre_integral_j.deltaTime();
+            const double dt2 = dt * dt;
+            const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
+            const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
 
             tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
-            tmp_A.block<3, 3>(0, 6) = R_i_inv * dt * dt / 2;
-            tmp_A.block<3, 1>(0, 9) = R_i_inv * (frame_j.T - frame_i.T) / 100.0;
+            tmp_A.block<3, 3>(0, 6) = rot_i_inv * dt2 / 2;
+            tmp_A.block<3, 1>(0, 9) = rot_i_inv * (img_delta_pos) / 100.0;
+            tmp_b.block<3, 1>(0, 0) = imu_delta_pos + img_delta_rot * TIC - TIC;
             tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
-            tmp_A.block<3, 3>(3, 3) = R_i_inv * R_j;
-            tmp_A.block<3, 3>(3, 6) = R_i_inv * dt;
-            tmp_b.block<3, 1>(0, 0) = pre_integral_j.deltaPos() + R_i_inv * R_j * TIC - TIC;
-            tmp_b.block<3, 1>(3, 0) = pre_integral_j.deltaVel();
+            tmp_A.block<3, 3>(3, 3) = img_delta_rot;
+            tmp_A.block<3, 3>(3, 6) = rot_i_inv * dt;
+            tmp_b.block<3, 1>(3, 0) = imu_delta_vel;
 
             Matrix10d r_A = tmp_A.transpose() * tmp_A;
             Vector10d r_b = tmp_A.transpose() * tmp_b;
