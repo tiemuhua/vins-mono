@@ -11,6 +11,6 @@ namespace vins{
     class MotionEstimator {
     public:
         static bool solveRelativeRT(const Correspondences &correspondences,
-                                    Eigen::Matrix3d &Rotation, Eigen::Vector3d &Translation);
+                                    Eigen::Matrix3d &Rotation, Eigen::Vector3d &unit_translation);
     };
 }

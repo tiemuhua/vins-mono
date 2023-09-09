@@ -4,10 +4,10 @@
 #include <opencv2/core/eigen.hpp>
 
 // todo tiemuhuaguo 坐标系搞混了，应该是在l坐标系中r相对于l的旋转和位移
-// todo tiemuhuaguo 这时候还没有尺度，怎么能求出translation？？？
 namespace vins{
     bool MotionEstimator::solveRelativeRT(const Correspondences &correspondences,
-                                          Eigen::Matrix3d &rotation, Eigen::Vector3d &translation) {
+                                          Eigen::Matrix3d &rotation,
+                                          Eigen::Vector3d &unit_translation) {
         std::vector<cv::Point2f> ll, rr;
         for (const auto & correspondence : correspondences) {
             ll.emplace_back(correspondence.first);
@@ -22,10 +22,8 @@ namespace vins{
             return false;
         }
         cv::cv2eigen(cv_rot, rotation);
-        cv::cv2eigen(cv_trans, translation);
+        cv::cv2eigen(cv_trans, unit_translation);
+        assert(abs(unit_translation.norm() - 1) < 1e-5);
         return true;
     }
 }
-
-
-

@@ -132,7 +132,7 @@ namespace vins {
 
         // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
         Eigen::Matrix3d relative_R;
-        Eigen::Vector3d relative_T;
+        Eigen::Vector3d relative_unit_T;
         int big_parallax_frame_id = -1;
         for (int i = 0; i < cur_window_size; ++i) {
             vector<pair<cv::Point2f , cv::Point2f>> correspondences =
@@ -141,7 +141,7 @@ namespace vins {
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
             }
-            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_T);
+            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_unit_T);
             big_parallax_frame_id = i;
             break;
         }
@@ -155,7 +155,7 @@ namespace vins {
         std::vector<Mat34> kf_poses(cur_window_size, Mat34::Zero());
         kf_poses[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
         kf_poses[cur_window_size - 1].block<3, 3>(0, 0) = relative_R;
-        kf_poses[cur_window_size - 1].block<3, 1>(0, 3) = relative_T;
+        kf_poses[cur_window_size - 1].block<3, 1>(0, 3) = relative_unit_T;
         triangulatePtsByFramePos(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
                                  cur_window_size - 1, kf_poses[cur_window_size - 1], sfm_features);
 
@@ -216,7 +216,9 @@ namespace vins {
             sfm.has_been_triangulated = true;
         }
 
-        //6: full BA
+        /**************************************************************
+         * 前面通过"帧位姿->点深度->下个帧的位姿"递推地求出了初始值，下面进行BA *
+         * ************************************************************/
         ceres::Problem problem;
         ceres::Manifold *quat_manifold = new ceres::QuaternionManifold();
         std::vector<std::array<double, 4>> c_key_frames_rot(cur_window_size);
@@ -257,7 +259,9 @@ namespace vins {
             return false;
         }
 
-        //后续只需要key_frames_rot、key_frames_pos、feature_id_2_position
+        /******************************************************************
+         * BA结果储存于key_frames_rot、key_frames_pos、feature_id_2_position *
+         * ****************************************************************/
         vector<Eigen::Matrix3d> key_frames_rot(cur_window_size + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
         vector<Eigen::Vector3d> key_frames_pos(cur_window_size + 1);
         map<int, Eigen::Vector3d> feature_id_2_position;
@@ -272,7 +276,9 @@ namespace vins {
                 feature_id_2_position[sfm.feature.feature_id] = sfm.position;
         }
 
-        //利用关键帧位姿和特征点深度PNP求解非关键帧位姿
+        /******************************************************************
+         *             利用关键帧位姿和特征点深度PNP求解非关键帧位姿              *
+         * ****************************************************************/
         int key_frame_idx = 0;
         for (Frame &frame:all_frames) {
             // provide initial guess

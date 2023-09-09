@@ -47,8 +47,8 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
     }
 
     std::vector<cv::Point2f> next_norm_pts(next_raw_pts.size());
-    for (const cv::Point2f &p: next_raw_pts) {
-        next_norm_pts.emplace_back(camera_wrapper_->rawPoint2NormPoint(p));
+    for (int i = 0; i < next_raw_pts.size(); ++i) {
+        next_norm_pts[i] = camera_wrapper_->rawPoint2NormPoint(next_raw_pts[i]);
     }
 
     if (next_raw_pts.size() >= 8) {
