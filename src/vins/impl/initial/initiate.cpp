@@ -52,15 +52,15 @@ bool Initiate::initiate(const double gravity_norm, RunInfo &run_info) {
         run_info.frame_window[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
     }
 
-    if (!linearAlignment(run_info.frame_window, run_info.tic, gravity_norm, run_info.gravity)) {
-        return false;
-    }
+    //.求解重力、尺度和速度，即与位移有关的一切未知参数.
+    //.重力和初始化时的ba打包在一起了，无法单独求解ba。
+    //.秦博假设初始化时的ba可以忽略不计，g.norm==9.81。todo 一加6T、iPhone12的ba有多少？秦博这个假设合理吗？.
     double scale;
     std::vector<Eigen::Vector3d> velocities;
-    refineGravity(run_info.frame_window, gravity_norm, run_info.tic, run_info.gravity, scale, velocities);
-    if (scale < 1e-4) {
+    if (!solveGravityScaleVelocity(run_info.frame_window, run_info.tic, run_info.gravity, scale, velocities)) {
         return false;
     }
+
     Eigen::Matrix3d R0 = std::find_if(run_info.frame_window.begin(),run_info.frame_window.end(),[](auto it){
         return it.is_key_frame_;
     })->R;

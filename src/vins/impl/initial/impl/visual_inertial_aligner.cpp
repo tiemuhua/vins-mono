@@ -48,86 +48,11 @@ namespace vins {
         return bc;
     }
 
-    /**
-     * @param all_frames 所有图片
-     * @param g 标定后的重力加速度
-     * @param s 尺度
-     * @param vel todo坐标系下的速度，长度为todo
-     * */
-    void refineGravity(const std::vector<Frame> &all_frames,
-                       const double gravity_norm,
-                       ConstVec3dRef TIC,
-                       Eigen::Vector3d &g,
-                       double &s,
-                       std::vector<Eigen::Vector3d> &vel) {
-        const int frames_size = (int )all_frames.size();
-        g = g.normalized() * gravity_norm;
-        int n_state = frames_size * 3 + 2 + 1;
-
-        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_state, n_state);
-        Eigen::VectorXd b = Eigen::VectorXd::Zero(n_state);
-        Eigen::VectorXd x = Eigen::VectorXd::Zero(n_state);
-        vel.resize(frames_size);
-
-        for (int iter = 0; iter < 4; iter++) {
-            Matrix_3_2 tangent_basis = TangentBasis(g);
-            for (int i = 0; i < frames_size - 1; ++i) {
-                const Frame& frame_i = all_frames[i];
-                const Frame& frame_j = all_frames[i + 1];
-
-                Matrix_6_9 tmp_A = Matrix_6_9::Zero();
-                Vector6d tmp_b = Vector6d::Zero();
-
-                const Eigen::Vector3d &pos_i = frame_i.T;
-                const Eigen::Matrix3d &rot_i = frame_i.R;
-                const Eigen::Matrix3d &rot_i_inv = frame_i.R.transpose();
-                const Eigen::Vector3d img_delta_pos = frame_j.T - frame_i.T;
-                const Eigen::Vector3d img_delta_rot = rot_i_inv * frame_j.R;
-
-                const ImuIntegrator &pre_integral_j = *frame_j.pre_integral_;
-                const double dt = pre_integral_j.deltaTime();
-                const double dt2 = dt * dt;
-                const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
-                const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
-
-                //.位移方程.
-                tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
-                tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
-                tmp_A.block<3, 1>(0, 8) = rot_i_inv * img_delta_pos / 100.0;
-                tmp_b.block<3, 1>(0, 0) = imu_delta_pos + img_delta_rot * TIC - TIC - rot_i_inv * dt2 / 2 * g;
-
-                //.速度方程.
-                tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
-                tmp_A.block<3, 3>(3, 3) = img_delta_rot;
-                tmp_A.block<3, 2>(3, 6) = rot_i_inv * dt * tangent_basis;
-                tmp_b.block<3, 1>(3, 0) = imu_delta_vel - rot_i_inv * dt * Eigen::Matrix3d::Identity() * g;
-
-                Matrix9d r_A = tmp_A.transpose() * tmp_A;
-                Vector9d r_b = tmp_A.transpose() * tmp_b;
-
-                A.block<6, 6>(i * 3, i * 3) += r_A.topLeftCorner<6, 6>();
-                b.segment<6>(i * 3) += r_b.head<6>();
-
-                A.bottomRightCorner<3, 3>() += r_A.bottomRightCorner<3, 3>();
-                b.tail<3>() += r_b.tail<3>();
-
-                A.block<6, 3>(i * 3, n_state - 3) += r_A.topRightCorner<6, 3>();
-                A.block<3, 6>(n_state - 3, i * 3) += r_A.bottomLeftCorner<3, 6>();
-            }
-            A = A * 1000.0;
-            b = b * 1000.0;
-            x = A.ldlt().solve(b);
-            Eigen::Vector2d dg = x.segment<2>(n_state - 3);
-            g = (g + tangent_basis * dg).normalized() * gravity_norm;
-        }
-        s = x(n_state - 1) / 100.0;
-        for (int i = 0; i < frames_size; ++i) {
-            vel[i] = all_frames[i].R * x.segment<3>(i * 3);
-        }
-    }
-
-    bool linearAlignment(const std::vector<Frame> &all_frames, ConstVec3dRef TIC,
-                         const double gravity_norm, Eigen::Vector3d &g) {
+    bool solveGravityScaleVelocity(const std::vector<Frame> &all_frames,
+                                   ConstVec3dRef TIC,
+                                   Eigen::Vector3d &gravity,
+                                   double &scale,
+                                   std::vector<Eigen::Vector3d> &vel) {
         int frame_size = (int )all_frames.size();
         int n_state = frame_size * 3 + 3 + 1;
         int gravity_idx = frame_size * 3;
@@ -169,11 +94,16 @@ namespace vins {
             b.block<3, 1>(i * 6 + 3, 0) = frame_i.R * imu_delta_vel;
         }
         Eigen::VectorXd x = (A.transpose() * A).ldlt().solve(A.transpose() * b);
-        double s = x(n_state - 1) / 100.0;
-        LOG_I("estimated scale: %f", s);
-        g = x.segment<3>(n_state - 4);
+        scale = x(n_state - 1);
+        gravity = x.segment<3>(n_state - 4);
+        vel.clear();
+        for (int i = 0; i < frame_size; ++i) {
+            vel.emplace_back(x.block<3, 1>(i * 3, 0));
+        }
+
+        LOG_I("estimated scale: %f", scale);
         constexpr double standard_gravity_norm = 9.8;
-        if (abs(g.norm() - standard_gravity_norm) > 1.0 || s < 1e-4) {
+        if (abs(gravity.norm() - standard_gravity_norm) > 1.0 || scale < 1e-4) {
             LOG_E("fabs(g.norm() - G.norm()) > 1.0 || s < 0");
             return false;
         }
