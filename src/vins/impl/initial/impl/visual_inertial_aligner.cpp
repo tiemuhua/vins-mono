@@ -90,10 +90,13 @@ namespace vins {
                 const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
                 const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
 
+                //.位移方程.
                 tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
                 tmp_A.block<3, 2>(0, 6) = rot_i_inv * dt2 / 2 * tangent_basis;
                 tmp_A.block<3, 1>(0, 8) = rot_i_inv * img_delta_pos / 100.0;
                 tmp_b.block<3, 1>(0, 0) = imu_delta_pos + img_delta_rot * TIC - TIC - rot_i_inv * dt2 / 2 * g;
+
+                //.速度方程.
                 tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
                 tmp_A.block<3, 3>(3, 3) = img_delta_rot;
                 tmp_A.block<3, 2>(3, 6) = rot_i_inv * dt * tangent_basis;
@@ -137,8 +140,6 @@ namespace vins {
             Matrix_6_10 tmp_A = Matrix_6_10::Zero();
             Vector6d tmp_b =  Vector6d::Zero();
 
-            const Eigen::Vector3d &pos_i = frame_i.T;
-            const Eigen::Matrix3d &rot_i = frame_i.R;
             const Eigen::Matrix3d &rot_i_inv = frame_i.R.transpose();
             const Eigen::Vector3d img_delta_pos = frame_j.T - frame_i.T;
             const Eigen::Vector3d img_delta_rot = rot_i_inv * frame_j.R;
@@ -149,13 +150,16 @@ namespace vins {
             const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
             const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
 
-            tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();
-            tmp_A.block<3, 3>(0, 6) = rot_i_inv * dt2 / 2;
-            tmp_A.block<3, 1>(0, 9) = rot_i_inv * (img_delta_pos) / 100.0;
+            //.位移方程.
+            tmp_A.block<3, 3>(0, 0) = -dt * Eigen::Matrix3d::Identity();                //.速度->位移.
+            tmp_A.block<3, 3>(0, 6) = rot_i_inv * dt2 / 2;                              //.重力->位移.
+            tmp_A.block<3, 1>(0, 9) = rot_i_inv * (img_delta_pos) / 100.0;              //.尺度->位移.
             tmp_b.block<3, 1>(0, 0) = imu_delta_pos + img_delta_rot * TIC - TIC;
-            tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();
-            tmp_A.block<3, 3>(3, 3) = img_delta_rot;
-            tmp_A.block<3, 3>(3, 6) = rot_i_inv * dt;
+
+            //.速度方程.
+            tmp_A.block<3, 3>(3, 0) = -Eigen::Matrix3d::Identity();                     //.速度.
+            tmp_A.block<3, 3>(3, 3) = img_delta_rot;                                    //.速度.
+            tmp_A.block<3, 3>(3, 6) = rot_i_inv * dt;                                   //.重力.
             tmp_b.block<3, 1>(3, 0) = imu_delta_vel;
 
             Matrix10d r_A = tmp_A.transpose() * tmp_A;

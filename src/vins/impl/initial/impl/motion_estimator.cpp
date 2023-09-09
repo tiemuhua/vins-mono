@@ -4,6 +4,7 @@
 #include <opencv2/core/eigen.hpp>
 
 // todo tiemuhuaguo 坐标系搞混了，应该是在l坐标系中r相对于l的旋转和位移
+// todo tiemuhuaguo 这时候还没有尺度，怎么能求出translation？？？
 namespace vins{
     bool MotionEstimator::solveRelativeRT(const Correspondences &correspondences,
                                           Eigen::Matrix3d &rotation, Eigen::Vector3d &translation) {
