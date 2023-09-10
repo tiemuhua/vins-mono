@@ -34,14 +34,13 @@ namespace vins {
     class Param {
     public:
         CameraParam camera;
-        FrameTrackerParam frame_tracker;
+        FrameTrackerParam frame_tracker{};
         FrontEndOptimizeParam slide_window;
-        IMUParam imu_param;
+        IMUParam imu_param{};
 
-        double time_rolling_shatter;
-        int window_size;
-        std::string pattern_file;
-        double key_frame_parallax_threshold;
+        double time_rolling_shatter = 0;
+        int window_size = 10;
+        double key_frame_parallax_threshold = 0;
 
         [[nodiscard]] double getTimeShatPerRol() const {
             return time_rolling_shatter / camera.row;
