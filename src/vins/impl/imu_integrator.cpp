@@ -16,16 +16,14 @@ namespace vins {
         gyr_buf_.emplace_back(std::move(prev_imu_state.gyr));
         time_stamp_buf_.emplace_back(prev_imu_state.time_stamp);
 
-        noise_.block<3, 3>(0, 0) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(3, 3) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(6, 6) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(9, 9) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(12, 12) = (imu_param.ACC_W * imu_param.ACC_W) * Eigen::Matrix3d::Identity();
-        noise_.block<3, 3>(15, 15) = (imu_param.GYR_W * imu_param.GYR_W) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(kAccNoise, kAccNoise) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(kGyrNoise, kGyrNoise) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(kAccWhite, kAccWhite) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
+        noise_.block<3, 3>(kGyrWhite, kGyrWhite) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
     }
 
     void ImuIntegrator::jointLaterIntegrator(const ImuIntegrator &later_int) {
-        int size = later_int.time_stamp_buf_.size();
+        int size = (int )later_int.time_stamp_buf_.size();
         for (int i = 1; i < size; ++i) {
             predict(later_int.time_stamp_buf_[i], later_int.acc_buf_[i], later_int.gyr_buf_[i]);
         }
@@ -140,18 +138,13 @@ namespace vins {
         F.block<3, 3>(kOrderBG, kOrderBG) = identity;
 
         MatrixXd V = MatrixXd::Zero(15, 18);
-        V.block<3, 3>(kOrderPos, 0) = 0.25 * pre_rot * dt2;
-        V.block<3, 3>(kOrderPos, 3) = -cur_rot * cur_acc_hat * dt3 / 8.0;
-        V.block<3, 3>(kOrderPos, 6) = 0.25 * cur_rot * dt2;
-        V.block<3, 3>(kOrderPos, 9) = V.block<3, 3>(0, 3);
-        V.block<3, 3>(kOrderRot, 3) = 0.5 * identity * dt;
-        V.block<3, 3>(kOrderRot, 9) = 0.5 * identity * dt;
-        V.block<3, 3>(kOrderVel, 0) = 0.5 * pre_rot * dt;
-        V.block<3, 3>(kOrderVel, 3) = -0.25 * cur_rot * cur_acc_hat * dt2;
-        V.block<3, 3>(kOrderVel, 6) = 0.5 * cur_rot * dt;
-        V.block<3, 3>(kOrderVel, 9) = V.block<3, 3>(6, 3);
-        V.block<3, 3>(kOrderBA, 12) = identity * dt;
-        V.block<3, 3>(kOrderBG, 15) = identity * dt;
+        V.block<3, 3>(kOrderPos, kAccNoise) = 0.25 * (pre_rot + cur_rot) * dt2;
+        V.block<3, 3>(kOrderPos, kGyrNoise) = -cur_rot * cur_acc_hat * dt3 / 4.0;
+        V.block<3, 3>(kOrderRot, kGyrNoise) = identity * dt;
+        V.block<3, 3>(kOrderVel, kAccNoise) = 0.5 * (pre_rot + cur_rot) * dt;
+        V.block<3, 3>(kOrderVel, kGyrNoise) = -0.5 * cur_rot * cur_acc_hat * dt2;
+        V.block<3, 3>(kOrderBA, kAccWhite) = identity * dt;
+        V.block<3, 3>(kOrderBG, kGyrWhite) = identity * dt;
 
         jacobian = F * jacobian;
         covariance = F * covariance * F.transpose() + V * noise * V.transpose();

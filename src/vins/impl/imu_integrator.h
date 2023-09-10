@@ -19,10 +19,10 @@ namespace vins {
     };
 
     enum NoiseOrder {
-        O_AN = 0,
-        O_GN = 3,
-        O_AW = 6,
-        O_GW = 9
+        kAccNoise = 0,
+        kGyrNoise = 3,
+        kAccWhite = 6,
+        kGyrWhite = 9
     };
 
     struct PrevIMUState {
@@ -35,7 +35,7 @@ namespace vins {
 
     class ImuIntegrator {
     public:
-        static constexpr int NoiseDim = 18;
+        static constexpr int NoiseDim = 12;
         static constexpr int StateDim = 15;
         typedef Eigen::Matrix<double, StateDim, StateDim> Jacobian, Covariance, SqrtInfo;
         typedef Eigen::Matrix<double, NoiseDim, NoiseDim> Noise;
