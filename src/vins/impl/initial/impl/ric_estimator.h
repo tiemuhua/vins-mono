@@ -1,24 +1,25 @@
 #pragma once
 
-#include "vins_define_internal.h"
 #include <vector>
+
 #include <opencv2/opencv.hpp>
 #include <Eigen/Dense>
 
+#include "vins/impl/vins_define_internal.h"
+
 namespace vins {
-    typedef std::pair<cv::Point2f, cv::Point2f> PointCorrespondence;
-    typedef std::vector<PointCorrespondence> PointCorrespondences;
     class RICEstimator {
     public:
         RICEstimator(int window_size){
             window_size_ = window_size;
         }
 
-        bool estimate(const PointCorrespondences& correspondences, ConstQuatRef delta_q_imu,
+        bool estimate(const Correspondences& correspondences,
+                      const Eigen::Quaterniond &delta_q_imu,
                       Eigen::Matrix3d &calib_ric_result);
 
     private:
-        static Eigen::Matrix3d solveRelativeR(const PointCorrespondences &correspondences);
+        static Eigen::Matrix3d solveRelativeR(const Correspondences &correspondences);
 
         static double testTriangulation(const std::vector<cv::Point2f> &l,
                                         const std::vector<cv::Point2f> &r,

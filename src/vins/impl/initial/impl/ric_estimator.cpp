@@ -1,13 +1,12 @@
 #include "ric_estimator.h"
 #include "log.h"
-#include "vins_utils.h"
-#include "vins_define_internal.h"
+#include "vins/impl/vins_utils.h"
 
 namespace vins {
     using namespace Eigen;
     using namespace std;
 
-    bool RICEstimator::estimate(const PointCorrespondences & correspondences,
+    bool RICEstimator::estimate(const Correspondences & correspondences,
                                 ConstQuatRef delta_q_imu,
                                 Matrix3d &calib_ric_result) {
         rot_visual_que_.emplace_back(solveRelativeR(correspondences));
@@ -56,12 +55,12 @@ namespace vins {
             return false;
     }
 
-    Matrix3d RICEstimator::solveRelativeR(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences) {
+    Matrix3d RICEstimator::solveRelativeR(const Correspondences &correspondences) {
         if (correspondences.size() < 9) {
             return Matrix3d::Identity();
         }
         vector<cv::Point2f> ll, rr;
-        for (const PointCorrespondence & correspondence : correspondences) {
+        for (const auto & correspondence : correspondences) {
             ll.emplace_back(correspondence.first);
             rr.emplace_back(correspondence.second);
         }
@@ -89,7 +88,7 @@ namespace vins {
         static const cv::Matx34f P = cv::Matx34f(1, 0, 0, 0,
                                                  0, 1, 0, 0,
                                                  0, 0, 1, 0);
-        const cv::Matx34f P1 = cv::Matx34f(R(0, 0), R(0, 1), R(0, 2), t(0),
+        const cv::Matx34d P1 = cv::Matx34d(R(0, 0), R(0, 1), R(0, 2), t(0),
                                            R(1, 0), R(1, 1), R(1, 2), t(1),
                                            R(2, 0), R(2, 1), R(2, 2), t(2));
         cv::Mat point_cloud;

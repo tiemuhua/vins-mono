@@ -52,6 +52,10 @@ bool Initiate::initiate(RunInfo &run_info) {
         run_info.frame_window[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
     }
 
+
+
+
+
     //.求解重力、尺度和速度，即与位移有关的一切未知参数.
     //.重力和初始化时的ba打包在一起了，无法单独求解ba。
     //.秦博假设初始化时的ba可以忽略不计，g.norm==9.81。todo 一加6T、iPhone12的ba有多少？秦博这个假设合理吗？.
@@ -61,10 +65,8 @@ bool Initiate::initiate(RunInfo &run_info) {
         return false;
     }
 
-    Eigen::Matrix3d R0 = std::find_if(run_info.frame_window.begin(),run_info.frame_window.end(),[](auto it){
-        return it.is_key_frame_;
-    })->R;
-    Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, R0);
+    assert(run_info.frame_window.front().is_key_frame_);
+    Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, run_info.frame_window.front().R);
     run_info.gravity = rot_diff * run_info.gravity;
 
     auto &state_window = run_info.kf_state_window;

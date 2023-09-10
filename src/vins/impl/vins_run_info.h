@@ -5,12 +5,15 @@
 #ifndef GJT_VINS_VINS_DATA_H
 #define GJT_VINS_VINS_DATA_H
 
-#include <string>
+#include <vector>
+
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
-#include "DVision/BRIEF.h"
+#include <DVision/BRIEF.h>
 #include <camodocal/camera_models/Camera.h>
+
 #include "imu_integrator.h"
+#include "vins_define_internal.h"
 
 namespace vins {
     struct KeyFrameState {
@@ -29,7 +32,7 @@ namespace vins {
 
         // 所有帧
         std::vector<Frame> frame_window;
-        // 关键帧，大小为Param.window_size
+        // 关键帧，大小为Param.window_size，pos、rot、vel均为惯导状态
         std::vector<KeyFrameState> kf_state_window;
         // 预积分，大小为Param.window_size-1
         std::vector<ImuIntegratorPtr> pre_int_window;
@@ -37,6 +40,8 @@ namespace vins {
         std::vector<Feature> feature_window;
         // 滑动窗口中的回环
         std::vector<vins::LoopMatchInfo> loop_match_infos;
+
+        std::vector<Correspondences> neighbor_kf_correspondence_pts;
 
         PrevIMUState prev_imu_state;
     };

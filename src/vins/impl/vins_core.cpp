@@ -8,7 +8,6 @@
 #include "vins_define_internal.h"
 #include "initial/initiate.h"
 #include "feature_tracker.h"
-#include "ric_estimator.h"
 #include "feature_helper.h"
 #include "impl/front_end_optimize/front_end_optimize.h"
 #include "loop_closer/loop_closer.h"
@@ -19,7 +18,6 @@ namespace vins {
     VinsCore::VinsCore(Param *param) {
         run_info_ = new RunInfo();
         param_ = param;
-        ric_estimator_ = new RICEstimator(param->window_size);
         camera_wrapper_ = new CameraWrapper(param);
         feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
         loop_closer_ = new LoopCloser();
@@ -156,6 +154,11 @@ namespace vins {
         run_info_->pre_int_window.emplace_back(kf_pre_integral_ptr_);
         kf_pre_integral_ptr_ = nullptr;
 
+        /******************滑动窗口塞满后再进行后续操作*******************/
+        if (run_info_->kf_state_window.size() < param_->window_size) {
+            return;
+        }
+
         /******************扔掉最老的关键帧并边缘化*******************/
         if (run_info_->kf_state_window.size() == param_->window_size + 1) {
             std::unordered_map<int, int> feature_id_2_idx_origin =
@@ -192,11 +195,10 @@ namespace vins {
             }
         }
 
+
+
         /******************初始化RIC*******************/
         if (vins_state_ == EVinsState::kEstimateExtrinsic) {
-            if (run_info_->frame_window.size() < 2) {
-                return;
-            }
             int cur_kf_window_size = run_info_->kf_state_window.size();
             PointCorrespondences correspondences = FeatureHelper::getCorrespondences(cur_kf_window_size - 1,
                                                                                      cur_kf_window_size,

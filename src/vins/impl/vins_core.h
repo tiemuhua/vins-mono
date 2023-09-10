@@ -12,7 +12,6 @@
 
 namespace vins{
     class Frame;
-    class RICEstimator;
     class BriefExtractor;
     class FeatureTracker;
     class LoopCloser;
@@ -55,7 +54,6 @@ namespace vins{
         double last_init_time_stamp_ = 0.0;
 
         //.子求解器.
-        RICEstimator *ric_estimator_;
         FeatureTracker *feature_tracker_;
         CameraWrapper *camera_wrapper_;
         LoopCloser *loop_closer_;

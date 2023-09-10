@@ -67,8 +67,8 @@ namespace vins {
         };
         std::vector<cv::Point2f> points;
         std::vector<int> feature_ids;
-        Eigen::Matrix3d R;
-        Eigen::Vector3d T;
+        Eigen::Matrix3d R;              //.惯导姿态.
+        Eigen::Vector3d T;              //.惯导位置.
         std::shared_ptr<ImuIntegrator> pre_integral_;
         bool is_key_frame_ = false;
         double time_stamp = -1;
