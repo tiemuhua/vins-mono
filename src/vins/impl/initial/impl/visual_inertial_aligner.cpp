@@ -10,9 +10,9 @@
 namespace vins {
     // 此时不知ba、bg、gravity，ba和gravity耦合，都和位移有关。而bg只和旋转有关，因此可以在不知道ba、gravity的情况下独立求解bg。
     // 认为视觉求出来的旋转是准确的，通过IMU和视觉的差求出bg
-    Eigen::Vector3d solveGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
-                                  const std::vector<Eigen::Matrix3d> &img_delta_rots,
-                                  const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot) {
+    Eigen::Vector3d estimateGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
+                                     const std::vector<Eigen::Matrix3d> &img_delta_rots,
+                                     const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot) {
         int interval_size = (int)imu_delta_rots.size();
         Eigen::MatrixXd A = Eigen::Matrix3d::Zero(interval_size, 3);
         Eigen::VectorXd b = Eigen::Vector3d::Zero(interval_size);
@@ -26,11 +26,50 @@ namespace vins {
         return bg;
     }
 
-    bool solveGravityScaleVelocity(const std::vector<Frame> &all_frames,
-                                   ConstVec3dRef TIC,
-                                   Eigen::Vector3d &gravity,
-                                   double &scale,
-                                   std::vector<Eigen::Vector3d> &vel) {
+    bool estimateRIC(const std::vector<Eigen::Matrix3d> &img_rots,
+                     const std::vector<Eigen::Matrix3d> &imu_rots,
+                     Eigen::Matrix3d &calib_ric_result) {
+        int frame_count = (int )img_rots.size();
+
+        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(frame_count * 4, 4);
+        for (int i = 0; i < frame_count; i++) {
+            Eigen::Quaterniond rot_img(img_rots[i]);
+            Eigen::Quaterniond rot_imu(imu_rots[i]);
+
+            Eigen::Matrix4d L;
+            double img_w = rot_img.w();
+            Eigen::Vector3d img_q = rot_img.vec();
+            L.block<3, 3>(0, 0) = img_w * Eigen::Matrix3d::Identity() + utils::skewSymmetric(img_q);
+            L.block<3, 1>(0, 3) = img_q;
+            L.block<1, 3>(3, 0) = -img_q.transpose();
+            L(3, 3) = img_w;
+
+            Eigen::Matrix4d R;
+            double imu_w = rot_imu.w();
+            Eigen::Vector3d imu_q = rot_imu.vec();
+            R.block<3, 3>(0, 0) = imu_w * Eigen::Matrix3d::Identity() - utils::skewSymmetric(imu_q);
+            R.block<3, 1>(0, 3) = imu_q;
+            R.block<1, 3>(3, 0) = -imu_q.transpose();
+            R(3, 3) = imu_w;
+
+            A.block<4, 4>((i - 1) * 4, 0) = L - R;
+        }
+
+        Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Eigen::Matrix<double, 4, 1> x = svd.matrixV().col(3);
+        Eigen::Quaterniond estimated_R(x);
+        if (svd.singularValues()(2) < 0.25) {
+            return false;
+        }
+        calib_ric_result = estimated_R.toRotationMatrix().inverse();
+        return true;
+    }
+
+    bool estimateGravityScaleVelocity(const std::vector<Frame> &all_frames,
+                                      ConstVec3dRef TIC,
+                                      Eigen::Vector3d &gravity,
+                                      double &scale,
+                                      std::vector<Eigen::Vector3d> &vel) {
         int frame_size = (int )all_frames.size();
         int n_state = frame_size * 3 + 3 + 1;
         int gravity_idx = frame_size * 3;

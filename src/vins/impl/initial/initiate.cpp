@@ -4,9 +4,8 @@
 
 #include "initiate.h"
 #include <vector>
-#include "impl/visual_inertial_aligner.h"
 #include "impl/visual_initiator.h"
-#include "impl/ric_estimator.h"
+#include "impl/visual_inertial_aligner.h"
 #include "log.h"
 
 using namespace vins;
@@ -67,7 +66,7 @@ bool Initiate::initiate(RunInfo &run_info) {
     for (const auto &it:run_info.pre_int_window) {
         imu_delta_rots.emplace_back(it->getJacobian().template block<3, 3>(kOrderRot, kOrderBG));
     }
-    Eigen::Vector3d bg = solveGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
+    Eigen::Vector3d bg = estimateGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
     if (bg.norm() > 1e4) {
         return false;
     }
@@ -93,7 +92,7 @@ bool Initiate::initiate(RunInfo &run_info) {
     //.秦博假设初始化时的ba可以忽略不计，g.norm==9.81。todo 一加6T、iPhone12的ba有多少？秦博这个假设合理吗？.
     double scale;
     std::vector<Eigen::Vector3d> velocities;
-    if (!solveGravityScaleVelocity(run_info.frame_window, run_info.tic, run_info.gravity, scale, velocities)) {
+    if (!estimateGravityScaleVelocity(run_info.frame_window, run_info.tic, run_info.gravity, scale, velocities)) {
         return false;
     }
 
