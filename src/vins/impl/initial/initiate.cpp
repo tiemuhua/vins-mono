@@ -54,6 +54,19 @@ bool Initiate::initiate(RunInfo &run_info) {
         return false;
     }
 
+    //.求解bg，bg只与两帧之间的相对旋转有关，与绝对姿态无关，因此与ric无关，需要先求解bg后求解ric.
+    Eigen::Vector3d bg = solveGyroBias(run_info.frame_window);
+    if (bg.norm() > 1e4) {
+        return false;
+    }
+    for (Frame &frame:run_info.frame_window) {
+        frame.pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
+    }
+    for (auto &pre_integrate:run_info.pre_int_window) {
+        pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
+    }
+
+    //.求解ric.
     std::vector<Eigen::Matrix3d> imu_delta_rots;
     std::vector<Eigen::Matrix3d> img_delta_rots;
     for (const auto &it:run_info.pre_int_window) {
@@ -66,16 +79,6 @@ bool Initiate::initiate(RunInfo &run_info) {
     if (!ric_succ) {
         return false;
     }
-
-    //.求解bg.
-    Eigen::Vector3d bg = solveGyroBias(run_info.frame_window);
-    if (bg.norm() > 1e4) {
-        return false;
-    }
-    for (int i = 1; i < run_info.frame_window.size(); ++i) {
-        run_info.frame_window[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
-    }
-
 
     //.求解重力、尺度和速度，即与位移有关的一切未知参数.
     //.重力和初始化时的ba打包在一起了，无法单独求解ba。
