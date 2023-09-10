@@ -38,7 +38,6 @@ namespace vins {
         FrontEndOptimizeParam slide_window;
         IMUParam imu_param;
 
-        double gravity_norm;
         double time_rolling_shatter;
         int window_size;
         std::string pattern_file;

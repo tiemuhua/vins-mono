@@ -217,7 +217,7 @@ namespace vins {
                 return;
             }
             last_init_time_stamp_ = img_time_stamp;
-            bool rtn = Initiate::initiate(param_->gravity_norm, *run_info_);
+            bool rtn = Initiate::initiate(*run_info_);
             if (!rtn) {
                 return;
             }

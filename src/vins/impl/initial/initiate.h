@@ -12,7 +12,7 @@
 namespace vins {
     class Initiate {
     public:
-        static bool initiate(double gravity_norm, RunInfo &run_info);
+        static bool initiate(RunInfo &run_info);
     };
 }
 
