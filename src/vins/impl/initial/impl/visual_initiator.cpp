@@ -142,7 +142,11 @@ namespace vins {
 
     bool initiateByVisual(const int window_size,
                           const std::vector<Feature>& feature_window,
-                          vector<Frame> &all_frames) {
+                          const vector<Frame> &all_frames,
+                          vector<Eigen::Matrix3d> kf_img_rot,
+                          vector<Eigen::Vector3d> kf_img_pos,
+                          vector<Eigen::Matrix3d> &frames_img_rot,
+                          vector<Eigen::Vector3d> &frames_img_pos) {
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
         for (const Feature &feature: feature_window) {
@@ -281,31 +285,33 @@ namespace vins {
         }
 
         /******************************************************************
-         * BA结果储存于key_frames_rot、key_frames_pos、feature_id_2_position *
+         * BA结果储存于kf_img_rot、kf_img_pos、feature_id_2_position *
          * ****************************************************************/
-        vector<Eigen::Matrix3d> key_frames_rot(window_size + 1); // todo tiemuhuaguo Q和T是在哪个坐标系里的位姿？？？
-        vector<Eigen::Vector3d> key_frames_pos(window_size + 1);
+        kf_img_pos.resize(window_size);
+        kf_img_rot.resize(window_size);
         map<int, Eigen::Vector3d> feature_id_2_position;
         for (int i = 0; i < window_size; i++) {
-            key_frames_rot[i] = utils::array2quat(c_key_frames_rot[i].data()).toRotationMatrix();
+            kf_img_rot[i] = utils::array2quat(c_key_frames_rot[i].data()).toRotationMatrix();
         }
         for (int i = 0; i < window_size; i++) {
-            key_frames_pos[i] = utils::array2vec3d(c_key_frames_pos[i].data());
+            kf_img_pos[i] = utils::array2vec3d(c_key_frames_pos[i].data());
         }
         for (SFMFeature & sfm : sfm_features) {
-            if (sfm.has_been_triangulated)
+            if (sfm.has_been_triangulated) {
                 feature_id_2_position[sfm.feature.feature_id] = sfm.position;
+            }
         }
 
         /******************************************************************
          *             利用关键帧位姿和特征点深度PNP求解非关键帧位姿             *
          * ****************************************************************/
         int key_frame_idx = 0;
-        for (Frame &frame:all_frames) {
+        for (int i = 0; i < all_frames.size(); ++i) {
+            const Frame& frame = all_frames[i];
             // provide initial guess
             if (frame.is_key_frame_) {
-                frame.imu_rot = key_frames_rot[key_frame_idx];
-                frame.imu_pos = key_frames_pos[key_frame_idx];
+                frames_img_rot[i] = kf_img_rot[key_frame_idx];
+                frames_img_pos[i] = kf_img_pos[key_frame_idx];
                 key_frame_idx++;
                 continue;
             }
@@ -324,14 +330,14 @@ namespace vins {
                 return false;
             }
 
-            Eigen::Matrix3d R_initial = key_frames_rot[key_frame_idx];
-            Eigen::Vector3d P_initial = key_frames_pos[key_frame_idx];
+            Eigen::Matrix3d R_initial = kf_img_rot[key_frame_idx];
+            Eigen::Vector3d P_initial = kf_img_pos[key_frame_idx];
             if (!solveFrameByPnP(pts_2d, pts_3d, false, R_initial, P_initial)) {
                 LOG_E("solve pnp fail!");
                 return false;
             }
-            frame.imu_rot = R_initial;
-            frame.imu_pos = P_initial;
+            frames_img_rot[i] = R_initial;
+            frames_img_pos[i] = P_initial;
         }
         return true;
     }
