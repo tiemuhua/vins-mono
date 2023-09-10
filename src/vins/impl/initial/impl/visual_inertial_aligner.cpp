@@ -65,58 +65,58 @@ namespace vins {
         return true;
     }
 
-    bool estimateGravityScaleVelocity(const std::vector<Frame> &all_frames,
-                                      ConstVec3dRef TIC,
-                                      Eigen::Vector3d &gravity,
-                                      double &scale,
-                                      std::vector<Eigen::Vector3d> &vel) {
-        int frame_size = (int )all_frames.size();
+    bool estimateTICGravityScaleVelocity(const std::vector<Eigen::Matrix3d> &frames_img_rot,
+                                         const std::vector<Eigen::Vector3d> &img_delta_poses,
+                                         const std::vector<Eigen::Vector3d> &imu_delta_poses,
+                                         const std::vector<Eigen::Vector3d> &imu_delta_velocities,
+                                         const std::vector<double> &delta_times,
+                                         const Eigen::Matrix3d &RIC,
+                                         Eigen::Vector3d &TIC,
+                                         Eigen::Vector3d &gravity,
+                                         double &scale,
+                                         std::vector<Eigen::Vector3d> &vel) {
+        int frame_size = (int )frames_img_rot.size();
         int n_state = frame_size * 3 + 3 + 1;
         int gravity_idx = frame_size * 3;
-        int scale_idx = frame_size * 3 + 3;
+        int scale_idx = gravity_idx + 3;
+        int tic_idx = scale_idx + 1;
         int n_equation = frame_size * 6;
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_equation, n_state);
         Eigen::VectorXd b = Eigen::VectorXd::Zero(n_state);
 
-        for (int i = 0; i < (int) all_frames.size() - 1; ++i) {
-            const Frame& frame_i = all_frames[i];
-            const Frame& frame_j = all_frames[i + 1];
-
-            const Eigen::Vector3d img_delta_pos = frame_j.imu_pos - frame_i.imu_pos;
-
-            const ImuIntegrator &pre_integral_j = *frame_j.pre_integral_;
-            const double dt = pre_integral_j.deltaTime();
+        for (int i = 0; i < frame_size - 1; ++i) {
+            const double dt = delta_times[i];
             const double dt2 = dt * dt;
-            const Eigen::Vector3d &imu_delta_pos = pre_integral_j.deltaPos();
-            const Eigen::Vector3d &imu_delta_vel = pre_integral_j.deltaVel();
 
-            //.在世界坐标系中写出位移方程.
-            // img_delta_pos * scale - rot_i * img_delta_rot * TIC + rot_i * TIC == rot_i * imu_delta_pos - 0.5 * gravity * dt^2 + dt * velocity_avg
+            //.在l坐标系中写出位移方程，l就是visual_initiator.cpp里面的big_parallax_frame_id这帧.
+            // img_T * scale - rot_j * TIC + rot_i * TIC == rot_i * RIC.inv * imu_T - 0.5 * gravity * dt^2 + dt * vel_avg
             //.整理为.
-            // img_delta_pos * scale + 0.5 * dt^2 * gravity - dt * 0.5 * (velocity[i] + velocity[j]) == rot_i * (imu_delta_pos + img_delta_rot * TIC - TIC)
-            A.block<3, 1>(i * 6, scale_idx) = img_delta_pos;
+            // 0.5 * dt^2 * gravity + img_T * scale + (rot_i - rot_j) * TIC - dt * 0.5 * (vel[i] + vel[j]) == rot_i * RIC.inv * imu_T
             A.block<3, 3>(i * 6, gravity_idx) = 0.5 * dt2 * Eigen::Matrix3d::Identity();
+            A.block<3, 1>(i * 6, scale_idx) = img_delta_poses[i];
+            A.block<3, 3>(i * 6, tic_idx) = frames_img_rot[i] - frames_img_rot[i + 1];
             A.block<3, 3>(i * 6, i * 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6, i * 3 + 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
-            b.block<3, 1>(i * 6, 0) = frame_i.imu_rot * imu_delta_pos + frame_j.imu_rot * TIC - frame_i.imu_rot * TIC;
+            b.block<3, 1>(i * 6, 0) = frames_img_rot[i] * RIC.transpose() * imu_delta_poses[i];
 
             //.在世界坐标系中写出速度方程.
-            // velocity[j] - velocity[i] = frame_i.R * imu_delta_vel - dt * gravity
+            // vel[j] - vel[i] = rot_i * RIC.inv * imu_delta_vel - dt * gravity
             //.整理为.
-            // dt * gravity - velocity[i] + velocity[j] = frame_i.R * imu_delta_vel
+            // dt * gravity - velocity[i] + velocity[j] = rot_i * RIC.inv * imu_delta_vel
             A.block<3, 3>(i * 6 + 3, gravity_idx) = dt * Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6 + 3, i * 3) = -Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6 + 3, i * 3 + 3) = Eigen::Matrix3d::Identity();
-            b.block<3, 1>(i * 6 + 3, 0) = frame_i.imu_rot * imu_delta_vel;
+            b.block<3, 1>(i * 6 + 3, 0) = frames_img_rot[i] * RIC.transpose() * imu_delta_velocities[i];
         }
         Eigen::VectorXd x = (A.transpose() * A).ldlt().solve(A.transpose() * b);
-        scale = x(n_state - 1);
-        gravity = x.segment<3>(n_state - 4);
         vel.clear();
         for (int i = 0; i < frame_size; ++i) {
             vel.emplace_back(x.block<3, 1>(i * 3, 0));
         }
+        gravity = x.segment<3>(gravity_idx);
+        scale = x(scale_idx);
+        TIC = x.segment<3>(tic_idx);
 
         LOG_I("estimated scale: %f", scale);
         constexpr double standard_gravity_norm = 9.8;

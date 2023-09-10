@@ -16,11 +16,16 @@ namespace vins {
                      const std::vector<Eigen::Matrix3d> &imu_rots,
                      Eigen::Matrix3d &calib_ric_result);
 
-    bool estimateGravityScaleVelocity(const std::vector<Frame> &all_frames,
-                                      ConstVec3dRef TIC,
-                                      Eigen::Vector3d &gravity,
-                                      double &scale,
-                                      std::vector<Eigen::Vector3d> &vel);
+    bool estimateTICGravityScaleVelocity(const std::vector<Eigen::Matrix3d> &frames_img_rot,
+                                         const std::vector<Eigen::Vector3d> &img_delta_poses,
+                                         const std::vector<Eigen::Vector3d> &imu_delta_poses,
+                                         const std::vector<Eigen::Vector3d> &imu_delta_velocities,
+                                         const std::vector<double> &delta_times,
+                                         const Eigen::Matrix3d &RIC,
+                                         Eigen::Vector3d &TIC,
+                                         Eigen::Vector3d &gravity,
+                                         double &scale,
+                                         std::vector<Eigen::Vector3d> &vel);
     Eigen::Matrix3d rotGravityToZAxis(ConstVec3dRef gravity, ConstMat3dRef R0);
 }
 

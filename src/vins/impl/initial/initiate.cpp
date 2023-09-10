@@ -98,8 +98,34 @@ bool Initiate::initiate(RunInfo &run_info) {
     //.秦博假设初始化时的ba可以忽略不计，g.norm==9.81。todo 一加6T、iPhone12的ba有多少？秦博这个假设合理吗？.
     double scale;
     std::vector<Eigen::Vector3d> velocities;
-    if (!estimateGravityScaleVelocity(run_info.frame_window, run_info.tic, run_info.gravity, scale, velocities)) {
+    std::vector<Eigen::Vector3d> img_delta_poses;
+    for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
+        img_delta_poses.emplace_back(kf_img_pos[i+1] - kf_img_pos[i]);
+    }
+    std::vector<Eigen::Vector3d> imu_delta_poses, imu_delta_velocities;
+    std::vector<double> imu_delta_times;
+    for (const auto &it:run_info.pre_int_window) {
+        imu_delta_poses.emplace_back(it->deltaPos());
+        imu_delta_velocities.emplace_back(it->deltaVel());
+        imu_delta_times.emplace_back(it->deltaTime());
+    }
+    if (!estimateTICGravityScaleVelocity(frames_img_rot,
+                                         img_delta_poses,
+                                         imu_delta_poses,
+                                         imu_delta_velocities,
+                                         imu_delta_times,
+                                         run_info.ric,
+                                         run_info.tic,
+                                         run_info.gravity,
+                                         scale,
+                                         velocities)) {
         return false;
+    }
+    for (Eigen::Vector3d &pos : kf_img_pos) {
+        pos *= scale;
+    }
+    for (Eigen::Vector3d &pos : frames_img_pos) {
+        pos *= scale;
     }
 
     assert(run_info.frame_window.front().is_key_frame_);
