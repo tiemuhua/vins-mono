@@ -21,21 +21,21 @@ namespace vins {
             Quaterniond rot_imu_in_world_frame(rot_imu_in_world_frame_que_[i]);
             Quaterniond rot_imu(rot_imu_que_[i]);
 
-            Matrix4d L, R;
+            Matrix4d L;
+            double img_w = rot_visual.w();
+            Vector3d img_q = rot_visual.vec();
+            L.block<3, 3>(0, 0) = img_w * Matrix3d::Identity() + utils::skewSymmetric(img_q);
+            L.block<3, 1>(0, 3) = img_q;
+            L.block<1, 3>(3, 0) = -img_q.transpose();
+            L(3, 3) = img_w;
 
-            double w = rot_visual.w();
-            Vector3d q = rot_visual.vec();
-            L.block<3, 3>(0, 0) = w * Matrix3d::Identity() + utils::skewSymmetric(q);
-            L.block<3, 1>(0, 3) = q;
-            L.block<1, 3>(3, 0) = -q.transpose();
-            L(3, 3) = w;
-
-            w = rot_imu.w();
-            q = rot_imu.vec();
-            R.block<3, 3>(0, 0) = w * Matrix3d::Identity() - utils::skewSymmetric(q);
-            R.block<3, 1>(0, 3) = q;
-            R.block<1, 3>(3, 0) = -q.transpose();
-            R(3, 3) = w;
+            Matrix4d R;
+            double imu_w = rot_imu.w();
+            Vector3d imu_q = rot_imu.vec();
+            R.block<3, 3>(0, 0) = imu_w * Matrix3d::Identity() - utils::skewSymmetric(imu_q);
+            R.block<3, 1>(0, 3) = imu_q;
+            R.block<1, 3>(3, 0) = -imu_q.transpose();
+            R(3, 3) = imu_w;
 
             double angular_distance = 180 / pi * rot_visual.angularDistance(rot_imu_in_world_frame);
             LOG_D("%d %f", i, angular_distance);
