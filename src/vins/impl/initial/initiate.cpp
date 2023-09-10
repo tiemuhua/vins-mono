@@ -6,7 +6,9 @@
 #include <vector>
 #include "impl/visual_inertial_aligner.h"
 #include "impl/visual_initiator.h"
+#include "impl/ric_estimator.h"
 #include "log.h"
+
 using namespace vins;
 using namespace std;
 
@@ -36,10 +38,32 @@ bool Initiate::initiate(RunInfo &run_info) {
         return false;
     }
 
+    std::vector<Eigen::Matrix3d> kf_img_rot;
+    std::vector<Eigen::Vector3d> kf_img_pos;
+    std::vector<Eigen::Matrix3d> frames_img_rot;
+    std::vector<Eigen::Vector3d> frames_img_pos;
+
     bool visual_succ = initiateByVisual((int )run_info.kf_state_window.size(),
                                         run_info.feature_window,
-                                        run_info.frame_window);
+                                        run_info.frame_window,
+                                        kf_img_rot,
+                                        kf_img_pos,
+                                        frames_img_rot,
+                                        frames_img_pos);
     if (!visual_succ) {
+        return false;
+    }
+
+    std::vector<Eigen::Matrix3d> imu_delta_rots;
+    std::vector<Eigen::Matrix3d> img_delta_rots;
+    for (const auto &it:run_info.pre_int_window) {
+        imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
+    }
+    for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
+        img_delta_rots.emplace_back(kf_img_rot[i+1] * kf_img_rot[i].transpose());
+    }
+    bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, run_info.ric);
+    if (!ric_succ) {
         return false;
     }
 
@@ -51,9 +75,6 @@ bool Initiate::initiate(RunInfo &run_info) {
     for (int i = 1; i < run_info.frame_window.size(); ++i) {
         run_info.frame_window[i].pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
     }
-
-
-
 
 
     //.求解重力、尺度和速度，即与位移有关的一切未知参数.
