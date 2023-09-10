@@ -68,9 +68,6 @@ namespace vins {
         [[nodiscard]] const Covariance& getCovariance() const {
             return covariance_;
         }
-        [[nodiscard]] const Noise& getNoise() const {
-            return noise_;
-        }
         [[nodiscard]] const Eigen::Vector3d& getBg() const {
             return bg_;
         }
