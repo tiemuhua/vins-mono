@@ -57,30 +57,36 @@ bool Initiate::initiate(RunInfo &run_info) {
     std::vector<Eigen::Matrix3d> imu_delta_rots;
     std::vector<Eigen::Matrix3d> img_delta_rots;
     std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
-    for (const auto &it:run_info.pre_int_window) {
-        imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
-    }
     for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
         img_delta_rots.emplace_back(kf_img_rot[i+1] * kf_img_rot[i].transpose());
     }
-    for (const auto &it:run_info.pre_int_window) {
-        imu_delta_rots.emplace_back(it->getJacobian().template block<3, 3>(kOrderRot, kOrderBG));
-    }
-    Eigen::Vector3d bg = estimateGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
-    if (bg.norm() > 1e4) {
-        return false;
-    }
-    for (Frame &frame:run_info.frame_window) {
-        frame.pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
-    }
-    for (auto &pre_integrate:run_info.pre_int_window) {
-        pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
+    Eigen::Vector3d bg = Eigen::Vector3d::Zero();
+    for (int i = 0; i < 4; ++i) {
+        imu_delta_rots.clear();
+        jacobians_bg_2_rot.clear();
+        for (const auto &it:run_info.pre_int_window) {
+            imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
+            jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
+        }
+        Eigen::Vector3d bg_step = estimateGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
+        if (bg_step.norm() > 1e4) {
+            return false;
+        }
+        bg += bg_step;
+        for (Frame &frame:run_info.frame_window) {
+            frame.pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
+        }
+        for (auto &pre_integrate:run_info.pre_int_window) {
+            pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
+        }
     }
 
     //.求解ric.
     imu_delta_rots.clear();
+    jacobians_bg_2_rot.clear();
     for (const auto &it:run_info.pre_int_window) {
         imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
+        jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
     }
     bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, run_info.ric);
     if (!ric_succ) {
