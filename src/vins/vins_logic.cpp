@@ -6,7 +6,7 @@
 #include "impl/vins_core.h"
 
 namespace vins {
-    VinsCore* sp_vins_core;
+    static VinsCore* sp_vins_core;
     void init(vins::Param *param) {
         sp_vins_core = new VinsCore(param);
     }
