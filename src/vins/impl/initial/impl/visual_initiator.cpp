@@ -182,45 +182,45 @@ namespace vins {
 
         // 2: solve pnp [l+1, frame_num-2]
         // triangulate [l+1, frame_num-2] <-> frame_num-1;
-        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < window_size - 1; frame_idx++) {
+        for (int kf_idx = big_parallax_frame_id + 1; kf_idx < window_size - 1; kf_idx++) {
             // solve pnp
-            Eigen::Matrix3d R_initial = kf_poses[frame_idx - 1].block<3, 3>(0, 0);
-            Eigen::Vector3d P_initial = kf_poses[frame_idx - 1].block<3, 1>(0, 3);
+            Eigen::Matrix3d R_initial = kf_poses[kf_idx - 1].block<3, 3>(0, 0);
+            Eigen::Vector3d P_initial = kf_poses[kf_idx - 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2d;
             vector<cv::Point3f> pts_3d;
-            collectFeaturesInFrame(sfm_features, frame_idx, pts_2d, pts_3d);
+            collectFeaturesInFrame(sfm_features, kf_idx, pts_2d, pts_3d);
             if (!solveFrameByPnP(pts_2d, pts_3d, true, R_initial, P_initial))
                 return false;
-            kf_poses[frame_idx].block<3, 3>(0, 0) = R_initial;
-            kf_poses[frame_idx].block<3, 1>(0, 3) = P_initial;
+            kf_poses[kf_idx].block<3, 3>(0, 0) = R_initial;
+            kf_poses[kf_idx].block<3, 1>(0, 3) = P_initial;
 
             // triangulate point based on to solve pnp result
-            triangulatePtsByFramePos(frame_idx, kf_poses[frame_idx],
+            triangulatePtsByFramePos(kf_idx, kf_poses[kf_idx],
                                      window_size - 1, kf_poses[window_size - 1], sfm_features);
         }
 
         //3: triangulate l <-> [l+1, frame_num -2]
-        for (int frame_idx = big_parallax_frame_id + 1; frame_idx < window_size - 1; frame_idx++) {
+        for (int kf_idx = big_parallax_frame_id + 1; kf_idx < window_size - 1; kf_idx++) {
             triangulatePtsByFramePos(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
-                                     frame_idx, kf_poses[frame_idx], sfm_features);
+                                     kf_idx, kf_poses[kf_idx], sfm_features);
         }
 
         // 4: solve pnp for frame [0, l-1]
         //    triangulate [0, l-1] <-> l
-        for (int frame_idx = big_parallax_frame_id - 1; frame_idx >= 0; frame_idx--) {
+        for (int kf_idx = big_parallax_frame_id - 1; kf_idx >= 0; kf_idx--) {
             //solve pnp
-            Eigen::Matrix3d R_init = kf_poses[frame_idx + 1].block<3, 3>(0, 0);
-            Eigen::Vector3d T_init = kf_poses[frame_idx + 1].block<3, 1>(0, 3);
+            Eigen::Matrix3d R_init = kf_poses[kf_idx + 1].block<3, 3>(0, 0);
+            Eigen::Vector3d T_init = kf_poses[kf_idx + 1].block<3, 1>(0, 3);
             vector<cv::Point2f> pts_2d;
             vector<cv::Point3f> pts_3d;
-            collectFeaturesInFrame(sfm_features, frame_idx, pts_2d, pts_3d);
+            collectFeaturesInFrame(sfm_features, kf_idx, pts_2d, pts_3d);
             if (!solveFrameByPnP(pts_2d, pts_3d, true, R_init, T_init)) {
                 return false;
             }
-            kf_poses[frame_idx].block<3, 3>(0, 0) = R_init;
-            kf_poses[frame_idx].block<3, 1>(0, 3) = T_init;
+            kf_poses[kf_idx].block<3, 3>(0, 0) = R_init;
+            kf_poses[kf_idx].block<3, 1>(0, 3) = T_init;
             //triangulate
-            triangulatePtsByFramePos(frame_idx, kf_poses[frame_idx],
+            triangulatePtsByFramePos(kf_idx, kf_poses[kf_idx],
                                      big_parallax_frame_id, kf_poses[big_parallax_frame_id], sfm_features);
         }
 
@@ -298,7 +298,7 @@ namespace vins {
         }
 
         /******************************************************************
-         *             利用关键帧位姿和特征点深度PNP求解非关键帧位姿              *
+         *             利用关键帧位姿和特征点深度PNP求解非关键帧位姿             *
          * ****************************************************************/
         int key_frame_idx = 0;
         for (Frame &frame:all_frames) {
