@@ -100,7 +100,7 @@ namespace vins {
             A.block<3, 3>(i * 6, i * 3 + 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
             b.block<3, 1>(i * 6, 0) = frames_img_rot[i] * RIC.transpose() * imu_delta_poses[i];
 
-            //.在世界坐标系中写出速度方程.
+            //.在l坐标系中写出位移方程，l就是visual_initiator.cpp里面的big_parallax_frame_id这帧.
             // vel[j] - vel[i] = rot_i * RIC.inv * imu_delta_vel - dt * gravity
             //.整理为.
             // dt * gravity - velocity[i] + velocity[j] = rot_i * RIC.inv * imu_delta_vel
