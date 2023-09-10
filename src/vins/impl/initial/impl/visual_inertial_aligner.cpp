@@ -13,14 +13,16 @@ namespace vins {
     Eigen::Vector3d solveGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
                                   const std::vector<Eigen::Matrix3d> &img_delta_rots,
                                   const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot) {
-        Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
-        Eigen::Vector3d b = Eigen::Vector3d::Zero();
-        for (int i = 0; i < imu_delta_rots.size(); ++i) {
-            A += jacobians_bg_2_rot[i].transpose() * jacobians_bg_2_rot[i];
+        int interval_size = (int)imu_delta_rots.size();
+        Eigen::MatrixXd A = Eigen::Matrix3d::Zero(interval_size, 3);
+        Eigen::VectorXd b = Eigen::Vector3d::Zero(interval_size);
+        for (int i = 0; i < interval_size; ++i) {
+            A.block<3, 3>(i * 3, 0) = jacobians_bg_2_rot[i];
+            // todo 下面这行感觉好像写反了
             Eigen::Quaterniond img_imu_diff(imu_delta_rots[i].transpose() * img_delta_rots[i]);
-            b += jacobians_bg_2_rot[i].transpose() * 2 * img_imu_diff.vec();
+            b.block<3, 1>(i * 3, 0) = 2 * img_imu_diff.vec();
         }
-        Eigen::Vector3d bg = A.ldlt().solve(b);
+        Eigen::Vector3d bg = (A.transpose() * A).ldlt().solve(A.transpose() * b);
         return bg;
     }
 
