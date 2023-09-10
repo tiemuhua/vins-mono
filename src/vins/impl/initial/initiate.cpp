@@ -80,6 +80,9 @@ bool Initiate::initiate(RunInfo &run_info) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
         }
     }
+    for (KeyFrameState &state:run_info.kf_state_window) {
+        state.bg = bg;
+    }
 
     //.求解ric.
     imu_delta_rots.clear();
@@ -99,15 +102,15 @@ bool Initiate::initiate(RunInfo &run_info) {
     double scale;
     std::vector<Eigen::Vector3d> velocities;
     std::vector<Eigen::Vector3d> img_delta_poses;
-    for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
-        img_delta_poses.emplace_back(kf_img_pos[i+1] - kf_img_pos[i]);
+    for (int i = 0; i < frames_img_pos.size() - 1; ++i) {
+        img_delta_poses.emplace_back(frames_img_pos[i+1] - frames_img_pos[i]);
     }
     std::vector<Eigen::Vector3d> imu_delta_poses, imu_delta_velocities;
     std::vector<double> imu_delta_times;
-    for (const auto &it:run_info.pre_int_window) {
-        imu_delta_poses.emplace_back(it->deltaPos());
-        imu_delta_velocities.emplace_back(it->deltaVel());
-        imu_delta_times.emplace_back(it->deltaTime());
+    for (const Frame &frame:run_info.frame_window) {
+        imu_delta_poses.emplace_back(frame.pre_integral_->deltaPos());
+        imu_delta_velocities.emplace_back(frame.pre_integral_->deltaVel());
+        imu_delta_times.emplace_back(frame.pre_integral_->deltaTime());
     }
     if (!estimateTICGravityScaleVelocity(frames_img_rot,
                                          img_delta_poses,
@@ -132,31 +135,22 @@ bool Initiate::initiate(RunInfo &run_info) {
     Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, run_info.frame_window.front().imu_rot);
     run_info.gravity = rot_diff * run_info.gravity;
 
-    auto &state_window = run_info.kf_state_window;
-    auto &all_frames = run_info.frame_window;
-    auto &TIC = run_info.tic;
-    auto RIC = run_info.ric;
-    for (KeyFrameState & state : state_window) {
-        state.bg = bg;
-    }
-    int frame_size = (int )all_frames.size();
-    for (int frame_idx = 0, key_frame_id = 0; frame_idx < frame_size; frame_idx++) {
-        if (!all_frames[frame_idx].is_key_frame_) {
-            continue;
+    std::unordered_map<int,int> kf_idx_2_frame_idx;
+    int kf_idx_iter = 0;
+    for (int i = 0; i < run_info.frame_window.size(); ++i) {
+        if (run_info.frame_window[i].is_key_frame_) {
+            kf_idx_2_frame_idx[kf_idx_iter] = i;
+            kf_idx_iter++;
         }
-        state_window.at(key_frame_id).rot = rot_diff * all_frames.at(key_frame_id).imu_rot;
-        state_window.at(key_frame_id).pos = rot_diff * all_frames.at(key_frame_id).imu_pos;
-        state_window.at(key_frame_id).vel = rot_diff * velocities.at(key_frame_id);
-        key_frame_id++;
     }
-    for (int i = 0; i < (int) state_window.size(); ++i) {
-        state_window.at(i).pos =
-                (scale * state_window.at(i).pos - state_window.at(i).rot * TIC) -
-                (scale * state_window.at(0).pos - state_window.at(0).rot * TIC);
+    for (int i = 0; i < run_info.frame_window.size(); ++i) {
+        run_info.frame_window[i].imu_pos = rot_diff * (run_info.ric.transpose() * frames_img_pos[i] - run_info.tic);
+        run_info.frame_window[i].imu_rot = frames_img_rot[i] * rot_diff;
     }
-
-    for (int i = 0; i < (int) run_info.pre_int_window.size(); ++i) {
-        run_info.pre_int_window.at(i)->rePredict(Eigen::Vector3d::Zero(), state_window.at(i).bg);
+    for (int i = 0; i < run_info.kf_state_window.size(); ++i) {
+        run_info.kf_state_window[i].pos = rot_diff * (run_info.ric.transpose() * kf_img_pos[i] - run_info.tic);
+        run_info.kf_state_window[i].rot = kf_img_rot[i] * rot_diff;
+        run_info.kf_state_window[i].vel = rot_diff * velocities[kf_idx_2_frame_idx[i]];
     }
 
     //triangulate on cam pose , no tic
@@ -168,13 +162,13 @@ bool Initiate::initiate(RunInfo &run_info) {
         Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);
 
         int start_kf_idx = feature.start_kf_window_idx;
-        Eigen::Vector3d t0 = state_window.at(start_kf_idx).pos;
-        Eigen::Matrix3d R0 = state_window.at(start_kf_idx).rot * RIC;
+        Eigen::Vector3d t0 = run_info.kf_state_window[start_kf_idx].pos;
+        Eigen::Matrix3d R0 = run_info.kf_state_window[start_kf_idx].rot * run_info.ric;
 
         for (int i = 0; i < feature.points.size(); ++i) {
             int kf_idx = start_kf_idx + i;
-            Eigen::Vector3d t1 = state_window.at(kf_idx).pos;
-            Eigen::Matrix3d R1 = state_window.at(kf_idx).rot * RIC;
+            Eigen::Vector3d t1 = run_info.kf_state_window[kf_idx].pos;
+            Eigen::Matrix3d R1 = run_info.kf_state_window[kf_idx].rot * run_info.ric;
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;
             Eigen::Matrix<double, 3, 4> P;
