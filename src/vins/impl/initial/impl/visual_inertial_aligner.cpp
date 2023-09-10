@@ -16,7 +16,7 @@ namespace vins {
         Eigen::Vector3d b = Eigen::Vector3d::Zero();
         for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
             auto frame_j = next(frame_i);
-            Eigen::Quaterniond q_ij(frame_i->R.transpose() * frame_j->R);
+            Eigen::Quaterniond q_ij(frame_i->imu_rot.transpose() * frame_j->imu_rot);
             Eigen::Matrix3d tmp_A = frame_j->pre_integral_->getJacobian().template block<3, 3>(kOrderRot, kOrderBG);
             Eigen::Vector3d tmp_b = 2 * (frame_j->pre_integral_->deltaQuat().inverse() * q_ij).vec();
             A += tmp_A.transpose() * tmp_A;
@@ -66,7 +66,7 @@ namespace vins {
             const Frame& frame_i = all_frames[i];
             const Frame& frame_j = all_frames[i + 1];
 
-            const Eigen::Vector3d img_delta_pos = frame_j.T - frame_i.T;
+            const Eigen::Vector3d img_delta_pos = frame_j.imu_pos - frame_i.imu_pos;
 
             const ImuIntegrator &pre_integral_j = *frame_j.pre_integral_;
             const double dt = pre_integral_j.deltaTime();
@@ -82,7 +82,7 @@ namespace vins {
             A.block<3, 3>(i * 6, gravity_idx) = 0.5 * dt2 * Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6, i * 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6, i * 3 + 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
-            b.block<3, 1>(i * 6, 0) = frame_i.R * imu_delta_pos + frame_j.R * TIC - frame_i.R * TIC;
+            b.block<3, 1>(i * 6, 0) = frame_i.imu_rot * imu_delta_pos + frame_j.imu_rot * TIC - frame_i.imu_rot * TIC;
 
             //.在世界坐标系中写出速度方程.
             // velocity[j] - velocity[i] = frame_i.R * imu_delta_vel - dt * gravity
@@ -91,7 +91,7 @@ namespace vins {
             A.block<3, 3>(i * 6 + 3, gravity_idx) = dt * Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6 + 3, i * 3) = -Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6 + 3, i * 3 + 3) = Eigen::Matrix3d::Identity();
-            b.block<3, 1>(i * 6 + 3, 0) = frame_i.R * imu_delta_vel;
+            b.block<3, 1>(i * 6 + 3, 0) = frame_i.imu_rot * imu_delta_vel;
         }
         Eigen::VectorXd x = (A.transpose() * A).ldlt().solve(A.transpose() * b);
         scale = x(n_state - 1);

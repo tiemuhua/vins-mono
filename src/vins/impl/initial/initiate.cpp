@@ -66,7 +66,7 @@ bool Initiate::initiate(RunInfo &run_info) {
     }
 
     assert(run_info.frame_window.front().is_key_frame_);
-    Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, run_info.frame_window.front().R);
+    Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, run_info.frame_window.front().imu_rot);
     run_info.gravity = rot_diff * run_info.gravity;
 
     auto &state_window = run_info.kf_state_window;
@@ -81,8 +81,8 @@ bool Initiate::initiate(RunInfo &run_info) {
         if (!all_frames[frame_idx].is_key_frame_) {
             continue;
         }
-        state_window.at(key_frame_id).rot = rot_diff * all_frames.at(key_frame_id).R;
-        state_window.at(key_frame_id).pos = rot_diff * all_frames.at(key_frame_id).T;
+        state_window.at(key_frame_id).rot = rot_diff * all_frames.at(key_frame_id).imu_rot;
+        state_window.at(key_frame_id).pos = rot_diff * all_frames.at(key_frame_id).imu_pos;
         state_window.at(key_frame_id).vel = rot_diff * velocities.at(key_frame_id);
         key_frame_id++;
     }

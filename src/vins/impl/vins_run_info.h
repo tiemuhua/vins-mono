@@ -41,8 +41,6 @@ namespace vins {
         // 滑动窗口中的回环
         std::vector<vins::LoopMatchInfo> loop_match_infos;
 
-        std::vector<Correspondences> neighbor_kf_correspondence_pts;
-
         PrevIMUState prev_imu_state;
     };
 }

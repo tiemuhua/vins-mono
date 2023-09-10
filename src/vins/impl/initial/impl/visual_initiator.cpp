@@ -304,8 +304,8 @@ namespace vins {
         for (Frame &frame:all_frames) {
             // provide initial guess
             if (frame.is_key_frame_) {
-                frame.R = key_frames_rot[key_frame_idx];
-                frame.T = key_frames_pos[key_frame_idx];
+                frame.imu_rot = key_frames_rot[key_frame_idx];
+                frame.imu_pos = key_frames_pos[key_frame_idx];
                 key_frame_idx++;
                 continue;
             }
@@ -330,8 +330,8 @@ namespace vins {
                 LOG_E("solve pnp fail!");
                 return false;
             }
-            frame.R = R_initial;
-            frame.T = P_initial;
+            frame.imu_rot = R_initial;
+            frame.imu_pos = P_initial;
         }
         return true;
     }
