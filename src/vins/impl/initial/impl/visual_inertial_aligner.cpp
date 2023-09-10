@@ -4,48 +4,24 @@
 
 #include "visual_inertial_aligner.h"
 #include <cstdlib>
-#include "param.h"
 #include "log.h"
 #include "vins/impl/vins_utils.h"
 
 namespace vins {
     // 此时不知ba、bg、gravity，ba和gravity耦合，都和位移有关。而bg只和旋转有关，因此可以在不知道ba、gravity的情况下独立求解bg。
     // 认为视觉求出来的旋转是准确的，通过IMU和视觉的差求出bg
-    Eigen::Vector3d solveGyroBias(const std::vector<Frame> &all_image_frame) {
+    Eigen::Vector3d solveGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
+                                  const std::vector<Eigen::Matrix3d> &img_delta_rots,
+                                  const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot) {
         Eigen::Matrix3d A = Eigen::Matrix3d::Zero();
         Eigen::Vector3d b = Eigen::Vector3d::Zero();
-        for (auto frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++) {
-            auto frame_j = next(frame_i);
-            Eigen::Quaterniond q_ij(frame_i->imu_rot.transpose() * frame_j->imu_rot);
-            Eigen::Matrix3d tmp_A = frame_j->pre_integral_->getJacobian().template block<3, 3>(kOrderRot, kOrderBG);
-            Eigen::Vector3d tmp_b = 2 * (frame_j->pre_integral_->deltaQuat().inverse() * q_ij).vec();
-            A += tmp_A.transpose() * tmp_A;
-            b += tmp_A.transpose() * tmp_b;
+        for (int i = 0; i < imu_delta_rots.size(); ++i) {
+            A += jacobians_bg_2_rot[i].transpose() * jacobians_bg_2_rot[i];
+            Eigen::Quaterniond img_imu_diff(imu_delta_rots[i].transpose() * img_delta_rots[i]);
+            b += jacobians_bg_2_rot[i].transpose() * 2 * img_imu_diff.vec();
         }
         Eigen::Vector3d bg = A.ldlt().solve(b);
         return bg;
-    }
-
-    typedef Eigen::Matrix<double, 6, 10> Matrix_6_10;
-    typedef Eigen::Matrix<double, 10, 10> Matrix10d;
-    typedef Eigen::Matrix<double, 10, 1> Vector10d;
-    typedef Eigen::Matrix<double, 6, 9> Matrix_6_9;
-    typedef Eigen::Matrix<double, 9, 9> Matrix9d;
-    typedef Eigen::Matrix<double, 6, 1> Vector6d;
-    typedef Eigen::Matrix<double, 9, 1> Vector9d;
-    typedef Eigen::Matrix<double, 3, 2> Matrix_3_2;
-
-    static Matrix_3_2 TangentBasis(const Eigen::Vector3d &g0) {
-        Eigen::Vector3d a = g0.normalized();
-        Eigen::Vector3d tmp(0, 0, 1);
-        if (a == tmp)
-            tmp << 1, 0, 0;
-        Eigen::Vector3d b = (tmp - a * (a.transpose() * tmp)).normalized();
-        Eigen::Vector3d c = a.cross(b);
-        Matrix_3_2 bc = Matrix_3_2::Zero();
-        bc.block<3, 1>(0, 0) = b;
-        bc.block<3, 1>(0, 1) = c;
-        return bc;
     }
 
     bool solveGravityScaleVelocity(const std::vector<Frame> &all_frames,

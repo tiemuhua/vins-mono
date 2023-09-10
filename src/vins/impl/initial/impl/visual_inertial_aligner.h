@@ -9,7 +9,9 @@
 #include "vins/impl/vins_run_info.h"
 
 namespace vins {
-    Eigen::Vector3d solveGyroBias(const std::vector<Frame> &all_image_frame);
+    Eigen::Vector3d solveGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
+                                  const std::vector<Eigen::Matrix3d> &img_delta_rots,
+                                  const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot);
     bool solveGravityScaleVelocity(const std::vector<Frame> &all_frames,
                                    ConstVec3dRef TIC,
                                    Eigen::Vector3d &gravity,

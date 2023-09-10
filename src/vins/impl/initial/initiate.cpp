@@ -54,8 +54,21 @@ bool Initiate::initiate(RunInfo &run_info) {
         return false;
     }
 
+    std::vector<Eigen::Matrix3d> imu_delta_rots;
+    std::vector<Eigen::Matrix3d> img_delta_rots;
+    for (const auto &it:run_info.pre_int_window) {
+        imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
+    }
+    for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
+        img_delta_rots.emplace_back(kf_img_rot[i+1] * kf_img_rot[i].transpose());
+    }
+
     //.求解bg，bg只与两帧之间的相对旋转有关，与绝对姿态无关，因此与ric无关，需要先求解bg后求解ric.
-    Eigen::Vector3d bg = solveGyroBias(run_info.frame_window);
+    std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
+    for (const auto &it:run_info.pre_int_window) {
+        imu_delta_rots.emplace_back(it->getJacobian().template block<3, 3>(kOrderRot, kOrderBG));
+    }
+    Eigen::Vector3d bg = solveGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
     if (bg.norm() > 1e4) {
         return false;
     }
@@ -67,14 +80,6 @@ bool Initiate::initiate(RunInfo &run_info) {
     }
 
     //.求解ric.
-    std::vector<Eigen::Matrix3d> imu_delta_rots;
-    std::vector<Eigen::Matrix3d> img_delta_rots;
-    for (const auto &it:run_info.pre_int_window) {
-        imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
-    }
-    for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
-        img_delta_rots.emplace_back(kf_img_rot[i+1] * kf_img_rot[i].transpose());
-    }
     bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, run_info.ric);
     if (!ric_succ) {
         return false;
