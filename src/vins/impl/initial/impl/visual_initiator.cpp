@@ -13,7 +13,6 @@
 #include "log.h"
 #include "vins/impl/vins_utils.h"
 #include "vins/impl/feature_helper.h"
-#include "motion_estimator.h"
 
 namespace vins {
     using namespace std;
@@ -119,6 +118,28 @@ namespace vins {
         return true;
     }
 
+    static bool solveRelativeRT(const Correspondences &correspondences,
+                         Eigen::Matrix3d &rotation,
+                         Eigen::Vector3d &unit_translation) {
+        std::vector<cv::Point2f> ll, rr;
+        for (const auto & correspondence : correspondences) {
+            ll.emplace_back(correspondence.first);
+            rr.emplace_back(correspondence.second);
+        }
+        cv::Mat mask;
+        cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);
+        cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+        cv::Mat cv_rot, cv_trans;
+        int inliner_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, cv_rot, cv_trans, mask);
+        if (inliner_cnt < 13) {
+            return false;
+        }
+        cv::cv2eigen(cv_rot, rotation);
+        cv::cv2eigen(cv_trans, unit_translation);
+        assert(abs(unit_translation.norm() - 1) < 1e-5);
+        return true;
+    }
+
     bool initiateByVisual(const int window_size,
                           const std::vector<Feature>& feature_window,
                           vector<Frame> &all_frames) {
@@ -141,7 +162,7 @@ namespace vins {
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
             }
-            MotionEstimator::solveRelativeRT(correspondences, relative_R, relative_unit_T);
+            solveRelativeRT(correspondences, relative_R, relative_unit_T);
             big_parallax_frame_id = i;
             break;
         }
