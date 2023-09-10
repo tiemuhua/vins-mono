@@ -90,17 +90,19 @@ namespace vins {
             const double dt2 = dt * dt;
 
             //.在l坐标系中写出位移方程，l就是visual_initiator.cpp里面的big_parallax_frame_id这帧.
-            // img_T * scale - rot_j * TIC + rot_i * TIC == rot_i * RIC.inv * imu_T - 0.5 * gravity * dt^2 + dt * vel_avg
+            //.等式两边均为imu在l坐标系的位移.
+            // img_T * scale - rot_j * RIC.inv * TIC + rot_i * RIC.inv * TIC == rot_i * RIC.inv * imu_T - 0.5 * gravity * dt^2 + dt * vel_avg
             //.整理为.
-            // 0.5 * dt^2 * gravity + img_T * scale + (rot_i - rot_j) * TIC - dt * 0.5 * (vel[i] + vel[j]) == rot_i * RIC.inv * imu_T
+            // 0.5 * dt^2 * gravity + img_T * scale + (rot_i - rot_j) * RIC.inv * TIC - dt * 0.5 * (vel[i] + vel[j]) == rot_i * RIC.inv * imu_T
             A.block<3, 3>(i * 6, gravity_idx) = 0.5 * dt2 * Eigen::Matrix3d::Identity();
             A.block<3, 1>(i * 6, scale_idx) = img_delta_poses[i];
-            A.block<3, 3>(i * 6, tic_idx) = frames_img_rot[i] - frames_img_rot[i + 1];
+            A.block<3, 3>(i * 6, tic_idx) = (frames_img_rot[i] - frames_img_rot[i + 1]) * RIC.transpose();
             A.block<3, 3>(i * 6, i * 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
             A.block<3, 3>(i * 6, i * 3 + 3) = -dt * 0.5 * Eigen::Matrix3d::Identity();
             b.block<3, 1>(i * 6, 0) = frames_img_rot[i] * RIC.transpose() * imu_delta_poses[i];
 
             //.在l坐标系中写出位移方程，l就是visual_initiator.cpp里面的big_parallax_frame_id这帧.
+            //.等式两边均为imu在l系中的速度变化.
             // vel[j] - vel[i] = rot_i * RIC.inv * imu_delta_vel - dt * gravity
             //.整理为.
             // dt * gravity - velocity[i] + velocity[j] = rot_i * RIC.inv * imu_delta_vel
