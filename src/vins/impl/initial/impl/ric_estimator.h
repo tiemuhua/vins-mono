@@ -8,33 +8,7 @@
 #include "vins/impl/vins_define_internal.h"
 
 namespace vins {
-    class RICEstimator {
-    public:
-        RICEstimator(int window_size){
-            window_size_ = window_size;
-        }
-
-        bool estimate(const Correspondences& correspondences,
-                      const Eigen::Quaterniond &delta_q_imu,
-                      Eigen::Matrix3d &calib_ric_result);
-
-    private:
-        static Eigen::Matrix3d solveRelativeR(const Correspondences &correspondences);
-
-        static double testTriangulation(const std::vector<cv::Point2f> &l,
-                                        const std::vector<cv::Point2f> &r,
-                                        cv::Mat_<double> R, cv::Mat_<double> t);
-
-        static void decomposeE(const cv::Mat& E,
-                               cv::Mat_<double> &R1, cv::Mat_<double> &R2,
-                               cv::Mat_<double> &t1, cv::Mat_<double> &t2);
-
-        std::vector<Eigen::Matrix3d> rot_visual_que_;
-        std::vector<Eigen::Matrix3d> rot_imu_que_;
-        std::vector<Eigen::Matrix3d> rot_imu_in_world_frame_que_;
-        Eigen::Matrix3d ric_ = Eigen::Matrix3d::Identity();
-        int window_size_ = -1;
-    };
+    bool estimateRIC(const std::vector<Eigen::Matrix3d> &img_rots,
+                     const std::vector<Eigen::Matrix3d> &imu_rots,
+                     Eigen::Matrix3d &calib_ric_result);
 }
-
-
