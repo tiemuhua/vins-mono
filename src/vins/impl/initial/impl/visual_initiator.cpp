@@ -143,10 +143,10 @@ namespace vins {
     bool initiateByVisual(const int window_size,
                           const std::vector<Feature>& feature_window,
                           const vector<Frame> &all_frames,
-                          vector<Eigen::Matrix3d> kf_img_rot,
-                          vector<Eigen::Vector3d> kf_img_pos,
-                          vector<Eigen::Matrix3d> &frames_img_rot,
-                          vector<Eigen::Vector3d> &frames_img_pos) {
+                          std::vector<Eigen::Matrix3d> &kf_img_rot,
+                          std::vector<Eigen::Vector3d> &kf_img_pos,
+                          std::vector<Eigen::Matrix3d> &frames_img_rot,
+                          std::vector<Eigen::Vector3d> &frames_img_pos) {
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
         for (const Feature &feature: feature_window) {
@@ -305,24 +305,24 @@ namespace vins {
         /******************************************************************
          *             利用关键帧位姿和特征点深度PNP求解非关键帧位姿             *
          * ****************************************************************/
-        int key_frame_idx = 0;
-        for (int i = 0; i < all_frames.size(); ++i) {
-            const Frame& frame = all_frames[i];
+        int kf_idx = 0;
+        for (int frame_idx = 0; frame_idx < all_frames.size(); ++frame_idx) {
+            const Frame& frame = all_frames[frame_idx];
             // provide initial guess
             if (frame.is_key_frame_) {
-                frames_img_rot[i] = kf_img_rot[key_frame_idx];
-                frames_img_pos[i] = kf_img_pos[key_frame_idx];
-                key_frame_idx++;
+                frames_img_rot[frame_idx] = kf_img_rot[kf_idx];
+                frames_img_pos[frame_idx] = kf_img_pos[kf_idx];
+                kf_idx++;
                 continue;
             }
 
             vector<cv::Point3f> pts_3d;
             vector<cv::Point2f> pts_2d;
-            for (int i = 0; i < frame.points.size(); ++i) {
-                if (feature_id_2_position.count(frame.feature_ids[i])) {
-                    Eigen::Vector3d world_pts = feature_id_2_position[frame.feature_ids[i]];
+            for (int point_idx = 0; point_idx < frame.points.size(); ++point_idx) {
+                if (feature_id_2_position.count(frame.feature_ids[point_idx])) {
+                    Eigen::Vector3d world_pts = feature_id_2_position[frame.feature_ids[point_idx]];
                     pts_3d.emplace_back(world_pts(0), world_pts(1), world_pts(2));
-                    pts_2d.emplace_back(frame.points[i]);
+                    pts_2d.emplace_back(frame.points[point_idx]);
                 }
             }
             if (pts_3d.size() < 6) {
@@ -330,14 +330,14 @@ namespace vins {
                 return false;
             }
 
-            Eigen::Matrix3d R_initial = kf_img_rot[key_frame_idx];
-            Eigen::Vector3d P_initial = kf_img_pos[key_frame_idx];
+            Eigen::Matrix3d R_initial = kf_img_rot[kf_idx];
+            Eigen::Vector3d P_initial = kf_img_pos[kf_idx];
             if (!solveFrameByPnP(pts_2d, pts_3d, false, R_initial, P_initial)) {
                 LOG_E("solve pnp fail!");
                 return false;
             }
-            frames_img_rot[i] = R_initial;
-            frames_img_pos[i] = P_initial;
+            frames_img_rot[frame_idx] = R_initial;
+            frames_img_pos[frame_idx] = P_initial;
         }
         return true;
     }
