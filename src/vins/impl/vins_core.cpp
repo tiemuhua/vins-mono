@@ -114,7 +114,7 @@ namespace vins {
             run_info_->kf_state_window.push_back({});
             run_info_->frame_window.emplace_back(feature_pts, nullptr, true);
             FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
-            vins_state_ = EVinsState::kEstimateExtrinsic;
+            vins_state_ = EVinsState::kInitial;
             return;
         }
 
@@ -193,25 +193,6 @@ namespace vins {
                                         feature_id_2_idx_origin,
                                         feature_id_2_idx_after_discard);
             }
-        }
-
-
-
-        // todo 先初始化bg，然后初始化ric，然后初始化位移参数
-        /******************初始化RIC*******************/
-        if (vins_state_ == EVinsState::kEstimateExtrinsic) {
-            int cur_kf_window_size = run_info_->kf_state_window.size();
-            PointCorrespondences correspondences = FeatureHelper::getCorrespondences(cur_kf_window_size - 1,
-                                                                                     cur_kf_window_size,
-                                                                                     run_info_->feature_window);
-            Eigen::Quaterniond imu_quat = run_info_->pre_int_window.back()->deltaQuat();
-            bool succ = ric_estimator_->estimate(correspondences, imu_quat, run_info_->ric);
-            if (!succ) {
-                LOG_E("estimate extrinsic false, please rotate rapidly");
-                return;
-            }
-            vins_state_ = EVinsState::kInitial;
-            return;
         }
 
         /******************初始化系统状态、机体坐标系*******************/

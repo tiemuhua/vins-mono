@@ -46,7 +46,6 @@ namespace vins {
         enum class EVinsState : int {
             kNoIMUData,             // 尚未收到IMU数据
             kNoImgData,             // 尚未收到图片数据
-            kEstimateExtrinsic,     // 估计相机外参
             kInitial,               // 初始化
             kNormal,                // 正常优化
         } vins_state_ = EVinsState::kNoIMUData;
