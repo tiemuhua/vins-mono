@@ -153,8 +153,8 @@ bool Initiate::initiate(RunInfo &run_info) {
         run_info.kf_state_window[i].vel = rot_diff * velocities[kf_idx_2_frame_idx[i]];
     }
 
-    //triangulate on cam pose , no tic
-    //计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
+    // triangulate on cam pose , no tic
+    //.计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
     for (Feature &feature: run_info.feature_window) {
         if (!(feature.points.size() >= 2 && feature.start_kf_window_idx < run_info.kf_state_window.size() - 2))
             continue;
@@ -165,28 +165,54 @@ bool Initiate::initiate(RunInfo &run_info) {
         Eigen::Vector3d t0 = run_info.kf_state_window[start_kf_idx].pos;
         Eigen::Matrix3d R0 = run_info.kf_state_window[start_kf_idx].rot * run_info.ric;
 
-        for (int i = 0; i < feature.points.size(); ++i) {
+        // 特征点深度记为d，特征点在start_kf_idx系中坐标记为p0，在在kf_idx系中坐标记为p_i
+        // start_kf_idx 帧的归一化像素坐标为 pixel0 = (x0, y0, 1.0)^T，kf_idx帧的归一化像素坐标为 pixel_i = (x_i, y_i, 1.0)
+        // start_kf_idx 坐标系到kf_idx坐标系的映射为 (R, t)
+        // p0 = d * (x0, y0, 1.0)^T
+        // p_i = R.inv * [d * (x0, y0, 1.0)^T - t] = d * R_inv * (x0, y0, 1.0)^T - R_inv * t
+        // p_i 与 (x_i, y_i, 1.0)同向
+        // 令R_inv * (x0, y0, 1.0)^T = (f1, f2, f3)^T，R_inv * t = (e1, e2, e3)^T
+        // 即 d * (f1, f2, f3)^T - (e1, e2, e3)^T 与 (x_i, y_i, 1.0) 同向
+        // 整理为
+        //      (x_i * f3 -f1) * d = x_i * e3 - e1
+        //      (y_i * f3 -f2) * d = y_g * e3 - e2
+        // 从而我们可以得到2 * (feature.points.size() - 1) 个方程，然后最小二乘求解
+        int pts_size = feature.points.size();
+        Eigen::VectorXd A = Eigen::VectorXd::Zero(2 * pts_size - 2);
+        Eigen::VectorXd b = Eigen::VectorXd::Zero(2 * pts_size - 2);
+        Eigen::Vector3d pixel0 = Eigen::Vector3d(feature.points[0].x, feature.points[0].y, 1.0);
+        for (int i = 1; i < feature.points.size(); ++i) {
             int kf_idx = start_kf_idx + i;
             Eigen::Vector3d t1 = run_info.kf_state_window[kf_idx].pos;
             Eigen::Matrix3d R1 = run_info.kf_state_window[kf_idx].rot * run_info.ric;
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;
-            Eigen::Matrix<double, 3, 4> P;
-            P.leftCols<3>() = R.transpose();
-            P.rightCols<1>() = -R.transpose() * t;
-            const cv::Point2f &unified_point = feature.points[i];
-            Eigen::Vector3d f = Eigen::Vector3d(unified_point.x, unified_point.y, 1.0).normalized();
-            svd_A.row(2 * i) = f[0] * P.row(2) - f[2] * P.row(0);
-            svd_A.row(2 * i + 1) = f[1] * P.row(2) - f[2] * P.row(1);
-        }
-        Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
-        double svd_method = svd_V[2] / svd_V[3];
 
-        if (svd_method < 0.1) {
-            feature.inv_depth = -1;
-        } else {
-            feature.inv_depth = svd_method * scale; // todo tiemuhuaguo 这里是乘还是除？？
+            Eigen::Vector3d v1 = R.transpose() * pixel0;
+            Eigen::Vector3d v2 = R.transpose() * t;
+            double f1 = v1.x(), f2 = v1.y(), f3 = v1.z();
+            double e1 = v2.x(), e2 = v2.y(), e3 = v2.z();
+
+            A(2 * i - 2) = feature.points[i].x * f3 - f1;
+            A(2 * i - 1) = feature.points[i].y * f3 - f2;
+            b(2 * i - 2) = feature.points[i].x * e3 - e1;
+            b(2 * i - 1) = feature.points[i].y * e3 - e2;
         }
+        // 这实际上是个最小二乘，只不过带求解变量是一维的
+        double depth = (double )(A.transpose() * b) / (double )(A.transpose() * A);
+        feature.inv_depth = 1.0 / depth;
+        // 校验是否有离群值
+        double var = 0;
+        for (int i = 0; i < b.size(); ++i) {
+            double depth_i = b(i) / A(i);
+            var += (depth_i - depth) * (depth_i - depth);
+        }
+        var /= b.size();
+        double sqrt_var = sqrt(var);
+        if (sqrt_var / depth > 0.1){
+            feature.inv_depth = -1;
+        }
+        // todo 如果只有很少的离群值，可以剔除离群值后再算一遍
     }
     return true;
 }
