@@ -3,13 +3,14 @@ add_rules("mode.debug", "mode.release")
 set_languages("cxx17", "c17")
 
 add_includedirs(
-        "~/3rd/eigen/install_mac_m1_dir/include/eigen3",
-        "~/3rd/ceres-solver/install_mac_m1_dir/include",
-        "~/3rd/DBoW2/install_mac_m1_dir/include",
-        "~/3rd/opencv_and_contrib/install_mac_m1_dir/include/opencv4",
-        "~/3rd/camodocal/include",
-        "~/3rd/glog/install_mac_m1_dir/include",
-        "~/3rd/gflags/install_mac_m1_dir/include"
+        "src/3rd/boost/install_mac_m1_dir/include/",
+        "src/3rd/eigen/install_mac_m1_dir/include/eigen3",
+        "src/3rd/ceres-solver/install_mac_m1_dir/include",
+        "src/3rd/DBoW2/install_mac_m1_dir/include",
+        "src/3rd/opencv/install_mac_m1_dir/include/opencv4",
+        "src/3rd/camodocal/include",
+        "src/3rd/glog/install_mac_m1_dir/include",
+        "src/3rd/gflags/install_mac_m1_dir/include"
 )
 
 add_includedirs(
