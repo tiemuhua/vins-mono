@@ -6,7 +6,9 @@
 #define VINS_VINS_CORE_H
 
 #include <vector>
+#include <queue>
 #include <mutex>
+
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 
