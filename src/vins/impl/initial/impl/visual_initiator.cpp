@@ -47,7 +47,7 @@ namespace vins {
         cv::Point2f observed_point_;
     };
 
-    static double getAverageParallax(const vector<pair<cv::Point2f , cv::Point2f>>& correspondences) {
+    static double getAverageParallax(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences) {
         double sum_parallax = 0;
         for (auto &correspond: correspondences) {
             double parallax = norm(correspond.first - correspond.second);
@@ -56,11 +56,13 @@ namespace vins {
         return 1.0 * sum_parallax / int(correspondences.size());
     }
 
-    inline bool isFrameHasFeature(int frame_idx, const Feature& feature) {
-        return feature.start_kf_window_idx <= frame_idx && frame_idx < feature.start_kf_window_idx + feature.points.size();
+    inline bool isFrameHasFeature(int frame_idx, const Feature &feature) {
+        return feature.start_kf_window_idx <= frame_idx &&
+               frame_idx < feature.start_kf_window_idx + feature.points.size();
     }
 
     using Mat34 = Eigen::Matrix<double, 3, 4>;
+
     static Eigen::Vector3d triangulatePoint(const Mat34 &Pose0, const Mat34 &Pose1,
                                             const cv::Point2f &point0, const cv::Point2f &point1) {
         Eigen::Matrix4d design_matrix = Eigen::Matrix4d::Zero();
@@ -70,14 +72,14 @@ namespace vins {
         design_matrix.row(3) = point1.y * Pose1.row(2) - Pose1.row(1);
         Eigen::Vector4d triangulated_point =
                 design_matrix.jacobiSvd(Eigen::ComputeFullV).matrixV().rightCols<1>();
-        return triangulated_point.block<3,1>(0,0) / triangulated_point(3);
+        return triangulated_point.block<3, 1>(0, 0) / triangulated_point(3);
     }
 
     static void triangulatePtsByFramePos(int frame0, const Mat34 &Pose0,
                                          int frame1, const Mat34 &Pose1,
                                          vector<SFMFeature> &sfm_features) {
         assert(frame0 != frame1);
-        for (SFMFeature & sfm : sfm_features) {
+        for (SFMFeature &sfm: sfm_features) {
             if (sfm.has_been_triangulated)
                 continue;
             if (!isFrameHasFeature(frame0, sfm.feature) || !isFrameHasFeature(frame1, sfm.feature)) {
@@ -92,7 +94,7 @@ namespace vins {
 
     static void collectFeaturesInFrame(const vector<SFMFeature> &sfm_features, const int frame_idx,
                                        vector<cv::Point2f> &pts_2d, vector<cv::Point3f> &pts_3d) {
-        for (const SFMFeature & sfm : sfm_features) {
+        for (const SFMFeature &sfm: sfm_features) {
             if (sfm.has_been_triangulated && isFrameHasFeature(frame_idx, sfm.feature)) {
                 cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_window_idx];
                 pts_2d.emplace_back(img_pts);
@@ -119,10 +121,10 @@ namespace vins {
     }
 
     static bool solveRelativeRT(const Correspondences &correspondences,
-                         Eigen::Matrix3d &rotation,
-                         Eigen::Vector3d &unit_translation) {
+                                Eigen::Matrix3d &rotation,
+                                Eigen::Vector3d &unit_translation) {
         std::vector<cv::Point2f> ll, rr;
-        for (const auto & correspondence : correspondences) {
+        for (const auto &correspondence: correspondences) {
             ll.emplace_back(correspondence.first);
             rr.emplace_back(correspondence.second);
         }
@@ -141,7 +143,7 @@ namespace vins {
     }
 
     bool initiateByVisual(const int window_size,
-                          const std::vector<Feature>& feature_window,
+                          const std::vector<Feature> &feature_window,
                           const vector<Frame> &all_frames,
                           std::vector<Eigen::Matrix3d> &kf_img_rot,
                           std::vector<Eigen::Vector3d> &kf_img_pos,
@@ -160,9 +162,9 @@ namespace vins {
         Eigen::Vector3d relative_unit_T;
         int big_parallax_frame_id = -1;
         for (int i = 0; i < window_size; ++i) {
-            vector<pair<cv::Point2f , cv::Point2f>> correspondences =
+            vector<pair<cv::Point2f, cv::Point2f>> correspondences =
                     FeatureHelper::getCorrespondences(i, window_size, feature_window);
-            constexpr double avg_parallax_threshold = 30.0/460;
+            constexpr double avg_parallax_threshold = 30.0 / 460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
             }
@@ -229,13 +231,13 @@ namespace vins {
         }
 
         //5: triangulate all others points
-        for (SFMFeature& sfm: sfm_features) {
+        for (SFMFeature &sfm: sfm_features) {
             if (sfm.has_been_triangulated || sfm.feature.points.size() < 2) {
                 continue;
             }
             int frame_0 = sfm.feature.start_kf_window_idx;
             cv::Point2f point0 = sfm.feature.points.front();
-            int frame_1 = sfm.feature.start_kf_window_idx + (int )sfm.feature.points.size();
+            int frame_1 = sfm.feature.start_kf_window_idx + (int) sfm.feature.points.size();
             cv::Point2f point1 = sfm.feature.points.back();
             sfm.position = triangulatePoint(kf_poses[frame_0], kf_poses[frame_1], point0, point1);
             sfm.has_been_triangulated = true;
@@ -261,7 +263,7 @@ namespace vins {
             }
         }
 
-        for (SFMFeature & sfm : sfm_features) {
+        for (SFMFeature &sfm: sfm_features) {
             if (!sfm.has_been_triangulated)
                 continue;
             for (int frame_bias = 0; frame_bias < sfm.feature.points.size(); ++frame_bias) {
@@ -296,7 +298,7 @@ namespace vins {
         for (int i = 0; i < window_size; i++) {
             kf_img_pos[i] = utils::array2vec3d(c_key_frames_pos[i].data());
         }
-        for (SFMFeature & sfm : sfm_features) {
+        for (SFMFeature &sfm: sfm_features) {
             if (sfm.has_been_triangulated) {
                 feature_id_2_position[sfm.feature.feature_id] = sfm.position;
             }
@@ -307,7 +309,7 @@ namespace vins {
          * ****************************************************************/
         int kf_idx = 0;
         for (int frame_idx = 0; frame_idx < all_frames.size(); ++frame_idx) {
-            const Frame& frame = all_frames[frame_idx];
+            const Frame &frame = all_frames[frame_idx];
             // provide initial guess
             if (frame.is_key_frame_) {
                 frames_img_rot[frame_idx] = kf_img_rot[kf_idx];

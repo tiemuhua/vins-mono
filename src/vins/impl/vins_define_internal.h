@@ -15,7 +15,8 @@ namespace vins {
 
     class ScopedLocker {
     public:
-        explicit ScopedLocker(std::mutex& mutex) : guard(mutex) {}
+        explicit ScopedLocker(std::mutex &mutex) : guard(mutex) {}
+
         std::lock_guard<std::mutex> guard;
         int cnt = 0;
     };
@@ -28,10 +29,10 @@ namespace vins {
     };
 
     struct Feature {
-        int feature_id          = -1;
-        int start_kf_window_idx        = -1;
-        bool is_outlier         = false;
-        double inv_depth        = -1;
+        int feature_id = -1;
+        int start_kf_window_idx = -1;
+        bool is_outlier = false;
+        double inv_depth = -1;
         std::vector<cv::Point2f> points;
         std::vector<cv::Point2f> velocities;
         std::vector<double> time_stamps_ms;
@@ -40,25 +41,28 @@ namespace vins {
             kDepthUnknown,
             kDepthSolved,
             kDepthSolvedFail,
-        }solve_flag_ = kDepthUnknown;
+        } solve_flag_ = kDepthUnknown;
 
         Feature() = default;
+
         Feature(int _feature_id, int _start_frame)
                 : feature_id(_feature_id), start_kf_window_idx(_start_frame) {}
 
         [[nodiscard]] int endFrame() const {
-            return start_kf_window_idx + (int )points.size() - 1;
+            return start_kf_window_idx + (int) points.size() - 1;
         }
     };
 
     class ImuIntegrator;
+
     class Frame {
     public:
         Frame() = default;
-        Frame(const std::vector<FeaturePoint2D>& _features,
+
+        Frame(const std::vector<FeaturePoint2D> &_features,
               std::shared_ptr<ImuIntegrator> _pre_integral,
               bool _is_key_frame) {
-            for (const FeaturePoint2D &feature:_features) {
+            for (const FeaturePoint2D &feature: _features) {
                 points.emplace_back(feature.point);
                 feature_ids.emplace_back(feature.feature_id);
             }
@@ -109,17 +113,18 @@ namespace vins {
 
             brief_.importPairs(x1, y1, x2, y2);
         }
+
         DVision::BRIEF brief_;
     };
 
-    typedef const Eigen::Matrix3d & ConstMat3dRef;
-    typedef const Eigen::Vector3d & ConstVec3dRef;
-    typedef const Eigen::Quaterniond & ConstQuatRef;
-    typedef Eigen::Matrix3d & Mat3dRef;
-    typedef Eigen::Vector3d & Vec3dRef;
-    typedef Eigen::Quaterniond & QuatRef;
+    typedef const Eigen::Matrix3d &ConstMat3dRef;
+    typedef const Eigen::Vector3d &ConstVec3dRef;
+    typedef const Eigen::Quaterniond &ConstQuatRef;
+    typedef Eigen::Matrix3d &Mat3dRef;
+    typedef Eigen::Vector3d &Vec3dRef;
+    typedef Eigen::Quaterniond &QuatRef;
 
-    typedef std::vector<std::pair<cv::Point2f , cv::Point2f>> Correspondences;
+    typedef std::vector<std::pair<cv::Point2f, cv::Point2f>> Correspondences;
 
     constexpr double pi = 3.1415926;
 }

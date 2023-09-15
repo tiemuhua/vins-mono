@@ -10,12 +10,12 @@ namespace vins {
                                    const double focal,
                                    const double kf_parallax_threshold,
                                    const std::vector<FeaturePoint2D> &feature_points,
-                                   const std::vector<Feature>& feature_window) {
-        LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int )feature_window.size());
+                                   const std::vector<Feature> &feature_window) {
+        LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int) feature_window.size());
 
         int last_track_num = 0;
         for (const FeaturePoint2D &point: feature_points) {
-            auto it = find_if(feature_window.begin(), feature_window.end(), [point](const Feature &it)->bool {
+            auto it = find_if(feature_window.begin(), feature_window.end(), [point](const Feature &it) -> bool {
                 return it.feature_id == point.feature_id;
             });
 
@@ -30,7 +30,8 @@ namespace vins {
         int parallax_num = 0;
         double parallax_sum = 0;
         for (const Feature &feature: feature_window) {
-            if (feature.start_kf_window_idx <= key_frame_idx - 2 && feature.start_kf_window_idx + int(feature.points.size()) >= key_frame_idx) {
+            if (feature.start_kf_window_idx <= key_frame_idx - 2 &&
+                feature.start_kf_window_idx + int(feature.points.size()) >= key_frame_idx) {
                 cv::Point2f p_i = feature.points[key_frame_idx - 2 - feature.start_kf_window_idx];
                 cv::Point2f p_j = feature.points[key_frame_idx - 1 - feature.start_kf_window_idx];
                 parallax_sum += cv::norm(p_i - p_j);
@@ -48,9 +49,9 @@ namespace vins {
 
     void FeatureHelper::addFeatures(int frame_idx, double time_stamp,
                                     const std::vector<FeaturePoint2D> &feature_points,
-                                    std::vector<Feature>& feature_window) {
+                                    std::vector<Feature> &feature_window) {
         for (const FeaturePoint2D &point: feature_points) {
-            auto it = find_if(feature_window.begin(), feature_window.end(), [point](const Feature &it)->bool {
+            auto it = find_if(feature_window.begin(), feature_window.end(), [point](const Feature &it) -> bool {
                 return it.feature_id == point.feature_id;
             });
 
@@ -65,7 +66,7 @@ namespace vins {
     }
 
     Correspondences FeatureHelper::getCorrespondences(int frame_idx_left, int frame_idx_right,
-                                                      const std::vector<Feature>& feature_window) {
+                                                      const std::vector<Feature> &feature_window) {
         Correspondences correspondences;
         for (const Feature &feature: feature_window) {
             if (feature.start_kf_window_idx <= frame_idx_left && feature.endFrame() >= frame_idx_right) {
@@ -79,7 +80,7 @@ namespace vins {
         return correspondences;
     }
 
-    std::unordered_map<int, int> FeatureHelper::getFeatureId2Index(const std::vector<Feature>& feature_window) {
+    std::unordered_map<int, int> FeatureHelper::getFeatureId2Index(const std::vector<Feature> &feature_window) {
         std::unordered_map<int, int> id2index;
         for (int i = 0; i < feature_window.size(); ++i) {
             id2index[feature_window[i].feature_id] = i;
@@ -87,8 +88,8 @@ namespace vins {
         return id2index;
     }
 
-    double featureIdToDepth(const int feature_id, const std::vector<Feature>& feature_window) {
-        auto it = std::find_if(feature_window.begin(), feature_window.end(), [feature_id](const Feature&feature) {
+    double featureIdToDepth(const int feature_id, const std::vector<Feature> &feature_window) {
+        auto it = std::find_if(feature_window.begin(), feature_window.end(), [feature_id](const Feature &feature) {
             return feature.feature_id == feature_id;
         });
         if (it == feature_window.end()) {

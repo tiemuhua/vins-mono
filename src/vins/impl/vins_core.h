@@ -10,23 +10,35 @@
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 
-namespace vins{
+namespace vins {
     class Frame;
+
     class BriefExtractor;
+
     class FeatureTracker;
+
     class LoopCloser;
+
     class RunInfo;
+
     class Param;
+
     class CameraWrapper;
+
     class ImuIntegrator;
 
     class VinsCore {
     public:
-        VinsCore(Param* param);
+        VinsCore(Param *param);
+
         void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
-        void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
+
+        void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr, double time_stamp);
+
         void handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
-        vins::Param* getParam() {return param_;}
+
+        vins::Param *getParam() { return param_; }
+
     private:
         void _handleData();
 
@@ -57,10 +69,10 @@ namespace vins{
         FeatureTracker *feature_tracker_;
         CameraWrapper *camera_wrapper_;
         LoopCloser *loop_closer_;
-        BriefExtractor* brief_extractor_{};
+        BriefExtractor *brief_extractor_{};
 
-        RunInfo* run_info_;
-        Param* param_;
+        RunInfo *run_info_;
+        Param *param_;
     };
 }
 

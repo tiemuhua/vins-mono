@@ -13,7 +13,7 @@ namespace vins {
     Eigen::Vector3d estimateGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
                                      const std::vector<Eigen::Matrix3d> &img_delta_rots,
                                      const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot) {
-        int interval_size = (int)imu_delta_rots.size();
+        int interval_size = (int) imu_delta_rots.size();
         Eigen::MatrixXd A = Eigen::Matrix3d::Zero(interval_size, 3);
         Eigen::VectorXd b = Eigen::Vector3d::Zero(interval_size);
         for (int i = 0; i < interval_size; ++i) {
@@ -29,7 +29,7 @@ namespace vins {
     bool estimateRIC(const std::vector<Eigen::Matrix3d> &img_rots,
                      const std::vector<Eigen::Matrix3d> &imu_rots,
                      Eigen::Matrix3d &calib_ric_result) {
-        int frame_count = (int )img_rots.size();
+        int frame_count = (int) img_rots.size();
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(frame_count * 4, 4);
         for (int i = 0; i < frame_count; i++) {
@@ -75,7 +75,7 @@ namespace vins {
                                          Eigen::Vector3d &gravity,
                                          double &scale,
                                          std::vector<Eigen::Vector3d> &vel) {
-        int frame_size = (int )frames_img_rot.size();
+        int frame_size = (int) frames_img_rot.size();
         int n_state = frame_size * 3 + 3 + 1;
         int gravity_idx = frame_size * 3;
         int scale_idx = gravity_idx + 3;

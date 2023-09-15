@@ -12,6 +12,7 @@ namespace vins {
     Eigen::Vector3d estimateGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,
                                      const std::vector<Eigen::Matrix3d> &img_delta_rots,
                                      const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot);
+
     bool estimateRIC(const std::vector<Eigen::Matrix3d> &img_rots,
                      const std::vector<Eigen::Matrix3d> &imu_rots,
                      Eigen::Matrix3d &calib_ric_result);
@@ -26,6 +27,7 @@ namespace vins {
                                          Eigen::Vector3d &gravity,
                                          double &scale,
                                          std::vector<Eigen::Vector3d> &vel);
+
     Eigen::Matrix3d rotGravityToZAxis(ConstVec3dRef gravity, ConstMat3dRef R0);
 }
 

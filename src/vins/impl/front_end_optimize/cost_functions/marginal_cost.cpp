@@ -14,7 +14,7 @@ void MarginalMetaFactor::Evaluate() {
     residuals_.resize(cost_function_->num_residuals());
 
     std::vector<int> block_sizes = cost_function_->parameter_block_sizes();
-    std::vector<double*> raw_jacobians(block_sizes.size(), nullptr);
+    std::vector<double *> raw_jacobians(block_sizes.size(), nullptr);
     jacobians_.resize(block_sizes.size());
 
     for (int i = 0; i < static_cast<int>(block_sizes.size()); i++) {
@@ -53,10 +53,10 @@ void MarginalMetaFactor::Evaluate() {
 }
 
 MarginalInfo::~MarginalInfo() {
-    for (auto & addr : reserve_block_frozen_)
+    for (auto &addr: reserve_block_frozen_)
         delete[] addr;
 
-    for (auto & factor : factors_) {
+    for (auto &factor: factors_) {
         delete factor.cost_function_;
     }
 }
@@ -66,11 +66,11 @@ void MarginalInfo::addMetaFactor(const MarginalMetaFactor &marginal_meta_factor)
 }
 
 namespace {
-struct ThreadsStruct {
-    std::vector<MarginalMetaFactor> sub_factors;
-    Eigen::MatrixXd A;
-    Eigen::VectorXd b;
-};
+    struct ThreadsStruct {
+        std::vector<MarginalMetaFactor> sub_factors;
+        Eigen::MatrixXd A;
+        Eigen::VectorXd b;
+    };
 }
 
 /**
@@ -103,7 +103,7 @@ struct ThreadsStruct {
  *   后续优化会通过x_updated与x_frozen的差来估计残差，即更新后的残差为 r = R + J * (x_updated - x_frozen)
  *   由于reserve_block_origin和sp_slide_addr_map构建起了冻结量和更新量之间的地址对应关系，这样的减法是可行的。
  * */
-void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
+void MarginalInfo::marginalize(std::vector<double *> &reserve_block_origin) {
     /**
      * STEP 1:
      * 参数块的维度记为dim，长度记为size，例如四元数的维度为3，长度为4
@@ -113,19 +113,19 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
      * @param discard_param_dim_ 所有要丢弃的参数块的维度的和
      * @param reserve_param_dim_ 所有要保留的参数块的维度的和
      * */
-    std::unordered_map<double*, int> origin_addr_to_size;
-    std::unordered_map<double*, int> origin_addr_to_idx;
-    std::set<double*> param_should_discard;
-    for (const auto &factor:factors_) {
+    std::unordered_map<double *, int> origin_addr_to_size;
+    std::unordered_map<double *, int> origin_addr_to_idx;
+    std::set<double *> param_should_discard;
+    for (const auto &factor: factors_) {
         const std::vector<double *> &parameter_blocks = factor.parameter_blocks_;
-        for (const int discard_block_id:factor.discard_set_) {
+        for (const int discard_block_id: factor.discard_set_) {
             int cur_discard_param_dim_raw = factor.cost_function_->parameter_block_sizes()[discard_block_id];
             discard_dim_ += tangentSpaceDimensionSize(cur_discard_param_dim_raw);
             param_should_discard.insert(parameter_blocks[discard_block_id]);
         }
     }
     int discard_idx = 0, reserve_idx = discard_dim_;
-    for (const auto &factor:factors_) {
+    for (const auto &factor: factors_) {
         const std::vector<double *> &param_blocks = factor.parameter_blocks_;
         const std::vector<int> &param_sizes = factor.cost_function_->parameter_block_sizes();
         for (int i = 0; i < static_cast<int>(param_blocks.size()); i++) {
@@ -152,14 +152,14 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
     reserve_block_ids_.clear();
     reserve_block_frozen_.clear();
     reserve_block_origin.clear();
-    for (const auto& it: origin_addr_to_idx) {
-        double * addr = it.first;
+    for (const auto &it: origin_addr_to_idx) {
+        double *addr = it.first;
         if (param_should_discard.count(addr)) {
             continue;
         }
         int size = origin_addr_to_size[addr];
         int idx = it.second;
-        auto *frozen_data = new double [size];
+        auto *frozen_data = new double[size];
         memcpy(frozen_data, it.first, sizeof(double) * size);
         reserve_block_frozen_.emplace_back(frozen_data);
         reserve_block_origin.emplace_back(addr);
@@ -189,11 +189,11 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
     for (int j = 0; j < factors_.size(); ++j) {
         thread_structs[j % NUM_THREADS].sub_factors.emplace_back(factors_[j]);
     }
-    for (ThreadsStruct & thread_struct : thread_structs) {
+    for (ThreadsStruct &thread_struct: thread_structs) {
         thread_struct.A = Eigen::MatrixXd::Zero(total_dim, total_dim);
         thread_struct.b = Eigen::VectorXd::Zero(total_dim);
         threads.emplace_back([&thread_struct, &origin_addr_to_size, &origin_addr_to_idx]() {
-            for (const MarginalMetaFactor& it: thread_struct.sub_factors) {
+            for (const MarginalMetaFactor &it: thread_struct.sub_factors) {
                 for (int i = 0; i < static_cast<int>(it.parameter_blocks_.size()); i++) {
                     int idx_i = origin_addr_to_idx[it.parameter_blocks_[i]];
                     int size_i = tangentSpaceDimensionSize(origin_addr_to_size[it.parameter_blocks_[i]]);
@@ -253,8 +253,8 @@ void MarginalInfo::marginalize(std::vector<double *>& reserve_block_origin) {
 }
 
 // marginal_info_生命周期由SlideWindowEstimator负责维护
-MarginalCost::MarginalCost(MarginalInfo* _marginal_info)
- : marginal_info_(_marginal_info) {
+MarginalCost::MarginalCost(MarginalInfo *_marginal_info)
+        : marginal_info_(_marginal_info) {
     for (auto reserve_block_size: marginal_info_->reserve_block_sizes_) {
         mutable_parameter_block_sizes()->push_back(reserve_block_size);
     }

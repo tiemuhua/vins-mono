@@ -20,13 +20,13 @@ public:
         return true;
     }
 
-    template <typename T>
+    template<typename T>
     bool Plus(const T *x, const T *delta, T *x_plus_delta) const {
         *x_plus_delta = utils::normalizeAnglePi(*x + *delta);
         return true;
     }
 
-    template <typename T>
+    template<typename T>
     bool Minus(const T *x, const T *delta, T *x_plus_delta) const {
         *x_plus_delta = utils::normalizeAnglePi(*x - *delta);
         return true;
@@ -49,10 +49,10 @@ struct Edge4Dof {
         typedef Matrix<T, 3, 1> Vec3T;
         Vec3T t_w_ij;
         utils::arrayMinus(tj, ti, t_w_ij.data(), 3);
-        Vec3T euler(yaw_i[0], (T)pitch_i, (T)roll_i);
+        Vec3T euler(yaw_i[0], (T) pitch_i, (T) roll_i);
         Mat3T w_R_i = utils::ypr2rot(euler);
         Vec3T t_i_ij = w_R_i.transpose() * t_w_ij;
-        Vec3T t((T)relative_t_(0), (T)relative_t_(1), (T)relative_t_(2));
+        Vec3T t((T) relative_t_(0), (T) relative_t_(1), (T) relative_t_(2));
         utils::arrayMinus(t_i_ij.data(), t.data(), residuals, 3);
         residuals[3] = utils::normalizeAngle180(yaw_j[0] - yaw_i[0] - T(relative_yaw)) * yaw_weight_;
         return true;
@@ -79,7 +79,7 @@ void LoopCloser::addKeyFrame(const KeyFramePtr &kf_ptr) {
     }
 }
 
-bool LoopCloser::findLoop(const KeyFramePtr& kf, LoopMatchInfo& info) {
+bool LoopCloser::findLoop(const KeyFramePtr &kf, LoopMatchInfo &info) {
     int peer_loop_id = loop_detector_->detectSimilarDescriptor(kf->external_descriptors_, key_frame_list_.size());
     loop_detector_->addDescriptors(kf->external_descriptors_);
     if (peer_loop_id == -1) {
@@ -88,7 +88,7 @@ bool LoopCloser::findLoop(const KeyFramePtr& kf, LoopMatchInfo& info) {
     std::vector<uint8_t> status;
     std::vector<cv::Point2f> old_frame_pts2d;
     bool succ = buildLoopRelation(key_frame_list_[peer_loop_id], peer_loop_id, kf, status, old_frame_pts2d);
-    if (!succ) {return false;}
+    if (!succ) { return false; }
     for (int i = 0; i < kf->base_frame_.points.size(); ++i) {
         if (status[i]) {
             info.feature_ids.emplace_back(kf->base_frame_.feature_ids[i]);
@@ -105,7 +105,7 @@ bool LoopCloser::findLoop(const KeyFramePtr& kf, LoopMatchInfo& info) {
         optimize4DoFImpl();
         gettimeofday(&tv2, nullptr);
         int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
-        if ( cost_us < 1 * 1000) {
+        if (cost_us < 1 * 1000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }

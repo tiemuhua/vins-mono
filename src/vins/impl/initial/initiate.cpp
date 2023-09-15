@@ -19,15 +19,15 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
         sum_acc += tmp_acc;
     }
-    Eigen::Vector3d avg_acc = sum_acc / (double )all_image_frame_.size();
+    Eigen::Vector3d avg_acc = sum_acc / (double) all_image_frame_.size();
     double var = 0;
-    for (const Frame &frame:all_image_frame_) {
+    for (const Frame &frame: all_image_frame_) {
         double dt = frame.pre_integral_->deltaTime();
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
         var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
     }
 
-    var = sqrt(var / (double )all_image_frame_.size());
+    var = sqrt(var / (double) all_image_frame_.size());
     LOG_I("IMU acc variant:%f", var);
     return var > 0.25;
 }
@@ -42,7 +42,7 @@ bool Initiate::initiate(RunInfo &run_info) {
     std::vector<Eigen::Matrix3d> frames_img_rot;
     std::vector<Eigen::Vector3d> frames_img_pos;
 
-    bool visual_succ = initiateByVisual((int )run_info.kf_state_window.size(),
+    bool visual_succ = initiateByVisual((int) run_info.kf_state_window.size(),
                                         run_info.feature_window,
                                         run_info.frame_window,
                                         kf_img_rot,
@@ -58,13 +58,13 @@ bool Initiate::initiate(RunInfo &run_info) {
     std::vector<Eigen::Matrix3d> img_delta_rots;
     std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
     for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
-        img_delta_rots.emplace_back(kf_img_rot[i+1] * kf_img_rot[i].transpose());
+        img_delta_rots.emplace_back(kf_img_rot[i + 1] * kf_img_rot[i].transpose());
     }
     Eigen::Vector3d bg = Eigen::Vector3d::Zero();
     for (int i = 0; i < 4; ++i) {
         imu_delta_rots.clear();
         jacobians_bg_2_rot.clear();
-        for (const auto &it:run_info.pre_int_window) {
+        for (const auto &it: run_info.pre_int_window) {
             imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
             jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
         }
@@ -73,21 +73,21 @@ bool Initiate::initiate(RunInfo &run_info) {
             return false;
         }
         bg += bg_step;
-        for (Frame &frame:run_info.frame_window) {
+        for (Frame &frame: run_info.frame_window) {
             frame.pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
         }
-        for (auto &pre_integrate:run_info.pre_int_window) {
+        for (auto &pre_integrate: run_info.pre_int_window) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
         }
     }
-    for (KeyFrameState &state:run_info.kf_state_window) {
+    for (KeyFrameState &state: run_info.kf_state_window) {
         state.bg = bg;
     }
 
     //.求解ric.
     imu_delta_rots.clear();
     jacobians_bg_2_rot.clear();
-    for (const auto &it:run_info.pre_int_window) {
+    for (const auto &it: run_info.pre_int_window) {
         imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
         jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
     }
@@ -103,11 +103,11 @@ bool Initiate::initiate(RunInfo &run_info) {
     std::vector<Eigen::Vector3d> velocities;
     std::vector<Eigen::Vector3d> img_delta_poses;
     for (int i = 0; i < frames_img_pos.size() - 1; ++i) {
-        img_delta_poses.emplace_back(frames_img_pos[i+1] - frames_img_pos[i]);
+        img_delta_poses.emplace_back(frames_img_pos[i + 1] - frames_img_pos[i]);
     }
     std::vector<Eigen::Vector3d> imu_delta_poses, imu_delta_velocities;
     std::vector<double> imu_delta_times;
-    for (const Frame &frame:run_info.frame_window) {
+    for (const Frame &frame: run_info.frame_window) {
         imu_delta_poses.emplace_back(frame.pre_integral_->deltaPos());
         imu_delta_velocities.emplace_back(frame.pre_integral_->deltaVel());
         imu_delta_times.emplace_back(frame.pre_integral_->deltaTime());
@@ -124,10 +124,10 @@ bool Initiate::initiate(RunInfo &run_info) {
                                          velocities)) {
         return false;
     }
-    for (Eigen::Vector3d &pos : kf_img_pos) {
+    for (Eigen::Vector3d &pos: kf_img_pos) {
         pos *= scale;
     }
-    for (Eigen::Vector3d &pos : frames_img_pos) {
+    for (Eigen::Vector3d &pos: frames_img_pos) {
         pos *= scale;
     }
 
@@ -135,7 +135,7 @@ bool Initiate::initiate(RunInfo &run_info) {
     Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, run_info.frame_window.front().imu_rot);
     run_info.gravity = rot_diff * run_info.gravity;
 
-    std::unordered_map<int,int> kf_idx_2_frame_idx;
+    std::unordered_map<int, int> kf_idx_2_frame_idx;
     int kf_idx_iter = 0;
     for (int i = 0; i < run_info.frame_window.size(); ++i) {
         if (run_info.frame_window[i].is_key_frame_) {
@@ -199,7 +199,7 @@ bool Initiate::initiate(RunInfo &run_info) {
             b(2 * i - 1) = feature.points[i].y * e3 - e2;
         }
         // 这实际上是个最小二乘，只不过带求解变量是一维的
-        double depth = (double )(A.transpose() * b) / (double )(A.transpose() * A);
+        double depth = (double) (A.transpose() * b) / (double) (A.transpose() * A);
         feature.inv_depth = 1.0 / depth;
         // 校验是否有离群值
         double var = 0;
@@ -209,7 +209,7 @@ bool Initiate::initiate(RunInfo &run_info) {
         }
         var /= b.size();
         double sqrt_var = sqrt(var);
-        if (sqrt_var / depth > 0.1){
+        if (sqrt_var / depth > 0.1) {
             feature.inv_depth = -1;
         }
         // todo 如果只有很少的离群值，可以剔除离群值后再算一遍

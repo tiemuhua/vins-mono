@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace std;
 
 // create keyframe online
-KeyFrame::KeyFrame(const Frame& _base_frame,
+KeyFrame::KeyFrame(const Frame &_base_frame,
                    const std::vector<cv::Point3f> &_point_3d,
                    const std::vector<DVision::BRIEF::bitset> &descriptors,
                    const std::vector<DVision::BRIEF::bitset> &external_descriptors) {

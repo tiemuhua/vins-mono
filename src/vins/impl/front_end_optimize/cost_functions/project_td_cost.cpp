@@ -6,10 +6,10 @@
 
 using namespace vins;
 
-ProjectTdCost::ProjectTdCost(const cv::Point2f &p1, const cv::Point2f& p2,
+ProjectTdCost::ProjectTdCost(const cv::Point2f &p1, const cv::Point2f &p2,
                              const cv::Point2f &vel1, const cv::Point2f &vel2,
                              double time_stamp1_ms, const double time_stamp2_ms)
-                                       : td_i(time_stamp1_ms), td_j(time_stamp2_ms) {
+        : td_i(time_stamp1_ms), td_j(time_stamp2_ms) {
     pts_i = Eigen::Vector3d(p1.x, p1.y, 1.0);
     pts_j = Eigen::Vector3d(p2.x, p2.y, 1.0);
     velocity_i = Eigen::Vector3d(vel1.x, vel1.y, 0.0);
@@ -20,7 +20,7 @@ ProjectTdCost::ProjectTdCost(const cv::Point2f &p1, const cv::Point2f& p2,
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();
     Eigen::Vector3d tmp(0, 0, 1);
-    if(a == tmp)
+    if (a == tmp)
         tmp << 1, 0, 0;
     b1 = (tmp - a * (a.transpose() * tmp)).normalized();
     b2 = a.cross(b1);
@@ -49,14 +49,14 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
     Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
     Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
     Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
-    Eigen::Map <Eigen::Vector2d> residual(residuals);
+    Eigen::Map<Eigen::Vector2d> residual(residuals);
 
-    residual =  tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
+    residual = tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
     Eigen::Matrix2d sqrt_info = vins::getParam()->camera.focal / 1.5 * Eigen::Matrix2d::Identity();
     residual = sqrt_info * residual;
 
-    assert(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3] && jacobians[4]);
-    if (!(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3] && jacobians[4])) {
+    assert(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3] && jacobians[4]);
+    if (!(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3] && jacobians[4])) {
         LOG_E("!jacobian");
         return false;
     }
@@ -68,28 +68,29 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
 
     double norm = pts_camera_j.norm();
     double norm3 = pow(norm, 3);
-    Eigen::Matrix3d norm_jacobian = Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
+    Eigen::Matrix3d norm_jacobian =
+            Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
     reduce = tangent_base * norm_jacobian;
     reduce = sqrt_info * reduce;
 
     typedef Eigen::Matrix<double, 2, 7, Eigen::RowMajor> Mat27Row;
     typedef Eigen::Matrix<double, 3, 6> mat36;
     typedef Eigen::Matrix<double, 2, 3> mat23;
-    Eigen::Map <Mat27Row> jacobian_pose_i(jacobians[0]);
+    Eigen::Map<Mat27Row> jacobian_pose_i(jacobians[0]);
     mat36 jaco_i;
     jaco_i.leftCols<3>() = ric.transpose() * Rj.transpose();
-    jaco_i.rightCols<3>() = ric.transpose() * Rj.transpose() * Ri * - utils::skewSymmetric(pts_imu_i);
+    jaco_i.rightCols<3>() = ric.transpose() * Rj.transpose() * Ri * -utils::skewSymmetric(pts_imu_i);
     jacobian_pose_i.leftCols<6>() = reduce * jaco_i;
     jacobian_pose_i.rightCols<1>().setZero();
 
-    Eigen::Map <Mat27Row> jacobian_pose_j(jacobians[1]);
+    Eigen::Map<Mat27Row> jacobian_pose_j(jacobians[1]);
     mat36 jaco_j;
     jaco_j.leftCols<3>() = ric.transpose() * -Rj.transpose();
     jaco_j.rightCols<3>() = ric.transpose() * utils::skewSymmetric(pts_imu_j);
     jacobian_pose_j.leftCols<6>() = reduce * jaco_j;
     jacobian_pose_j.rightCols<1>().setZero();
 
-    Eigen::Map <Mat27Row> jacobian_ex_pose(jacobians[2]);
+    Eigen::Map<Mat27Row> jacobian_ex_pose(jacobians[2]);
     mat36 jaco_ex;
     jaco_ex.leftCols<3>() = ric.transpose() * (Rj.transpose() * Ri - Eigen::Matrix3d::Identity());
     Eigen::Matrix3d rot_diff_in_camera_frame = ric.transpose() * Rj.transpose() * Ri * ric;
@@ -101,9 +102,9 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
     jacobian_ex_pose.rightCols<1>().setZero();
 
     mat23 r = reduce * ric.transpose() * Rj.transpose() * Ri * ric;
-    Eigen::Map <Eigen::Vector2d> jacobian_feature(jacobians[3]);
+    Eigen::Map<Eigen::Vector2d> jacobian_feature(jacobians[3]);
     jacobian_feature = r * pts_i_td * -1.0 / (inv_dep_i * inv_dep_i);
-    Eigen::Map <Eigen::Vector2d> jacobian_td(jacobians[4]);
+    Eigen::Map<Eigen::Vector2d> jacobian_td(jacobians[4]);
     jacobian_td = r * velocity_i / inv_dep_i * -1.0 + sqrt_info * velocity_j.head(2);
 
     return true;

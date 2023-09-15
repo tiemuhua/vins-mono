@@ -15,7 +15,7 @@
 #include "vins/impl/vins_define_internal.h"
 #include "keyframe.h"
 
-namespace vins{
+namespace vins {
 
     class LoopDetector;
 
@@ -27,10 +27,11 @@ namespace vins{
 
         void addKeyFrame(const KeyFramePtr &kf_ptr);
 
-        bool findLoop(const KeyFramePtr& kf, LoopMatchInfo& info);
+        bool findLoop(const KeyFramePtr &kf, LoopMatchInfo &info);
 
     private:
         [[noreturn]] void optimize4DoF();
+
         void optimize4DoFImpl();
 
         std::vector<KeyFramePtr> key_frame_list_;
@@ -44,7 +45,7 @@ namespace vins{
         int loop_interval_lower_bound_ = -1;
         int loop_interval_upper_bound_ = -1;
 
-        LoopDetector* loop_detector_{};
+        LoopDetector *loop_detector_{};
     };
 
 }

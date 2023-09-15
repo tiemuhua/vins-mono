@@ -10,6 +10,7 @@ namespace vins {
     class ProjectCost : public ceres::SizedCostFunction<2, 3, 4, 3, 4, 3, 4, 1> {
     public:
         ProjectCost(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j);
+
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
         Eigen::Vector3d pts_i, pts_j;

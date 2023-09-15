@@ -8,18 +8,18 @@
 #include <string>
 
 namespace vins {
-    struct CameraParam{
+    struct CameraParam {
         int col;
         int row;
         int focal;
         std::string calib_file;
     };
-    struct FrameTrackerParam{
+    struct FrameTrackerParam {
         double fundamental_threshold;
         int min_dist;
         int max_cnt;
     };
-    struct FrontEndOptimizeParam{
+    struct FrontEndOptimizeParam {
         bool fix_extrinsic = false;
         bool estimate_time_delay = true;
         int max_iter_num = 100;

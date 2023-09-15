@@ -17,8 +17,8 @@ inline int HammingDis(const BRIEF::bitset &a, const BRIEF::bitset &b) {
     return (a ^ b).count();
 }
 
-static bool searchInAreaForBestIdx(const DVision::BRIEF::bitset& new_descriptor,
-                                   const std::vector<DVision::BRIEF::bitset>& old_descriptors) {
+static bool searchInAreaForBestIdx(const DVision::BRIEF::bitset &new_descriptor,
+                                   const std::vector<DVision::BRIEF::bitset> &old_descriptors) {
     int bestDist = 128;
     int bestIndex = -1;
     for (int i = 0; i < (int) old_descriptors.size(); i++) {
@@ -35,11 +35,11 @@ static bool searchInAreaForBestIdx(const DVision::BRIEF::bitset& new_descriptor,
 }
 
 static void searchByBRIEFDes(const std::vector<DVision::BRIEF::bitset> &new_descriptors,
-                             const std::vector<DVision::BRIEF::bitset>& old_descriptors,
+                             const std::vector<DVision::BRIEF::bitset> &old_descriptors,
                              const std::vector<cv::Point2f> &old_pts2d_without_order,
                              std::vector<cv::Point2f> &old_pts2d,
                              std::vector<uchar> &status) {
-    for (const auto & new_descriptor : new_descriptors) {
+    for (const auto &new_descriptor: new_descriptors) {
         int idx = searchInAreaForBestIdx(new_descriptor, old_descriptors);
         if (idx == -1) {
             status.push_back(0);
@@ -86,6 +86,7 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
 }
 
 static constexpr int min_loop_key_points_num = 25;
+
 bool vins::buildLoopRelation(ConstKeyFramePtr &old_kf,
                              int old_kf_id,
                              const KeyFramePtr &new_kf,
@@ -120,7 +121,8 @@ bool vins::buildLoopRelation(ConstKeyFramePtr &old_kf,
     double old_yaw = utils::rot2ypr(R_o_n_vio * new_kf->vio_R_i_w_).x();
     double new_yaw = utils::rot2ypr(new_kf->vio_R_i_w_).x();
     new_kf->loop_relative_pose_.relative_yaw = utils::normalizeAnglePi(old_yaw - new_yaw);
-    if (abs(new_kf->loop_relative_pose_.relative_yaw) < pi / 6 && new_kf->loop_relative_pose_.relative_pos.norm() < 20.0) {
+    if (abs(new_kf->loop_relative_pose_.relative_yaw) < pi / 6 &&
+        new_kf->loop_relative_pose_.relative_pos.norm() < 20.0) {
         new_kf->loop_relative_pose_.peer_frame_id = old_kf_id;
         return true;
     }

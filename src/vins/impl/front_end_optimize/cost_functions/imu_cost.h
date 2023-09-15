@@ -14,8 +14,11 @@ namespace vins {
     class IMUCost : public ceres::SizedCostFunction<15, 3, 4, 3, 3, 3, 3, 4, 3, 3, 3> {
     public:
         IMUCost() = delete;
+
         explicit IMUCost(const ImuIntegrator &_pre_integral) : pre_integral_(_pre_integral) {}
+
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
+
         const ImuIntegrator &pre_integral_;
     };
 }

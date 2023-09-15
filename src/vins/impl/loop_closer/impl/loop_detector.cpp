@@ -11,7 +11,8 @@
 using namespace DBoW2;
 using namespace vins;
 
-int LoopDetector::detectSimilarDescriptor(const std::vector<DVision::BRIEF::bitset>& descriptors, int frame_index) const {
+int
+LoopDetector::detectSimilarDescriptor(const std::vector<DVision::BRIEF::bitset> &descriptors, int frame_index) const {
     if (frame_index < 50) {
         return -1;
     }

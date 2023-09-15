@@ -11,19 +11,19 @@ static inline bool inBorder(const cv::Point2f &pt, int col, int row) {
     constexpr int BORDER_SIZE = 1;
     int img_x = cvRound(pt.x);
     int img_y = cvRound(pt.y);
-    return  BORDER_SIZE <= img_x && img_x < col - BORDER_SIZE &&
-            BORDER_SIZE <= img_y && img_y < row - BORDER_SIZE;
+    return BORDER_SIZE <= img_x && img_x < col - BORDER_SIZE &&
+           BORDER_SIZE <= img_y && img_y < row - BORDER_SIZE;
 }
 
-FeatureTracker::FeatureTracker(Param* param, CameraWrapper *camera_wrapper) {
+FeatureTracker::FeatureTracker(Param *param, CameraWrapper *camera_wrapper) {
     LOG_I("reading parameter of camera %s", param->camera.calib_file.c_str());
     param_ = param;
     camera_wrapper_ = camera_wrapper;
 }
 
 void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
-                                     std::vector<FeaturePoint2D> & pts,
-                                     std::vector<cv::KeyPoint> & pts_raw){
+                                     std::vector<FeaturePoint2D> &pts,
+                                     std::vector<cv::KeyPoint> &pts_raw) {
     cv::Mat next_img = _img;
     if (prev_img_.empty()) {
         prev_img_ = _img;
@@ -66,7 +66,7 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
     cv::Mat mask = cv::Mat(param_->camera.row, param_->camera.col, CV_8UC1, cv::Scalar(255));
-    for (const cv::Point2f & p: next_raw_pts) {
+    for (const cv::Point2f &p: next_raw_pts) {
         if (mask.at<uchar>(p.x, p.y) == 255) {
             cv::circle(mask, p, param_->frame_tracker.min_dist, 0, -1);
         }

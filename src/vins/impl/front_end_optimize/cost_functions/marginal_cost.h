@@ -25,7 +25,7 @@ namespace vins {
         MarginalMetaFactor(ceres::CostFunction *_cost_function,
                            ceres::LossFunction *_loss_function,
                            std::vector<double *> _parameter_blocks,
-                           std::vector<int> _discard_set):
+                           std::vector<int> _discard_set) :
                 cost_function_(_cost_function),
                 loss_function_(_loss_function),
                 parameter_blocks_(std::move(_parameter_blocks)),
@@ -45,9 +45,10 @@ namespace vins {
     class MarginalInfo {
     public:
         ~MarginalInfo();
+
         void addMetaFactor(const MarginalMetaFactor &marginal_meta_factor);
 
-        void marginalize(std::vector<double *>& reserve_block_origin);
+        void marginalize(std::vector<double *> &reserve_block_origin);
 
         std::vector<MarginalMetaFactor> factors_;
         int discard_dim_ = 0, reserve_dim_ = 0;
@@ -59,17 +60,18 @@ namespace vins {
         Eigen::MatrixXd reserve_block_jacobians_;
         Eigen::VectorXd reserve_block_residuals_;
 
-        std::vector<double*> marginal_blocks;
+        std::vector<double *> marginal_blocks;
 
         static constexpr double EPS = 1e-8;
     };
 
     class MarginalCost : public ceres::CostFunction {
     public:
-        explicit MarginalCost(MarginalInfo* _marginal_info);
+        explicit MarginalCost(MarginalInfo *_marginal_info);
+
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
         // marginal_info_生命周期由SlideWindowEstimator负责维护
-        MarginalInfo* marginal_info_;
+        MarginalInfo *marginal_info_;
     };
 }

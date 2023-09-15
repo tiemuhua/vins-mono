@@ -1,12 +1,12 @@
 #include "imu_cost.h"
 #include "vins/impl/vins_utils.h"
 
-namespace vins{
+namespace vins {
 
     template<int row>
     void checkJacobianNumericalStable(
             const Eigen::Map<Eigen::Matrix<double, 15, row, Eigen::RowMajor>> &jacobian,
-            const char* jacobian_name) {
+            const char *jacobian_name) {
         if (jacobian.maxCoeff() > 1e8 || jacobian.minCoeff() < -1e8) {
             LOG_W("numerical unstable in pre-integral, name:%s, jacobian_ value:%s",
                   jacobian_name, utils::eigen2string(jacobian).c_str());
@@ -87,7 +87,7 @@ namespace vins{
         jacobian_ba_j = Mat15_3::Zero();
         jacobian_bg_j = Mat15_3::Zero();
 
-        const Eigen::Vector3d G = {0,0,-9.81};// todo tiemuhuaguo G应该用标定后的值
+        const Eigen::Vector3d G = {0, 0, -9.81};// todo tiemuhuaguo G应该用标定后的值
         const Eigen::Vector3d delta_pos = 0.5 * G * sum_dt * sum_dt + pos_j - pos_i - vel_i * sum_dt;
         const Eigen::Vector3d delta_vel = G * sum_dt + vel_j - vel_i;
         const Eigen::Quaterniond delta_quat_inv = quat_j.inverse() * quat_i;

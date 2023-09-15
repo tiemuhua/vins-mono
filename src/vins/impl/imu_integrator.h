@@ -42,33 +42,44 @@ namespace vins {
         typedef Eigen::Matrix<double, StateDim, 1> State;
 
         ImuIntegrator() = delete;
+
         ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity);
 
         void predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr);
+
         void rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg);
-        [[nodiscard]] State evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
-                                     ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
+
+        [[nodiscard]] State
+        evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
+                 ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
+
         void jointLaterIntegrator(const ImuIntegrator &later_int);
 
-        [[nodiscard]] const Eigen::Vector3d& deltaPos() const {
+        [[nodiscard]] const Eigen::Vector3d &deltaPos() const {
             return pos_;
         }
-        [[nodiscard]] const Eigen::Vector3d& deltaVel() const {
+
+        [[nodiscard]] const Eigen::Vector3d &deltaVel() const {
             return vel_;
         }
-        [[nodiscard]] const Eigen::Quaterniond& deltaQuat() const {
+
+        [[nodiscard]] const Eigen::Quaterniond &deltaQuat() const {
             return quat_;
         }
+
         [[nodiscard]] double deltaTime() const {
             return time_stamp_buf_.back() - time_stamp_buf_.front();
         }
-        [[nodiscard]] const Jacobian& getJacobian() const {
+
+        [[nodiscard]] const Jacobian &getJacobian() const {
             return jacobian_;
         }
-        [[nodiscard]] const Covariance& getCovariance() const {
+
+        [[nodiscard]] const Covariance &getCovariance() const {
             return covariance_;
         }
-        [[nodiscard]] const Eigen::Vector3d& getBg() const {
+
+        [[nodiscard]] const Eigen::Vector3d &getBg() const {
             return bg_;
         }
 
@@ -83,6 +94,7 @@ namespace vins {
                                      ConstVec3dRef ba, ConstVec3dRef bg,
                                      Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
                                      Jacobian &jacobian, Covariance &covariance, Noise &noise);
+
     private:
         Eigen::Vector3d pos_ = Eigen::Vector3d::Zero();
         Eigen::Vector3d vel_ = Eigen::Vector3d::Zero();
@@ -90,13 +102,14 @@ namespace vins {
 
         Eigen::Vector3d ba_ = Eigen::Vector3d::Zero();
         Eigen::Vector3d bg_ = Eigen::Vector3d::Zero();
-        Eigen::Vector3d gravity_ = Eigen::Vector3d(0,0,-9.81);
+        Eigen::Vector3d gravity_ = Eigen::Vector3d(0, 0, -9.81);
 
         Jacobian jacobian_ = Jacobian::Identity();
         Covariance covariance_ = Covariance::Zero();
         Noise noise_ = Noise::Zero();
 
     };
+
     typedef std::shared_ptr<ImuIntegrator> ImuIntegratorPtr;
 }
 

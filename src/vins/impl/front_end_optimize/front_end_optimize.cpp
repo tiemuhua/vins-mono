@@ -42,10 +42,10 @@ static vins::MarginalInfo *sp_marginal_info;
 using namespace vins;
 using namespace std;
 
-static void eigen2c(const std::vector<KeyFrameState>& window,
+static void eigen2c(const std::vector<KeyFrameState> &window,
                     const std::vector<Feature> &feature_window,
-                    const Eigen::Vector3d& tic,
-                    const Eigen::Matrix3d &ric){
+                    const Eigen::Vector3d &tic,
+                    const Eigen::Matrix3d &ric) {
     for (int i = 0; i < window.size(); ++i) {
         utils::vec3d2array(window.at(i).pos, c_pos[i]);
         utils::quat2array(Eigen::Quaterniond(window.at(i).rot), c_quat[i]);
@@ -65,9 +65,9 @@ static void eigen2c(const std::vector<KeyFrameState>& window,
     utils::quat2array(Eigen::Quaterniond(ric), c_ric);
 }
 
-static void c2eigen(std::vector<KeyFrameState>& window,
+static void c2eigen(std::vector<KeyFrameState> &window,
                     std::vector<Feature> &feature_window,
-                    Eigen::Vector3d& tic,
+                    Eigen::Vector3d &tic,
                     Eigen::Matrix3d &ric) {
     for (int i = 0; i < window.size(); ++i) {
         window.at(i).pos = utils::array2vec3d(c_pos[i]);
@@ -89,10 +89,10 @@ static void c2eigen(std::vector<KeyFrameState>& window,
 }
 
 void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
-                                const std::vector<ImuIntegratorPtr>& pre_int_window,
+                                const std::vector<ImuIntegratorPtr> &pre_int_window,
                                 const std::vector<vins::LoopMatchInfo> &loop_match_infos,
                                 std::vector<Feature> &feature_window,
-                                std::vector<KeyFrameState>& state_window,
+                                std::vector<KeyFrameState> &state_window,
                                 Eigen::Vector3d &tic,
                                 Eigen::Matrix3d &ric) {
     eigen2c(state_window, feature_window, tic, ric);
@@ -145,8 +145,8 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
         if (feature.points.size() < 2 || feature.start_kf_window_idx >= WINDOW_SIZE - 2)
             continue;
         int start_kf_idx = feature.start_kf_window_idx;
-        const cv::Point2f & point0 = feature.points[0];
-        const cv::Point2f & vel0 = feature.velocities[0];
+        const cv::Point2f &point0 = feature.points[0];
+        const cv::Point2f &vel0 = feature.velocities[0];
         const double time_stamp0 = feature.time_stamps_ms[0];
         for (int frame_idx_shift = 0; frame_idx_shift < feature.points.size(); ++frame_idx_shift) {
             const cv::Point2f &point = feature.points[frame_idx_shift];
@@ -170,8 +170,8 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
     }
 
     /*************** 3:回环 **************************/
-    std::unordered_map<int,int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(feature_window);
-    for (const auto &loop_match_info : loop_match_infos) {
+    std::unordered_map<int, int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(feature_window);
+    for (const auto &loop_match_info: loop_match_infos) {
         for (int i = 0; i < loop_match_info.feature_ids.size(); ++i) {
             int feature_idx = feature_id_2_idx[loop_match_info.feature_ids[i]];
             int start_kf_window_idx = feature_window[feature_idx].start_kf_window_idx;
@@ -204,21 +204,22 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
     c2eigen(state_window, feature_window, tic, ric);
 }
 
-static MarginalInfo* marginalize(const FrontEndOptimizeParam &param,
+static MarginalInfo *marginalize(const FrontEndOptimizeParam &param,
                                  const std::vector<Feature> &oldest_features,
-                                 const ImuIntegrator& oldest_pre_integral,
+                                 const ImuIntegrator &oldest_pre_integral,
                                  std::vector<double *> &reserve_block_origin) {
     auto *marginal_info = new MarginalInfo();
 
     // 之前的边缘化约束
     if (sp_marginal_info) {
         std::vector<int> marginal_discard_set;
-        for (int i = 0; i < (int)(sp_marginal_info->marginal_blocks.size()); i++) {
+        for (int i = 0; i < (int) (sp_marginal_info->marginal_blocks.size()); i++) {
             if (sp_marginal_info->marginal_blocks[i] == c_pos[0] || sp_marginal_info->marginal_blocks[i] == c_vel[0])
                 marginal_discard_set.push_back(i);
         }
         auto *marginal_cost = new MarginalCost(sp_marginal_info);
-        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, sp_marginal_info->marginal_blocks, marginal_discard_set);
+        MarginalMetaFactor marginal_factor(marginal_cost, nullptr, sp_marginal_info->marginal_blocks,
+                                           marginal_discard_set);
         marginal_info->addMetaFactor(marginal_factor);
     }
 
@@ -228,16 +229,16 @@ static MarginalInfo* marginalize(const FrontEndOptimizeParam &param,
             c_pos[0], c_quat[0], c_vel[0], c_ba[0], c_bg[0],
             c_pos[1], c_quat[1], c_vel[1], c_ba[1], c_bg[1],
     };
-    const vector<int> imu_discard_set = {0, 1, 2, 3 ,4};
+    const vector<int> imu_discard_set = {0, 1, 2, 3, 4};
     MarginalMetaFactor imu_factor(imu_cost, nullptr, imu_param_blocks, imu_discard_set);
     marginal_info->addMetaFactor(imu_factor);
 
     // 最老帧的视觉约束
     const vector<int> visual_discard_set = {0, 1, 6};
     for (int feature_idx = 0; feature_idx < oldest_features.size(); ++feature_idx) {
-        const Feature& feature = oldest_features[feature_idx];
-        const cv::Point2f & point0 = feature.points[0];
-        const cv::Point2f & vel0 = feature.velocities[0];
+        const Feature &feature = oldest_features[feature_idx];
+        const cv::Point2f &point0 = feature.points[0];
+        const cv::Point2f &vel0 = feature.velocities[0];
         const double time_stamp0 = feature.time_stamps_ms[0];
         for (int frame_idx_shift = 0; frame_idx_shift < feature.points.size(); ++frame_idx_shift) {
             const cv::Point2f &point = feature.points[frame_idx_shift];
@@ -254,7 +255,8 @@ static MarginalInfo* marginalize(const FrontEndOptimizeParam &param,
                         c_inv_depth[feature_idx],
                         c_time_delay
                 };
-                MarginalMetaFactor project_td_factor(project_td_cost, loss_function, parameter_blocks, visual_discard_set);
+                MarginalMetaFactor project_td_factor(project_td_cost, loss_function, parameter_blocks,
+                                                     visual_discard_set);
                 marginal_info->addMetaFactor(project_td_factor);
             } else {
                 auto *project_cost = new ProjectCost(point0, point);
@@ -277,15 +279,15 @@ static MarginalInfo* marginalize(const FrontEndOptimizeParam &param,
 
 void FrontEndOptimize::slide(const Param &param,
                              const std::vector<Feature> &oldest_features,
-                             const ImuIntegrator& oldest_pre_integral,
+                             const ImuIntegrator &oldest_pre_integral,
                              const std::unordered_map<int, int> &feature_id_2_idx_origin,
                              const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
     sp_marginal_info = marginalize(param.slide_window, oldest_features, oldest_pre_integral, reserve_block_origin);
 
-    std::unordered_map<double*, double*> slide_addr_map;
-    for (const auto &id2idx_origin : feature_id_2_idx_origin) {
+    std::unordered_map<double *, double *> slide_addr_map;
+    for (const auto &id2idx_origin: feature_id_2_idx_origin) {
         int id = id2idx_origin.first;
         int idx_origin = id2idx_origin.second;
         int idx_after_discard = feature_id_2_idx_after_discard.at(id);
@@ -299,7 +301,7 @@ void FrontEndOptimize::slide(const Param &param,
         slide_addr_map[c_bg[frame_idx]] = c_bg[frame_idx + 1];
     }
 
-    for (double* origin_addr:reserve_block_origin) {
+    for (double *origin_addr: reserve_block_origin) {
         sp_marginal_info->marginal_blocks.emplace_back(slide_addr_map[origin_addr]);
     }
 }

@@ -8,7 +8,7 @@
 
 using namespace Eigen;
 namespace vins {
-    ImuIntegrator::ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity):
+    ImuIntegrator::ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity) :
             ba_{std::move(prev_imu_state.ba)},
             bg_{std::move(prev_imu_state.bg)},
             gravity_(std::move(gravity)) {
@@ -23,7 +23,7 @@ namespace vins {
     }
 
     void ImuIntegrator::jointLaterIntegrator(const ImuIntegrator &later_int) {
-        int size = (int )later_int.time_stamp_buf_.size();
+        int size = (int) later_int.time_stamp_buf_.size();
         for (int i = 1; i < size; ++i) {
             predict(later_int.time_stamp_buf_[i], later_int.acc_buf_[i], later_int.gyr_buf_[i]);
         }

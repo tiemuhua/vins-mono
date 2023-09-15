@@ -27,7 +27,7 @@ namespace vins {
             _handleData();
             gettimeofday(&tv2, nullptr);
             int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
-            if ( cost_us < 1 * 1000) {
+            if (cost_us < 1 * 1000) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }).detach();
@@ -71,11 +71,11 @@ namespace vins {
         const Eigen::Vector3d &delta_vel = pre_integral.deltaVel();
         const Eigen::Quaterniond &delta_quat = pre_integral.deltaQuat();
 
-        const Eigen::Vector3d & prev_pos = prev_state.pos;
-        const Eigen::Vector3d & prev_vel = prev_state.vel;
-        const Eigen::Matrix3d & prev_rot = prev_state.rot;
-        const Eigen::Vector3d & prev_ba = prev_state.ba;
-        const Eigen::Vector3d & prev_bg = prev_state.bg;
+        const Eigen::Vector3d &prev_pos = prev_state.pos;
+        const Eigen::Vector3d &prev_vel = prev_state.vel;
+        const Eigen::Matrix3d &prev_rot = prev_state.rot;
+        const Eigen::Vector3d &prev_ba = prev_state.ba;
+        const Eigen::Vector3d &prev_bg = prev_state.bg;
 
         const Eigen::Vector3d cur_pos = prev_pos + prev_rot * delta_pos;
         const Eigen::Vector3d cur_vel = prev_vel + prev_rot * delta_vel;
@@ -180,7 +180,7 @@ namespace vins {
             run_info_->frame_window.erase(run_info_->frame_window.begin(), it);
             run_info_->kf_state_window.erase(run_info_->kf_state_window.begin());
             run_info_->pre_int_window.erase(run_info_->pre_int_window.begin());
-            for (LoopMatchInfo &info:run_info_->loop_match_infos) {
+            for (LoopMatchInfo &info: run_info_->loop_match_infos) {
                 info.window_idx--;
             }
             if (!run_info_->loop_match_infos.empty() && run_info_->loop_match_infos[0].window_idx == -1) {
@@ -197,6 +197,7 @@ namespace vins {
 
 
 
+        // todo 先初始化bg，然后初始化ric，然后初始化位移参数
         /******************初始化RIC*******************/
         if (vins_state_ == EVinsState::kEstimateExtrinsic) {
             int cur_kf_window_size = run_info_->kf_state_window.size();
@@ -264,14 +265,16 @@ namespace vins {
         int key_pts_num = run_info_->frame_window.back().points.size();
         for (int i = 0; i < key_pts_num; ++i) {
             int feature_id = run_info_->frame_window.back().feature_ids[i];
-            std::unordered_map<int,int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(run_info_->feature_window);
+            std::unordered_map<int, int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(
+                    run_info_->feature_window);
             cv::Point2f p2d = run_info_->feature_window[feature_id_2_idx[feature_id]].points[0];
             double depth = FeatureHelper::featureIdToDepth(run_info_->frame_window.back().feature_ids[i],
                                                            run_info_->feature_window);
             key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
-        auto cur_kf = std::make_shared<KeyFrame>(run_info_->frame_window.back(), key_pts_3d, descriptors, external_descriptors);
+        auto cur_kf = std::make_shared<KeyFrame>(run_info_->frame_window.back(), key_pts_3d, descriptors,
+                                                 external_descriptors);
         LoopMatchInfo info;
         info.window_idx = run_info_->kf_state_window.size() - 1;
         if (loop_closer_->findLoop(cur_kf, info)) {
@@ -284,7 +287,7 @@ namespace vins {
             if (r_drift_.norm() < 0.001) {
                 return;
             }
-            for (KeyFrameState &state:run_info_->kf_state_window) {
+            for (KeyFrameState &state: run_info_->kf_state_window) {
                 state.pos = r_drift_ * state.pos + t_drift_;
                 state.rot = r_drift_ * state.rot;
             }

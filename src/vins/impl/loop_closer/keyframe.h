@@ -10,7 +10,7 @@
 
 #include "vins/impl/vins_define_internal.h"
 
-namespace vins{
+namespace vins {
 
     struct LoopRelativePose {
         int peer_frame_id = -1;
@@ -19,20 +19,24 @@ namespace vins{
     };
 
     struct KeyFrame {
-        KeyFrame(const Frame& _base_frame,
+        KeyFrame(const Frame &_base_frame,
                  const std::vector<cv::Point3f> &_point_3d,
                  const std::vector<DVision::BRIEF::bitset> &descriptors,
                  const std::vector<DVision::BRIEF::bitset> &external_descriptors);
 
         void getLoopedPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
+
         void getVioPose(Eigen::Vector3d &_T_w_i, Eigen::Matrix3d &_R_w_i) const;
+
         static void calculatePoseRotDrift(
                 const Eigen::Vector3d &pos1, const Eigen::Vector3d &euler1,
                 const Eigen::Vector3d &pos2, const Eigen::Vector3d &euler2,
                 Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift);
 
         void updateLoopedPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
+
         void updateVioPose(const Eigen::Vector3d &_T_w_i, const Eigen::Matrix3d &_R_w_i);
+
         void updatePoseByDrift(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
 
         double time_stamp;
@@ -50,6 +54,7 @@ namespace vins{
 
         Frame base_frame_;
     };
+
     typedef std::shared_ptr<KeyFrame> KeyFramePtr;
     typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;
 }
