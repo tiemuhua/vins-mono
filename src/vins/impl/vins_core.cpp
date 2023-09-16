@@ -32,7 +32,7 @@ namespace vins {
         }).detach();
     }
 
-    void VinsCore::handleIMU(ConstVec3dRef acc, ConstVec3dRef gyr, double time_stamp) {
+    void VinsCore::handleIMU(const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr, double time_stamp) {
         Synchronized(io_mutex_) {
             if (vins_state_ == EVinsState::kNoIMUData) {
                 run_info_->prev_imu_state.acc = acc;
@@ -273,5 +273,7 @@ namespace vins {
             }
             r_drift_ = Eigen::Matrix3d::Zero();
         }
+
+
     }
 }

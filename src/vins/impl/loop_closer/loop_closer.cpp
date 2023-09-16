@@ -70,7 +70,7 @@ struct Edge4Dof {
 };
 
 LoopCloser::LoopCloser() {
-    thread_optimize_ = std::thread(&LoopCloser::optimize4DoF, this);
+    std::thread(&LoopCloser::optimize4DoF, this).detach();
 }
 
 void LoopCloser::addKeyFrame(const KeyFramePtr &kf_ptr) {

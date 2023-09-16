@@ -30,8 +30,8 @@ namespace vins {
     }
 
     ImuIntegrator::State ImuIntegrator::evaluate(
-            ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
-            ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const {
+            const Eigen::Vector3d& Pi, const Eigen::Quaterniond& Qi, const Eigen::Vector3d& Vi, const Eigen::Vector3d& Bai, const Eigen::Vector3d& Bgi,
+            const Eigen::Vector3d& Pj, const Eigen::Quaterniond& Qj, const Eigen::Vector3d& Vj, const Eigen::Vector3d& Baj, const Eigen::Vector3d& Bgj) const {
         Eigen::Matrix3d dp_dba = jacobian_.block<3, 3>(kOrderPos, kOrderBA);
         Eigen::Matrix3d dp_dbg = jacobian_.block<3, 3>(kOrderPos, kOrderBG);
 
@@ -58,7 +58,7 @@ namespace vins {
         return residuals;
     }
 
-    void ImuIntegrator::predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr) {
+    void ImuIntegrator::predict(double time_stamp, const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr) {
         midPointIntegral(time_stamp_buf_.back(), acc_buf_.back(), gyr_buf_.back(),
                          time_stamp, acc, gyr,
                          ba_, bg_,
@@ -70,7 +70,7 @@ namespace vins {
         gyr_buf_.push_back(gyr);
     }
 
-    void ImuIntegrator::rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg) {
+    void ImuIntegrator::rePredict(const Eigen::Vector3d& new_ba, const Eigen::Vector3d& new_bg) {
         pos_.setZero();
         quat_.setIdentity();
         vel_.setZero();
@@ -88,18 +88,18 @@ namespace vins {
         }
     }
 
-    void ImuIntegrator::midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
-                                         double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
-                                         ConstVec3dRef ba, ConstVec3dRef bg,
-                                         Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
+    void ImuIntegrator::midPointIntegral(double pre_time_stamp, const Eigen::Vector3d& pre_acc, const Eigen::Vector3d& pre_gyr,
+                                         double cur_time_stamp, const Eigen::Vector3d& cur_acc, const Eigen::Vector3d& cur_gyr,
+                                         const Eigen::Vector3d& ba, const Eigen::Vector3d& bg,
+                                         Eigen::Vector3d& cur_pos, Eigen::Quaterniond& cur_quat, Eigen::Vector3d& cur_vel,
                                          Jacobian &jacobian, Covariance &covariance, Noise &noise) {
         const double dt = cur_time_stamp - pre_time_stamp;
         const double dt2 = dt * dt;
         const double dt3 = dt2 * dt;
 
-        ConstVec3dRef pre_pos = cur_pos;
-        ConstQuatRef pre_quat = cur_quat;
-        ConstVec3dRef pre_vel = cur_vel;
+        const Eigen::Vector3d& pre_pos = cur_pos;
+        const Eigen::Quaterniond& pre_quat = cur_quat;
+        const Eigen::Vector3d& pre_vel = cur_vel;
 
         Vector3d avg_gyr = 0.5 * (pre_gyr + cur_gyr) - bg;
         cur_quat = pre_quat * utils::deltaQ(avg_gyr * dt);

@@ -12,6 +12,9 @@
 #include "vins_define_internal.h"
 #include "vins_run_info.h"
 
+namespace vins {
+    typedef std::vector<std::pair<cv::Point2f, cv::Point2f>> Correspondences;
+}
 namespace vins::FeatureHelper {
     [[nodiscard]] bool isKeyFrame(int key_frame_idx,
                                   double focal,

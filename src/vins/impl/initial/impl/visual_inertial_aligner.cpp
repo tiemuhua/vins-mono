@@ -129,7 +129,7 @@ namespace vins {
         return true;
     }
 
-    Eigen::Matrix3d rotGravityToZAxis(ConstVec3dRef gravity, ConstMat3dRef R0) {
+    Eigen::Matrix3d rotGravityToZAxis(const Eigen::Vector3d& gravity, const Eigen::Matrix3d& R0) {
         Eigen::Vector3d ng1 = gravity.normalized();
         Eigen::Vector3d ng2{0, 0, 1.0};
         Eigen::Matrix3d rot_gravity_to_z_axis_in_R0_frame =

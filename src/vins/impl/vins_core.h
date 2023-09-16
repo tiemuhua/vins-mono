@@ -12,6 +12,11 @@
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 
+#include "feature_tracker.h"
+#include "imu_integrator.h"
+#include "vins_define_internal.h"
+#include "vins_logic.h"
+
 namespace vins {
     class Frame;
 

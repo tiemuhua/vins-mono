@@ -6,7 +6,6 @@
 #define VINS_IMU_INTEGRATOR_H
 
 #include <Eigen/Eigen>
-#include "vins_define_internal.h"
 #include "param.h"
 
 namespace vins {
@@ -45,13 +44,13 @@ namespace vins {
 
         ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity);
 
-        void predict(double time_stamp, ConstVec3dRef acc, ConstVec3dRef gyr);
+        void predict(double time_stamp, const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr);
 
-        void rePredict(ConstVec3dRef new_ba, ConstVec3dRef new_bg);
+        void rePredict(const Eigen::Vector3d& new_ba, const Eigen::Vector3d& new_bg);
 
         [[nodiscard]] State
-        evaluate(ConstVec3dRef Pi, ConstQuatRef Qi, ConstVec3dRef Vi, ConstVec3dRef Bai, ConstVec3dRef Bgi,
-                 ConstVec3dRef Pj, ConstQuatRef Qj, ConstVec3dRef Vj, ConstVec3dRef Baj, ConstVec3dRef Bgj) const;
+        evaluate(const Eigen::Vector3d& Pi, const Eigen::Quaterniond& Qi, const Eigen::Vector3d& Vi, const Eigen::Vector3d& Bai, const Eigen::Vector3d& Bgi,
+                 const Eigen::Vector3d& Pj, const Eigen::Quaterniond& Qj, const Eigen::Vector3d& Vj, const Eigen::Vector3d& Baj, const Eigen::Vector3d& Bgj) const;
 
         void jointLaterIntegrator(const ImuIntegrator &later_int);
 
@@ -89,10 +88,10 @@ namespace vins {
         std::vector<Eigen::Vector3d> gyr_buf_;
 
     private:
-        static void midPointIntegral(double pre_time_stamp, ConstVec3dRef pre_acc, ConstVec3dRef pre_gyr,
-                                     double cur_time_stamp, ConstVec3dRef cur_acc, ConstVec3dRef cur_gyr,
-                                     ConstVec3dRef ba, ConstVec3dRef bg,
-                                     Vec3dRef cur_pos, QuatRef cur_quat, Vec3dRef cur_vel,
+        static void midPointIntegral(double pre_time_stamp, const Eigen::Vector3d& pre_acc, const Eigen::Vector3d& pre_gyr,
+                                     double cur_time_stamp, const Eigen::Vector3d& cur_acc, const Eigen::Vector3d& cur_gyr,
+                                     const Eigen::Vector3d& ba, const Eigen::Vector3d& bg,
+                                     Eigen::Vector3d& cur_pos, Eigen::Quaterniond& cur_quat, Eigen::Vector3d& cur_vel,
                                      Jacobian &jacobian, Covariance &covariance, Noise &noise);
 
     private:

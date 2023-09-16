@@ -28,7 +28,7 @@ namespace vins {
                                          double &scale,
                                          std::vector<Eigen::Vector3d> &vel);
 
-    Eigen::Matrix3d rotGravityToZAxis(ConstVec3dRef gravity, ConstMat3dRef R0);
+    Eigen::Matrix3d rotGravityToZAxis(const Eigen::Vector3d& gravity, const Eigen::Matrix3d& R0);
 }
 
 #endif //VINS_VISUAL_INERTIAL_ALIGNER_H

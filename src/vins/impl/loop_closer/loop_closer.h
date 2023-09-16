@@ -41,7 +41,6 @@ namespace vins {
         Eigen::Vector3d t_drift = Eigen::Vector3d::Zero();
         Eigen::Matrix3d r_drift = Eigen::Matrix3d::Identity();
 
-        std::thread thread_optimize_;
         int loop_interval_lower_bound_ = -1;
         int loop_interval_upper_bound_ = -1;
 

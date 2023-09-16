@@ -10,6 +10,8 @@
 #include <utility>
 #include <DBoW2/DBoW2.h>
 
+#include "imu_integrator.h"
+
 namespace vins {
 #define Synchronized(mutex_)  for(ScopedLocker locker(mutex_); locker.cnt < 1; locker.cnt++)
 
@@ -53,8 +55,6 @@ namespace vins {
         }
     };
 
-    class ImuIntegrator;
-
     class Frame {
     public:
         Frame() = default;
@@ -89,7 +89,6 @@ namespace vins {
         Eigen::Matrix3d peer_rot;
 
         int window_idx = -1;     //.当window_idx递减至-1时，从loop_match_infos中移出.
-        int peer_kf_id = -1;    //.匹配帧的ID，通过kfIdToKfListIdx获取匹配帧在key_frame_list_中的下标.
     };
 
 
@@ -116,15 +115,6 @@ namespace vins {
 
         DVision::BRIEF brief_;
     };
-
-    typedef const Eigen::Matrix3d &ConstMat3dRef;
-    typedef const Eigen::Vector3d &ConstVec3dRef;
-    typedef const Eigen::Quaterniond &ConstQuatRef;
-    typedef Eigen::Matrix3d &Mat3dRef;
-    typedef Eigen::Vector3d &Vec3dRef;
-    typedef Eigen::Quaterniond &QuatRef;
-
-    typedef std::vector<std::pair<cv::Point2f, cv::Point2f>> Correspondences;
 
     constexpr double pi = 3.1415926;
 }

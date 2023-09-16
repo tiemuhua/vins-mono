@@ -144,7 +144,7 @@ namespace vins {
             return R.eulerAngles(2, 1, 0);
         }
 
-        inline Eigen::Vector3d rot2rpy(ConstMat3dRef R) {
+        inline Eigen::Vector3d rot2rpy(const Eigen::Matrix3d& R) {
             return R.eulerAngles(2, 1, 0);
         }
 
@@ -153,11 +153,11 @@ namespace vins {
             return R.eulerAngles(0, 1, 2);
         }
 
-        inline Eigen::Vector3d rot2ypr(ConstMat3dRef R) {
+        inline Eigen::Vector3d rot2ypr(const Eigen::Matrix3d& R) {
             return R.eulerAngles(0, 1, 2);
         }
 
-        inline Eigen::Matrix3d ypr2rot(ConstVec3dRef ypr) {
+        inline Eigen::Matrix3d ypr2rot(const Eigen::Vector3d& ypr) {
             return Eigen::AngleAxisd(ypr.z(), Eigen::Vector3d::UnitZ()).toRotationMatrix() *
                    Eigen::AngleAxisd(ypr.y(), Eigen::Vector3d::UnitY()).toRotationMatrix() *
                    Eigen::AngleAxisd(ypr.x(), Eigen::Vector3d::UnitX()).toRotationMatrix();
