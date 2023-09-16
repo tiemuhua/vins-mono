@@ -31,7 +31,7 @@ namespace vins {
 
     class VinsCore {
     public:
-        VinsCore(Param *param);
+        explicit VinsCore(Param *param);
 
         void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
 
@@ -62,18 +62,18 @@ namespace vins {
         Eigen::Matrix3d r_drift_;
         std::mutex io_mutex_;
 
-        std::shared_ptr<ImuIntegrator> kf_pre_integral_ptr_;
-
-        double last_init_time_stamp_ = 0.0;
 
         //.子求解器.
-        FeatureTracker *feature_tracker_;
-        CameraWrapper *camera_wrapper_;
-        LoopCloser *loop_closer_;
-        BriefExtractor *brief_extractor_{};
+        FeatureTracker *feature_tracker_ = nullptr;
+        CameraWrapper *camera_wrapper_ = nullptr;
+        LoopCloser *loop_closer_ = nullptr;
+        BriefExtractor *brief_extractor_ = nullptr;
 
-        RunInfo *run_info_;
-        Param *param_;
+        //.运行时信息.
+        RunInfo *run_info_ = nullptr;
+        Param *param_ = nullptr;
+        std::shared_ptr<ImuIntegrator> kf_pre_integral_ptr_ = nullptr;
+        double last_init_time_stamp_ = 0.0;
     };
 }
 

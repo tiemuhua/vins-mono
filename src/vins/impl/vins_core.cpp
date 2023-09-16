@@ -12,7 +12,6 @@
 #include "impl/front_end_optimize/front_end_optimize.h"
 #include "loop_closer/loop_closer.h"
 #include "camera_wrapper.h"
-#include "log.h"
 
 namespace vins {
     VinsCore::VinsCore(Param *param) {
