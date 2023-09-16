@@ -5,7 +5,6 @@
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
 
-#include "log.h"
 #include "vins/impl/imu_integrator.h"
 
 namespace vins {

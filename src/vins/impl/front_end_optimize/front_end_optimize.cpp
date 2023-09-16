@@ -5,8 +5,8 @@
 #include "front_end_optimize.h"
 
 #include <ceres/ceres.h>
+#include <glog/logging.h>
 
-#include "log.h"
 #include "vins/impl/vins_utils.h"
 #include "vins/impl/vins_define_internal.h"
 
@@ -114,11 +114,11 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
     problem.AddParameterBlock(c_ric, 4, new ceres::EigenQuaternionManifold);
     problem.AddParameterBlock(c_tic, 3);
     if (param.fix_extrinsic) {
-        LOG_D("fix extrinsic param");
+        LOG(INFO) << "fix extrinsic param";
         problem.SetParameterBlockConstant(c_ric);
         problem.SetParameterBlockConstant(c_tic);
     } else {
-        LOG_D("estimate extrinsic param");
+        LOG(INFO) << "estimate extrinsic param";
     }
     if (param.estimate_time_delay) {
         problem.AddParameterBlock(c_time_delay, 1);

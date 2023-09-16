@@ -1,5 +1,5 @@
 #include "feature_helper.h"
-#include "log.h"
+#include <glog/logging.h>
 #include "vins/param.h"
 
 namespace vins {
@@ -11,7 +11,8 @@ namespace vins {
                                    const double kf_parallax_threshold,
                                    const std::vector<FeaturePoint2D> &feature_points,
                                    const std::vector<Feature> &feature_window) {
-        LOG_D("input feature: %d, num of feature: %d", (int) feature_points.size(), (int) feature_window.size());
+        LOG(INFO) << "input feature: " << feature_points.size()
+                  << "\tnum of feature: " << feature_window.size();
 
         int last_track_num = 0;
         for (const FeaturePoint2D &point: feature_points) {
@@ -42,8 +43,9 @@ namespace vins {
         if (parallax_num == 0) {
             return true;
         }
-        LOG_I("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
-        LOG_I("current parallax: %lf", parallax_sum / parallax_num * focal);
+        LOG(INFO) << "parallax_sum:" << parallax_sum
+                  << "\tparallax_num:" << parallax_num
+                  << "\tcurrent parallax:" << parallax_sum / parallax_num * focal;
         return parallax_sum / parallax_num >= kf_parallax_threshold;
     }
 

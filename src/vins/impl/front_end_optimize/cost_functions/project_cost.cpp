@@ -1,5 +1,5 @@
 #include "project_cost.h"
-#include "log.h"
+#include <glog/logging.h>
 #include "vins/impl/vins_utils.h"
 #include "vins/param.h"
 #include "vins/vins_logic.h"
@@ -11,7 +11,7 @@ ProjectCost::ProjectCost(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j) {
     pts_j = Eigen::Vector3d(_pts_j.x, _pts_j.y, 1.0);
     Eigen::Vector3d a = pts_j.normalized();
     Eigen::Vector3d tmp(0, 0, 1);
-    if((a-tmp).norm() < 0.001) {
+    if ((a - tmp).norm() < 0.001) {
         tmp << 1, 0, 0;
     }
     Eigen::Vector3d b1 = (tmp - a * (a.transpose() * tmp)).normalized();
@@ -39,13 +39,13 @@ bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, d
     Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
-    residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
+    residual = tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
     Eigen::Matrix2d sqrt_info = vins::getParam()->camera.focal / 1.5 * Eigen::Matrix2d::Identity();
-    residual =  sqrt_info * residual;
+    residual = sqrt_info * residual;
 
-    assert(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3]);
-    if (!(jacobians && jacobians[0]&& jacobians[1]&& jacobians[2]&& jacobians[3])) {
-        LOG_E("!jacobian");
+    assert(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3]);
+    if (!(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3])) {
+        LOG(ERROR) << "!jacobian";
         return false;
     }
 
@@ -55,7 +55,8 @@ bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, d
     Eigen::Matrix<double, 2, 3> reduce(2, 3);
     double norm = pts_camera_j.norm();
     double norm3 = pow(norm, 3);
-    Eigen::Matrix3d norm_jacobian = Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
+    Eigen::Matrix3d norm_jacobian =
+            Eigen::Matrix3d::Identity() / norm - pts_camera_j * pts_camera_j.transpose() / norm3;
     reduce = tangent_base * norm_jacobian;
     reduce = sqrt_info * reduce;
 

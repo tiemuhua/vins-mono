@@ -4,9 +4,9 @@
 
 #include "initiate.h"
 #include <vector>
+#include <glog/logging.h>
 #include "impl/visual_initiator.h"
 #include "impl/visual_inertial_aligner.h"
-#include "log.h"
 
 using namespace vins;
 using namespace std;
@@ -28,7 +28,7 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     }
 
     var = sqrt(var / (double) all_image_frame_.size());
-    LOG_I("IMU acc variant:%f", var);
+    LOG(INFO) << "IMU acc variant:" << var;
     return var > 0.25;
 }
 

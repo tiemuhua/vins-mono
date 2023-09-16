@@ -1,5 +1,7 @@
 #include "project_td_cost.h"
-#include "log.h"
+
+#include <glog/logging.h>
+
 #include "vins/param.h"
 #include "vins/vins_logic.h"
 #include "vins/impl/vins_utils.h"
@@ -57,7 +59,7 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
 
     assert(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3] && jacobians[4]);
     if (!(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3] && jacobians[4])) {
-        LOG_E("!jacobian");
+        LOG(ERROR) << "!jacobian";
         return false;
     }
 

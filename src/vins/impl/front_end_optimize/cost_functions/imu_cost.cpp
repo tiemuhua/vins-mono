@@ -3,14 +3,15 @@
 
 namespace vins {
 
-    template<int row>
-    void checkJacobianNumericalStable(
-            const Eigen::Map<Eigen::Matrix<double, 15, row, Eigen::RowMajor>> &jacobian,
-            const char *jacobian_name) {
+    template<typename T>
+    // Eigen::Map<Eigen::Matrix<double, 15, row, Eigen::RowMajor>>
+    bool checkJacobianNumericalStable(const T &jacobian, const char *jacobian_name) {
         if (jacobian.maxCoeff() > 1e8 || jacobian.minCoeff() < -1e8) {
-            LOG_W("numerical unstable in pre-integral, name:%s, jacobian_ value:%s",
-                  jacobian_name, utils::eigen2string(jacobian).c_str());
+            LOG(ERROR) << "numerical unstable in pre-integral, name:" << jacobian_name
+                       << "\tjacobian_ value:" << utils::eigen2string(jacobian);
+            return false;
         }
+        return true;
     }
 
     /**
@@ -57,9 +58,7 @@ namespace vins {
         Eigen::Matrix3d dv_dba = pre_integral_.getJacobian().template block<3, 3>(kOrderVel, kOrderBA);
         Eigen::Matrix3d dv_dbg = pre_integral_.getJacobian().template block<3, 3>(kOrderVel, kOrderBG);
 
-        if (pre_integral_.getJacobian().maxCoeff() > 1e8 || pre_integral_.getJacobian().minCoeff() < -1e8) {
-            LOG_W("numerical unstable in pre-integration");
-        }
+        checkJacobianNumericalStable(pre_integral_.getJacobian(), "origin jacobian");
 
         typedef Eigen::Matrix<double, 15, 3, Eigen::RowMajor> Mat15_3;
         typedef Eigen::Matrix<double, 15, 4, Eigen::RowMajor> Mat15_4;

@@ -1,6 +1,6 @@
 #include <thread>
 #include <unordered_map>
-#include "log.h"
+#include <glog/logging.h>
 #include "vins/impl/vins_utils.h"
 #include "marginal_cost.h"
 
@@ -24,7 +24,7 @@ void MarginalMetaFactor::Evaluate() {
     cost_function_->Evaluate(parameter_blocks_.data(), residuals_.data(), raw_jacobians.data());
 
     if (!loss_function_) {
-        LOG_I("marginal factor not set loss function");
+        LOG(ERROR) << "marginal factor not set loss function";
         return;
     }
     double rho[3];

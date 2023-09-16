@@ -9,8 +9,8 @@
 #include <opencv2/core/eigen.hpp>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
+#include <glog/logging.h>
 
-#include "log.h"
 #include "vins/impl/vins_utils.h"
 #include "vins/impl/feature_helper.h"
 
@@ -111,7 +111,7 @@ namespace vins {
         cv::eigen2cv(T, t);
         cv::Mat K = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
         if (!cv::solvePnP(pts_3d, pts_2d, K, D, rvec, t, use_extrinsic_guess)) {
-            LOG_E("solve pnp fail");
+            LOG(ERROR) << "solve pnp fail";
             return false;
         }
         cv::Rodrigues(rvec, r);
@@ -173,7 +173,7 @@ namespace vins {
             break;
         }
         if (big_parallax_frame_id == -1) {
-            LOG_E("Not enough feature_window or parallax; Move device around");
+            LOG(ERROR) << "Not enough feature_window or parallax; Move device around";
             return false;
         }
 
@@ -281,8 +281,8 @@ namespace vins {
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
         if (summary.termination_type != ceres::CONVERGENCE && summary.final_cost > 5e-03) {
-            LOG_E("full ba not convergence!, termination_type:%d, final_cost:%f",
-                  summary.termination_type, summary.final_cost);
+            LOG(ERROR) << "full ba not convergence!, termination_type:" << summary.termination_type
+            << "\tfinal_cost:" << summary.final_cost;
             return false;
         }
 
@@ -328,14 +328,14 @@ namespace vins {
                 }
             }
             if (pts_3d.size() < 6) {
-                LOG_E("pts_3_vector size:%lu, Not enough points for solve pnp !", pts_3d.size());
+                LOG(ERROR) << "pts_3_vector size:" << pts_3d.size() << "Not enough points for solve pnp !";
                 return false;
             }
 
             Eigen::Matrix3d R_initial = kf_img_rot[kf_idx];
             Eigen::Vector3d P_initial = kf_img_pos[kf_idx];
             if (!solveFrameByPnP(pts_2d, pts_3d, false, R_initial, P_initial)) {
-                LOG_E("solve pnp fail!");
+                LOG(ERROR) << "solve pnp fail!";
                 return false;
             }
             frames_img_rot[frame_idx] = R_initial;

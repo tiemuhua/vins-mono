@@ -4,7 +4,7 @@
 
 #include "visual_inertial_aligner.h"
 #include <cstdlib>
-#include "log.h"
+#include <glog/logging.h>
 #include "vins/impl/vins_utils.h"
 
 namespace vins {
@@ -120,10 +120,10 @@ namespace vins {
         scale = x(scale_idx);
         TIC = x.segment<3>(tic_idx);
 
-        LOG_I("estimated scale: %f", scale);
+        LOG(INFO) << "gravity.norm():" << gravity.norm() << "\tscale:" << scale;
         constexpr double standard_gravity_norm = 9.8;
         if (abs(gravity.norm() - standard_gravity_norm) > 1.0 || scale < 1e-4) {
-            LOG_E("fabs(g.norm() - G.norm()) > 1.0 || s < 0");
+            LOG(ERROR) << "abs(gravity.norm() - standard_gravity_norm) > 1.0 || scale < 1e-4";
             return false;
         }
         return true;

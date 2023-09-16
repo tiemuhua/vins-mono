@@ -1,5 +1,5 @@
 #include "feature_tracker.h"
-#include "log.h"
+#include <glog/logging.h>
 #include "vins_utils.h"
 #include "param.h"
 
@@ -16,7 +16,7 @@ static inline bool inBorder(const cv::Point2f &pt, int col, int row) {
 }
 
 FeatureTracker::FeatureTracker(Param *param, CameraWrapper *camera_wrapper) {
-    LOG_I("reading parameter of camera %s", param->camera.calib_file.c_str());
+    LOG(INFO) << "reading parameter of camera:" << param->camera.calib_file.c_str();
     param_ = param;
     camera_wrapper_ = camera_wrapper;
 }
@@ -61,7 +61,7 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
         utils::reduceVector(prev_norm_pts_, mask);
         utils::reduceVector(next_norm_pts, mask);
         utils::reduceVector(feature_ids_, mask);
-        LOG_D("FM ransac: %zu -> %lu: %f", size_a, next_raw_pts.size(), 1.0 * next_raw_pts.size() / size_a);
+        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << size_a << "next_raw_pts.size" << next_raw_pts.size();
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
