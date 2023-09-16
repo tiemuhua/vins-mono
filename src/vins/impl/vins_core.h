@@ -12,27 +12,17 @@
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
 
+#include "vins_logic.h"
+#include "param.h"
+
+#include "camera_wrapper.h"
 #include "feature_tracker.h"
 #include "imu_integrator.h"
 #include "vins_define_internal.h"
-#include "vins_logic.h"
+#include "vins_run_info.h"
+#include "loop_closer/loop_closer.h"
 
 namespace vins {
-    class Frame;
-
-    class BriefExtractor;
-
-    class FeatureTracker;
-
-    class LoopCloser;
-
-    class RunInfo;
-
-    class Param;
-
-    class CameraWrapper;
-
-    class ImuIntegrator;
 
     class VinsCore {
     public:
