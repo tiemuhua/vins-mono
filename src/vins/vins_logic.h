@@ -11,7 +11,18 @@
 #include "param.h"
 
 namespace vins {
-    void init(vins::Param *param);
+
+    struct PosAndTimeStamp{
+        double time_stamp;
+        Eigen::Vector3d pos;
+        Eigen::Matrix3d rot;
+    };
+    class Callback {
+    public:
+        virtual void onPosSolved(const std::vector<PosAndTimeStamp> & pos_and_time_stamps) = 0;
+    };
+
+    void init(std::unique_ptr<vins::Param> param, std::shared_ptr<Callback> cb);
     vins::Param *getParam();
     void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
     void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);

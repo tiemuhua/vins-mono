@@ -8,8 +8,8 @@
 namespace vins {
     static VinsCore *sp_vins_core;
 
-    void init(vins::Param *param) {
-        sp_vins_core = new VinsCore(param);
+    void init(std::unique_ptr<vins::Param> param, const std::shared_ptr<Callback> &cb) {
+        sp_vins_core = new VinsCore(std::move(param), cb);
     }
 
     vins::Param *getParam() {

@@ -109,7 +109,7 @@ namespace vins {
 
     };
 
-    typedef std::shared_ptr<ImuIntegrator> ImuIntegratorPtr;
+    typedef std::unique_ptr<ImuIntegrator> ImuIntegratorPtr;
 }
 
 #endif //VINS_IMU_INTEGRATOR_H

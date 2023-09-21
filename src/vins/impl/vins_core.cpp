@@ -14,12 +14,13 @@
 #include "camera_wrapper.h"
 
 namespace vins {
-    VinsCore::VinsCore(Param *param) {
+    VinsCore::VinsCore(std::unique_ptr<Param> param, std::weak_ptr<Callback> cb) {
         run_info_ = new RunInfo();
-        param_ = param;
-        camera_wrapper_ = new CameraWrapper(param);
-        feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
+        param_ = std::move(param);
+        camera_wrapper_ = new CameraWrapper(param.get());
+        feature_tracker_ = new FeatureTracker(param.get(), camera_wrapper_);
         loop_closer_ = new LoopCloser();
+        cb_ = std::move(cb);
         std::thread([this]() {
             struct timeval tv1{}, tv2{};
             gettimeofday(&tv1, nullptr);
@@ -145,12 +146,12 @@ namespace vins {
         FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
         if (kf_pre_integral_ptr_ == nullptr) {
             kf_pre_integral_ptr_ =
-                    std::make_shared<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
+                    std::make_unique<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
         }
         kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
         run_info_->kf_state_window.emplace_back(
                 recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_));
-        run_info_->pre_int_window.emplace_back(kf_pre_integral_ptr_);
+        run_info_->pre_int_window.emplace_back(std::move(kf_pre_integral_ptr_));
         kf_pre_integral_ptr_ = nullptr;
 
         /******************滑动窗口塞满后再进行后续操作*******************/
@@ -274,6 +275,17 @@ namespace vins {
             r_drift_ = Eigen::Matrix3d::Zero();
         }
 
-
+        std::shared_ptr<Callback> cb = cb_.lock();
+        if (cb) {
+            std::vector<PosAndTimeStamp> pos_and_time_stamps;
+            for (const KeyFrameState &state:run_info_->kf_state_window) {
+                PosAndTimeStamp pos_and_time_stamp;
+                pos_and_time_stamp.time_stamp = state.time_stamp;
+                pos_and_time_stamp.pos = state.pos;
+                pos_and_time_stamp.rot = state.rot;
+                pos_and_time_stamps.emplace_back(pos_and_time_stamp);
+            }
+            cb->onPosSolved(pos_and_time_stamps);
+        }
     }
 }
