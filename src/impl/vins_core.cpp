@@ -19,7 +19,6 @@ namespace vins {
         param_ = std::move(param);
         camera_wrapper_ = new CameraWrapper(param.get());
         feature_tracker_ = new FeatureTracker(param.get(), camera_wrapper_);
-        loop_closer_ = new LoopCloser();
         cb_ = std::move(cb);
         std::thread([this]() {
             struct timeval tv1{}, tv2{};
@@ -243,7 +242,7 @@ namespace vins {
 
         //.特征点三维坐标.
         std::vector<cv::Point3f> key_pts_3d;
-        int key_pts_num = run_info_->frame_window.back().points.size();
+        size_t key_pts_num = run_info_->frame_window.back().points.size();
         for (int i = 0; i < key_pts_num; ++i) {
             int feature_id = run_info_->frame_window.back().feature_ids[i];
             std::unordered_map<int, int> feature_id_2_idx = FeatureHelper::getFeatureId2Index(
@@ -258,10 +257,10 @@ namespace vins {
                                                  external_descriptors);
         LoopMatchInfo info;
         info.window_idx = run_info_->kf_state_window.size() - 1;
-        if (loop_closer_->findLoop(cur_kf, info)) {
+        if (loop_closer_.findLoop(cur_kf, info)) {
             run_info_->loop_match_infos.emplace_back(std::move(info));
         }
-        loop_closer_->addKeyFrame(cur_kf);
+        loop_closer_.addKeyFrame(cur_kf);
 
         /******************后端线程算出结果后，前端线程相应校正*******************/
         Synchronized(io_mutex_) {

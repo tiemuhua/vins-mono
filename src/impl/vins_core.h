@@ -61,7 +61,7 @@ namespace vins {
         //.子求解器.
         FeatureTracker *feature_tracker_ = nullptr;
         CameraWrapper *camera_wrapper_ = nullptr;
-        LoopCloser *loop_closer_ = nullptr;
+        LoopCloser loop_closer_;
         BriefExtractor *brief_extractor_ = nullptr;
 
         //.运行时信息.
