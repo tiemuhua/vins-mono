@@ -7,8 +7,8 @@
 #include <ceres/ceres.h>
 #include <glog/logging.h>
 
-#include "vins/impl/vins_utils.h"
-#include "vins/impl/vins_define_internal.h"
+#include "impl/vins_utils.h"
+#include "impl/vins_define_internal.h"
 
 #include "cost_functions/imu_cost.h"
 #include "cost_functions/marginal_cost.h"

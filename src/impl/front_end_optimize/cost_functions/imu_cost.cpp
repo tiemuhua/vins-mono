@@ -1,5 +1,5 @@
 #include "imu_cost.h"
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_utils.h"
 
 namespace vins {
 

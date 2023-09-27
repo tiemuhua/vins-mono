@@ -1,7 +1,7 @@
 #include <thread>
 #include <unordered_map>
 #include <glog/logging.h>
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_utils.h"
 #include "marginal_cost.h"
 
 using namespace vins;

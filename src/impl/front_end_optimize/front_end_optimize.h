@@ -6,8 +6,8 @@
 #define VINS_BATCH_ADJUSTER_H
 
 #include "vins/param.h"
-#include "vins/impl/vins_define_internal.h"
-#include "vins/impl/feature_helper.h"
+#include "impl/vins_define_internal.h"
+#include "impl/feature_helper.h"
 
 namespace vins::FrontEndOptimize {
     void optimize(const FrontEndOptimizeParam &param,

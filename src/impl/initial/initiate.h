@@ -7,7 +7,7 @@
 
 #include "vins/param.h"
 
-#include "vins/impl/vins_run_info.h"
+#include "impl/vins_run_info.h"
 
 namespace vins {
     class Initiate {

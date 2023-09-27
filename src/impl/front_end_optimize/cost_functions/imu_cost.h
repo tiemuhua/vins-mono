@@ -5,7 +5,7 @@
 #include <Eigen/Dense>
 #include <ceres/ceres.h>
 
-#include "vins/impl/imu_integrator.h"
+#include "impl/imu_integrator.h"
 
 namespace vins {
     // 残差为15维，位置、四元数、速度、角速度漂移、加速度漂移各5维

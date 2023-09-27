@@ -5,7 +5,7 @@
 #ifndef VINS_FRAME_MATCHER_H
 #define VINS_FRAME_MATCHER_H
 
-#include "vins/impl/loop_closer/keyframe.h"
+#include "impl/loop_closer/keyframe.h"
 
 namespace vins {
     /**

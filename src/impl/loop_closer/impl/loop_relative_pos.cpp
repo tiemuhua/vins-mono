@@ -5,8 +5,8 @@
 #include "loop_relative_pos.h"
 #include <vector>
 #include <opencv2/core/eigen.hpp>
-#include "vins/impl/vins_utils.h"
-#include "vins/impl/loop_closer/keyframe.h"
+#include "impl/vins_utils.h"
+#include "impl/loop_closer/keyframe.h"
 
 using namespace vins;
 using namespace DVision;

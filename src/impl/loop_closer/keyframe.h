@@ -8,7 +8,7 @@
 #include "DBoW2/DBoW2.h"
 #include "DVision/DVision.h"
 
-#include "vins/impl/vins_define_internal.h"
+#include "impl/vins_define_internal.h"
 
 namespace vins {
 

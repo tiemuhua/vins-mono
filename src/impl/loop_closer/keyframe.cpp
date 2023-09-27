@@ -1,7 +1,7 @@
 #include "keyframe.h"
 #include <opencv2/imgproc/types_c.h>
-#include "vins/impl/vins_run_info.h"
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_run_info.h"
+#include "impl/vins_utils.h"
 
 using namespace vins;
 using namespace Eigen;

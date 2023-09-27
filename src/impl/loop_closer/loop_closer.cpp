@@ -1,7 +1,7 @@
 #include <sys/time.h>
 
 #include "loop_closer.h"
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_utils.h"
 #include "vins/vins_logic.h"
 #include "keyframe.h"
 #include "impl/loop_relative_pos.h"

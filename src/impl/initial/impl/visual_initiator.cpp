@@ -11,8 +11,8 @@
 #include <ceres/rotation.h>
 #include <glog/logging.h>
 
-#include "vins/impl/vins_utils.h"
-#include "vins/impl/feature_helper.h"
+#include "impl/vins_utils.h"
+#include "impl/feature_helper.h"
 
 namespace vins {
     using namespace std;

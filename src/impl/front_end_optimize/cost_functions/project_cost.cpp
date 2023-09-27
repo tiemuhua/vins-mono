@@ -1,6 +1,6 @@
 #include "project_cost.h"
 #include <glog/logging.h>
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_utils.h"
 #include "vins/param.h"
 #include "vins/vins_logic.h"
 

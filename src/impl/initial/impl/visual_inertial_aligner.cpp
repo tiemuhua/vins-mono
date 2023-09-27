@@ -5,7 +5,7 @@
 #include "visual_inertial_aligner.h"
 #include <cstdlib>
 #include <glog/logging.h>
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_utils.h"
 
 namespace vins {
     // 此时不知ba、bg、gravity，ba和gravity耦合，都和位移有关。而bg只和旋转有关，因此可以在不知道ba、gravity的情况下独立求解bg。

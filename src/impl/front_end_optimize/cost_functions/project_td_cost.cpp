@@ -4,7 +4,7 @@
 
 #include "vins/param.h"
 #include "vins/vins_logic.h"
-#include "vins/impl/vins_utils.h"
+#include "impl/vins_utils.h"
 
 using namespace vins;
 
