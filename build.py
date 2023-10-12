@@ -18,6 +18,10 @@ os.chdir("Boost")
 call_shell_with_env("python3.10 build.py", my_env)
 my_env["Boost_DIR"] = THIRD_PATH + "Boost/" + INSTALL_FOLDER + "/lib/cmake/" + "/Boost-1.82.0/"
 
+os.chdir("../Eigen")
+call_shell_with_env("python3.10 build.py", my_env)
+my_env["Eigen_DIR"] = THIRD_PATH + "Eigen/" + INSTALL_FOLDER + "/share/eigen3/cmake/"
+
 os.chdir("../opencv")
 call_shell_with_env("python3.10 build.py", my_env)
 my_env["OpenCV_DIR"] = THIRD_PATH + "opencv/" + INSTALL_FOLDER + "/lib/cmake/" + "/opencv4"
@@ -33,10 +37,6 @@ my_env["glog_DIR"] = THIRD_PATH + "glog/" + INSTALL_FOLDER + "/lib/cmake/" + "/g
 os.chdir("../Ceres")
 call_shell_with_env("python3.10 build.py", my_env)
 my_env["Ceres_DIR"] = THIRD_PATH + "Ceres/" + INSTALL_FOLDER + "/lib/cmake/" + "/Ceres"
-
-os.chdir("../Eigen")
-call_shell_with_env("python3.10 build.py", my_env)
-my_env["Eigen_DIR"] = THIRD_PATH + "Eigen/" + INSTALL_FOLDER + "/share/eigen3/cmake/"
 
 os.chdir("../DLib")
 call_shell_with_env("python3.10 build.py", my_env)
