@@ -4,7 +4,7 @@ import os
 import subprocess
 
 PLATFORM:str = platform.platform()
-THIRD_PATH:str = os.path.split(os.path.realpath(__file__))[0] + '../3rd/'
+THIRD_PATH:str = os.path.split(os.path.realpath(__file__))[0] + '/../3rd/'
 INSTALL_FOLDER:str = "install_" + PLATFORM
 
 def call_shell_with_env(cmd:str, env:dict[str, str])->int:

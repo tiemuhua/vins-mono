@@ -20,6 +20,8 @@ def apply_patchs():
         if not os.path.exists("../patch/" + dir):
             print("warning: there is no directory " + dir + "in patch folder")
         else:
+            call_shell("git reset --hard")
+            call_shell("git clean -xfd")
             call_shell("git apply ../patch/" + dir + "/0001-build.patch")
         os.chdir("..")
 
