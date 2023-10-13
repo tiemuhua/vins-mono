@@ -1,0 +1,93 @@
+From f28aa4c74871b1d0f17c26fb1f7561d764bb5330 Mon Sep 17 00:00:00 2001
+From: tiemuhuaguo <tiemuhuaguo@tencent.com>
+Date: Fri, 23 Jun 2023 21:04:02 +0800
+Subject: [PATCH] build
+
+---
+ .gitignore      |  3 ++-
+ CMakeLists.txt  |  6 +++++-
+ build.py        | 22 ++++++++++++++++++++++
+ build_mac_m1.sh |  9 +++++++++
+ 4 files changed, 38 insertions(+), 2 deletions(-)
+ create mode 100644 build.py
+ create mode 100755 build_mac_m1.sh
+
+diff --git a/.gitignore b/.gitignore
+index 706f7f8..c7f00bc 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,8 +1,9 @@
+ /xcode/
+-/build/
++/build*/
+ /builds/
+ /build-*/
+ /_build/
++/install*/
+ .DS_Store
+ CMakeCache.txt
+ DartConfiguration.tcl
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b57c853..de0784b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -594,7 +594,11 @@ if (REGISTER_BUILD_DIR)
+   export (PACKAGE ${PACKAGE_NAME})
+ endif ()
+ if (REGISTER_INSTALL_PREFIX)
+-  register_gflags_package(${CONFIG_INSTALL_DIR})
++  # register_gflags_package is very dangerous if you are using multi toolchains
++  # or the ld will try to link gflag.a compiled by ndk, when we are compiling glog of macos
++  # 不要把gflag-config.cmake的路径注册到~/.cmake/packages/gflags/，尤其是使用多个工具链编译的情况下
++  # 否则在编译macOS上的glog的时候，ld会试图链接ndk版本的gflag！！！！
++  # register_gflags_package(${CONFIG_INSTALL_DIR})
+ endif ()
+ configure_file (cmake/config.cmake.in "${PROJECT_BINARY_DIR}/${PACKAGE_NAME}-config.cmake" @ONLY)
+ 
+diff --git a/build.py b/build.py
+new file mode 100644
+index 0000000..d812915
+--- /dev/null
++++ b/build.py
+@@ -0,0 +1,22 @@
++import os
++import subprocess
++import platform
++
++PROJECT_PATH = os.path.split(os.path.realpath(__file__))[0] + '/'
++
++def call_shell(cmd:str)->int:
++    return subprocess.run(cmd.split(" "))
++
++if __name__ == '__main__':
++    BUILD_PATH:str = PROJECT_PATH + "build_" + platform.platform() + "/"
++    INSTALL_PATH:str = PROJECT_PATH + "install_" + platform.platform() + "/"
++    if not os.path.exists(BUILD_PATH):
++        os.makedirs(BUILD_PATH)
++    if not os.path.exists(INSTALL_PATH):
++        os.makedirs(INSTALL_PATH)
++    os.chdir(BUILD_PATH)
++    CMAKE_CMD:str = "cmake .. " + "-DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH
++    call_shell(CMAKE_CMD)
++    call_shell("make -j$nproc")
++    call_shell("make install")
++    os.chdir("..")
+diff --git a/build_mac_m1.sh b/build_mac_m1.sh
+new file mode 100755
+index 0000000..765dddc
+--- /dev/null
++++ b/build_mac_m1.sh
+@@ -0,0 +1,9 @@
++mkdir build_mac_m1_dir
++cd build_mac_m1_dir
++cmake .. \
++      -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
++      -DCMAKE_BUILD_TYPE=Release \
++      -DBUILD_TESTING=OFF \
++      -DCMAKE_INSTALL_PREFIX=/Users/gjt/3rd/gflags/install_mac_m1_dir
++make -j10
++make install
+\ No newline at end of file
+-- 
+2.37.1 (Apple Git-137.1)
+
