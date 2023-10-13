@@ -1,0 +1,117 @@
+From 3c31cee82dd40055183b687229cb47c7ff1b4056 Mon Sep 17 00:00:00 2001
+From: tiemuhuaguo <tiemuhuaguo@tencent.com>
+Date: Fri, 15 Sep 2023 09:59:30 +0800
+Subject: [PATCH] build
+
+---
+ .gitignore     |  3 ++-
+ CMakeLists.txt |  1 +
+ build.py       | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 1 deletion(-)
+ create mode 100644 build.py
+
+diff --git a/.gitignore b/.gitignore
+index f34c2100f3..ee018d8874 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -21,7 +21,8 @@ bin/
+ *.suo
+ *.log
+ *.tlog
+-build
+ node_modules
+ CMakeSettings.json
+ xcuserdata/
++install*/
++build*/
+\ No newline at end of file
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6a620c94af..8f137ea103 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -231,6 +231,7 @@ OCV_OPTION(BUILD_ITT                "Build Intel ITT from source"
+     (NOT MINGW OR OPENCV_FORCE_3RDPARTY_BUILD)
+     IF (X86_64 OR X86 OR ARM OR AARCH64 OR PPC64 OR PPC64LE) AND NOT WINRT AND NOT APPLE_FRAMEWORK
+ )
++link_directories(${CMAKE_BINARY_DIR}/3rdparty/lib)
+ 
+ # Optional 3rd party components
+ # ===================================================
+diff --git a/build.py b/build.py
+new file mode 100644
+index 0000000000..16ca09d1df
+--- /dev/null
++++ b/build.py
+@@ -0,0 +1,69 @@
++import os
++import subprocess
++import platform
++PROJECT_PATH = os.path.split(os.path.realpath(__file__))[0] + '/'
++
++# CMAKE_OPTIONS 字符串开头不能加r以表示字面量，原因不明，如果写成 CMAKE_OPTIONS:str= r"\ 会导致zlib链接不上去
++CMAKE_OPTIONS:str= "\
++-DCPU_BASELINE_DISABLE=ON \
++-DENABLE_SSE=OFF \
++-DENABLE_SSE2=OFF \
++-DCMAKE_BUILD_TYPE=RELEASE \
++-DBUILD_opencv_ittnotify=OFF \
++-DBUILD_ITT=OFF \
++-DBUILD_TESTING=OFF \
++-DBUILD_PERF_TESTS=OFF \
++-DBUILD_TESTS=OFF \
++-DBUILD_EXAMPLES=OFF \
++-DBUILD_DOCS=OFF \
++-DBUILD_opencv_apps=OFF \
++-DBUILD_SHARED_LIBS=OFF \
++-DBUILD_FAT_JAVA_LIB=ON \
++-DBUILD_JAVA=ON \
++-DBUILD_ANDROID_EXAMPLES=OFF \
++-DBUILD_ANDROID_PROJECTS=OFF \
++-DOpenCV_STATIC=ON \
++-DWITH_CUDA=OFF \
++-DWITH_OPENCL=OFF \
++-DWITH_OPENCLAMDFFT=OFF \
++-DWITH_OPENCLAMDBLAS=OFF \
++-DWITH_VA_INTEL=OFF \
++-DWITH_1394=OFF \
++-DWITH_ARITH_DEC=OFF \
++-DWITH_ARITH_ENC=OFF \
++-DWITH_CUBLAS=OFF \
++-DWITH_CUFFT=OFF \
++-DWITH_FFMPEG=OFF \
++-DWITH_GDAL=OFF \
++-DWITH_GSTREAMER=OFF \
++-DWITH_GTK=OFF \
++-DWITH_HALIDE=OFF \
++-DWITH_JASPER=OFF \
++-DWITH_NVCUVID=OFF \
++-DWITH_OPENEXR=OFF \
++-DWITH_PROTOBUF=OFF \
++-DWITH_PTHREADS_PF=OFF \
++-DWITH_QUIRC=OFF \
++-DWITH_V4L=OFF \
++-DWITH_WEBP=OFF \
++-DOPENCV_ENABLE_NONFREE=ON \
++"
++
++def call_shell(cmd:str)->int:
++    return subprocess.run(cmd.split(" "))
++
++if __name__ == '__main__':
++    BUILD_PATH:str = PROJECT_PATH + "build_" + platform.platform() + "/"
++    INSTALL_PATH:str = PROJECT_PATH + "install_" + platform.platform() + "/"
++    if not os.path.exists(BUILD_PATH):
++        os.makedirs(BUILD_PATH)
++    if not os.path.exists(INSTALL_PATH):
++        os.makedirs(INSTALL_PATH)
++    os.chdir(BUILD_PATH)
++    CMAKE_CMD:str = "cmake .. " + CMAKE_OPTIONS + "-DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH + " "
++    CMAKE_CMD = CMAKE_CMD + "-DOPENCV_EXTRA_MODULES_PATH=../../opencv_contrib/modules"
++    print(CMAKE_CMD)
++    call_shell(CMAKE_CMD)
++    call_shell("make -j16")
++    call_shell("make install")
++    os.chdir("..")
+-- 
+2.37.1 (Apple Git-137.1)
+

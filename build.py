@@ -18,9 +18,9 @@ os.chdir("Boost")
 call_shell_with_env("python3.10 build.py", my_env)
 my_env["Boost_DIR"] = THIRD_PATH + "Boost/" + INSTALL_FOLDER + "/lib/cmake/" + "/Boost-1.82.0/"
 
-os.chdir("../Eigen")
+os.chdir("../Eigen3")
 call_shell_with_env("python3.10 build.py", my_env)
-my_env["Eigen_DIR"] = THIRD_PATH + "Eigen/" + INSTALL_FOLDER + "/share/eigen3/cmake/"
+my_env["Eigen3_DIR"] = THIRD_PATH + "Eigen3/" + INSTALL_FOLDER + "/share/eigen3/cmake/"
 
 os.chdir("../opencv")
 call_shell_with_env("python3.10 build.py", my_env)

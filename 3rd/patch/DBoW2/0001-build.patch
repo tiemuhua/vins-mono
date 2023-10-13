@@ -1,0 +1,141 @@
+From fadc372b8d1a635de4b3197f80472d716c66938b Mon Sep 17 00:00:00 2001
+From: tiemuhuaguo <tiemuhuaguo@tencent.com>
+Date: Thu, 22 Jun 2023 17:08:15 +0800
+Subject: [PATCH] build
+
+---
+ .gitignore         |  2 ++
+ CMakeLists.txt     | 31 ++++---------------------------
+ build.py           | 28 ++++++++++++++++++++++++++++
+ build.sh           |  6 ++++++
+ src/DBoW2.cmake.in |  2 +-
+ 5 files changed, 41 insertions(+), 28 deletions(-)
+ create mode 100644 .gitignore
+ create mode 100644 build.py
+ create mode 100755 build.sh
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..13992f2
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,2 @@
++install*/
++build*/
+\ No newline at end of file
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6f83c07..6513850 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -30,36 +30,14 @@ set(SRCS
+   src/BowVector.cpp     src/FBrief.cpp        src/FSurf64.cpp       src/FORB.cpp
+   src/FeatureVector.cpp src/QueryResults.cpp  src/ScoringObject.cpp)
+ 
+-set(DEPENDENCY_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
+-set(DEPENDENCY_INSTALL_DIR ${DEPENDENCY_DIR}/install)
+-
+ find_package(OpenCV REQUIRED)
+ include_directories(${OpenCV_INCLUDE_DIRS})
+ 
+ find_package(Boost REQUIRED)
+-include_directories(${Boost_INCLUDE_DIR})
++include_directories(${Boost_INCLUDE_DIRS})
+ 
+-find_package(DLib QUIET 
+-  PATHS ${DEPENDENCY_INSTALL_DIR})
+-if(${DLib_FOUND})
+-  message("DLib library found, using it from the system")
+-  include_directories(${DLib_INCLUDE_DIRS})
+-  add_custom_target(Dependencies)
+-else(${DLib_FOUND})
+-  message("DLib library not found in the system, it will be downloaded on build")
+-  option(DOWNLOAD_DLib_dependency "Download DLib dependency" ON)
+-  if(${DOWNLOAD_DLib_dependency})
+-    ExternalProject_Add(DLib
+-      PREFIX ${DEPENDENCY_DIR}
+-      GIT_REPOSITORY http://github.com/dorian3d/DLib
+-      GIT_TAG v1.1-nonfree
+-      INSTALL_DIR ${DEPENDENCY_INSTALL_DIR}
+-      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>)
+-    add_custom_target(Dependencies ${CMAKE_COMMAND} ${CMAKE_SOURCE_DIR} DEPENDS DLib)
+-  else()
+-    message(SEND_ERROR "Please, activate DOWNLOAD_DLib_dependency option or download manually")
+-  endif(${DOWNLOAD_DLib_dependency})
+-endif(${DLib_FOUND})
++find_package(DLib REQUIRED)
++include_directories(${DLib_INCLUDE_DIRS})
+ 
+ if(BUILD_DBoW2)
+   add_library(${PROJECT_NAME} SHARED ${SRCS})
+@@ -82,7 +60,6 @@ if(BUILD_DBoW2)
+   install(DIRECTORY include/DBoW2 DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+ endif()
+ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/DBoW2Config.cmake"
+-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME})
++  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
+ install(FILES "${PROJECT_BINARY_DIR}/DBoW2Config.cmake" 
+   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/DBoW2/)
+-install(DIRECTORY ${DEPENDENCY_INSTALL_DIR}/ DESTINATION ${CMAKE_INSTALL_PREFIX} OPTIONAL)
+diff --git a/build.py b/build.py
+new file mode 100644
+index 0000000..a546506
+--- /dev/null
++++ b/build.py
+@@ -0,0 +1,28 @@
++import os
++import subprocess
++import platform
++
++
++PROJECT_PATH = os.path.split(os.path.realpath(__file__))[0] + '/'
++
++def call_shell(cmd:str)->int:
++    return subprocess.run(cmd.split(" "))
++
++
++if __name__ == '__main__':
++    assert("OpenCV_DIR" in os.environ), "please set OpenCV_DIR in envirment variables, and make sure opencv is 4.7.0"
++    assert("Boost_DIR" in os.environ), "please set Boost_DIR in envirment variables, and make sure opencv is 1.82.0"
++    assert("DLib_DIR" in os.environ), "please set DLib_DIR in envirment variables"
++
++    BUILD_PATH:str = PROJECT_PATH + "build_" + platform.platform() + "/"
++    INSTALL_PATH:str = PROJECT_PATH + "install_" + platform.platform() + "/"
++    if not os.path.exists(BUILD_PATH):
++        os.makedirs(BUILD_PATH)
++    if not os.path.exists(INSTALL_PATH):
++        os.makedirs(INSTALL_PATH)
++    os.chdir(BUILD_PATH)
++    CMAKE_CMD:str = "cmake .. " + "-DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH
++    call_shell(CMAKE_CMD)
++    call_shell("make -j$nproc")
++    call_shell("make install")
++    os.chdir("..")
+diff --git a/build.sh b/build.sh
+new file mode 100755
+index 0000000..64000f8
+--- /dev/null
++++ b/build.sh
+@@ -0,0 +1,6 @@
++mkdir build
++cd build
++cmake .. \
++-DCMAKE_INSTALL_PREFIX=install
++make -j$nproc
++make install
+\ No newline at end of file
+diff --git a/src/DBoW2.cmake.in b/src/DBoW2.cmake.in
+index c3f9203..f073131 100644
+--- a/src/DBoW2.cmake.in
++++ b/src/DBoW2.cmake.in
+@@ -2,7 +2,7 @@ FIND_LIBRARY(DBoW2_LIBRARY DBoW2
+     PATHS @CMAKE_INSTALL_PREFIX@/lib
+ )
+ FIND_PATH(DBoW2_INCLUDE_DIR DBoW2Config.cmake
+-    PATHS @CMAKE_INSTALL_PREFIX@/include/@PROJECT_NAME@ 
++    PATHS @CMAKE_INSTALL_PREFIX@/include/ 
+ )
+ SET(DBoW2_LIBRARIES ${DBoW2_LIBRARY})
+ SET(DBoW2_LIBS ${DBoW2_LIBRARY})
+-- 
+2.37.1 (Apple Git-137.1)
+

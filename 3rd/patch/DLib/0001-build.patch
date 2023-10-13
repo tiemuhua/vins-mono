@@ -1,0 +1,310 @@
+From 928062125c360315532048372035220fd68cf207 Mon Sep 17 00:00:00 2001
+From: tiemuhuaguo <tiemuhuaguo@tencent.com>
+Date: Fri, 6 Oct 2023 12:41:39 +0800
+Subject: [PATCH] build
+
+---
+ .gitignore               |  2 ++
+ CMakeLists.txt           |  8 +++++---
+ build.py                 | 25 +++++++++++++++++++++++++
+ include/DUtilsCV/GUI.h   | 24 ++++++++++++------------
+ src/DLib.cmake.in        |  2 +-
+ src/DUtilsCV/Drawing.cpp |  7 ++++---
+ src/DUtilsCV/GUI.cpp     | 28 +++++++++++++++-------------
+ src/DVision/BRIEF.cpp    |  1 +
+ src/DVision/FSolver.cpp  |  4 ++--
+ src/DVision/HSolver.cpp  |  2 +-
+ 10 files changed, 68 insertions(+), 35 deletions(-)
+ create mode 100644 .gitignore
+ create mode 100644 build.py
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..6b27cb6
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,2 @@
++/build*/
++/install*/
+\ No newline at end of file
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a967f55..b91177a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -62,7 +62,8 @@ if(BUILD_DVision)
+     src/DVision/PixelPointFile.cpp
+     ${SRCS})
+ 
+-  find_package(Boost QUIET)  # For dynamic_bitset
++  find_package(Boost REQUIRED)  # For dynamic_bitset
++  include_directories(${Boost_INCLUDE_DIRS})
+   if (Boost_FOUND)
+     set(HDRS include/DVision/BRIEF.h ${HDRS})
+     set(SRCS src/DVision/BRIEF.cpp ${SRCS})
+@@ -72,6 +73,7 @@ endif(BUILD_DVision)
+ 
+ if(BUILD_DUtilsCV OR BUILD_DVision)
+   find_package(OpenCV REQUIRED)
++  include_directories(${OpenCV_INCLUDE_DIRS})
+ endif(BUILD_DUtilsCV OR BUILD_DVision)
+ 
+ set(LIB_SHARED "SHARED")
+@@ -79,7 +81,7 @@ if(WIN32)
+   set(LIB_SHARED "STATIC")
+ endif(WIN32)
+ 
+-include_directories(include/DUtils include/DUtilsCV include/DVision ${OpenCV_INCLUDE_DIRS})
++include_directories(include/DUtils include/DUtilsCV include/DVision)
+ add_library(${PROJECT_NAME} ${LIB_SHARED} ${SRCS})
+ target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+ 
+@@ -97,6 +99,6 @@ if(BUILD_DVision)
+   install(DIRECTORY include/DVision DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
+ endif()
+ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/DLibConfig.cmake"
+-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME})
++  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
+ install(FILES "${PROJECT_BINARY_DIR}/DLibConfig.cmake" 
+   DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/DLib/)
+diff --git a/build.py b/build.py
+new file mode 100644
+index 0000000..11ef497
+--- /dev/null
++++ b/build.py
+@@ -0,0 +1,25 @@
++import os
++import subprocess
++import platform
++
++PROJECT_PATH = os.path.split(os.path.realpath(__file__))[0] + '/'
++
++def call_shell(cmd:str)->int:
++    return subprocess.run(cmd.split(" "))
++
++if __name__ == '__main__':
++    assert("OpenCV_DIR" in os.environ), "please set OpenCV_DIR in envirment variables, and make sure opencv is 4.7.0"
++    assert("Boost_DIR" in os.environ), "please set Boost_DIR in envirment variables, and make sure opencv is 1.82.0"
++
++    BUILD_PATH:str = PROJECT_PATH + "build_" + platform.platform() + "/"
++    INSTALL_PATH:str = PROJECT_PATH + "install_" + platform.platform() + "/"
++    if not os.path.exists(BUILD_PATH):
++        os.makedirs(BUILD_PATH)
++    if not os.path.exists(INSTALL_PATH):
++        os.makedirs(INSTALL_PATH)
++    os.chdir(BUILD_PATH)
++    CMAKE_CMD:str = "cmake .. " + "-DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH
++    call_shell(CMAKE_CMD)
++    call_shell("make -j$nproc")
++    call_shell("make install")
++    os.chdir("..")
+diff --git a/include/DUtilsCV/GUI.h b/include/DUtilsCV/GUI.h
+index 8fe156d..e8688fb 100644
+--- a/include/DUtilsCV/GUI.h
++++ b/include/DUtilsCV/GUI.h
+@@ -152,24 +152,24 @@ public:
+   struct tEvent
+   {
+     int x, y;  // mouse coordinates
+-    int event; // some CV_EVENT_* value (see below)
+-    int flags; // flags composed of CV_EVENT_FLAG_* values
++    int event; // some cv::EVENT_* value (see below)
++    int flags; // flags composed of cv::EVENT_FLAG_* values
+     
+     tEvent(){}
+     tEvent(int _x, int _y, int _event, int _flags)
+       : x(_x), y(_y), event(_event), flags(_flags){}
+     
+     // Events defined by OpenCV
+-    // CV_EVENT_LBUTTONDOWN;
+-    // CV_EVENT_LBUTTONUP;
+-    // CV_EVENT_LBUTTONDBLCLK;
+-    // CV_EVENT_RBUTTONDOWN;
+-    // CV_EVENT_RBUTTONUP;
+-    // CV_EVENT_RBUTTONDBLCLK;
+-    // CV_EVENT_MBUTTONDOWN;
+-    // CV_EVENT_MBUTTONUP;
+-    // CV_EVENT_MBUTTONDBLCLK;
+-    // CV_EVENT_MOUSEMOVE;
++    // cv::EVENT_LBUTTONDOWN;
++    // cv::EVENT_LBUTTONUP;
++    // cv::EVENT_LBUTTONDBLCLK;
++    // cv::EVENT_RBUTTONDOWN;
++    // cv::EVENT_RBUTTONUP;
++    // cv::EVENT_RBUTTONDBLCLK;
++    // cv::EVENT_MBUTTONDOWN;
++    // cv::EVENT_MBUTTONUP;
++    // cv::EVENT_MBUTTONDBLCLK;
++    // cv::EVENT_MOUSEMOVE;
+   };
+ 
+ public:
+diff --git a/src/DLib.cmake.in b/src/DLib.cmake.in
+index 42a8cd5..fc57f78 100644
+--- a/src/DLib.cmake.in
++++ b/src/DLib.cmake.in
+@@ -2,7 +2,7 @@ FIND_LIBRARY(DLib_LIBRARY DLib
+     PATHS @CMAKE_INSTALL_PREFIX@/lib
+ )
+ FIND_PATH(DLib_INCLUDE_DIR DLibConfig.cmake
+-    PATHS @CMAKE_INSTALL_PREFIX@/include/@PROJECT_NAME@ 
++    PATHS @CMAKE_INSTALL_PREFIX@/include/ 
+ )
+ LIST(APPEND DLib_INCLUDE_DIR
+   ${DLib_INCLUDE_DIR}/../ ${DLib_INCLUDE_DIR}/../DUtils
+diff --git a/src/DUtilsCV/Drawing.cpp b/src/DUtilsCV/Drawing.cpp
+index 9b56416..0656935 100644
+--- a/src/DUtilsCV/Drawing.cpp
++++ b/src/DUtilsCV/Drawing.cpp
+@@ -12,6 +12,7 @@
+ #include <opencv2/core.hpp>
+ #include <opencv2/highgui.hpp>
+ #include <opencv2/calib3d.hpp>
++#include <opencv2/imgproc/types_c.h>
+ #include "Drawing.h"
+ 
+ using namespace std;
+@@ -115,7 +116,7 @@ void Drawing::drawCorrespondences(cv::Mat &image, const cv::Mat &img1,
+   Drawing::drawKeyPoints(aux2, kp2);
+ 
+   cv::Mat im = cv::Mat::zeros(rows, cols, CV_8UC1);
+-  IplImage ipl_im = IplImage(im);
++  IplImage ipl_im = cvIplImage(im);
+   IplImage* ipl_ret = &ipl_im;
+ 
+   CvRect roi;
+@@ -125,7 +126,7 @@ void Drawing::drawCorrespondences(cv::Mat &image, const cv::Mat &img1,
+   roi.height = img1.rows;
+ 	
+   cvSetImageROI(ipl_ret, roi);
+-  IplImage ipl_aux1 = IplImage(aux1);
++  IplImage ipl_aux1 = cvIplImage(aux1);
+   cvCopy(&ipl_aux1, ipl_ret);
+   
+   roi.x = 0;
+@@ -134,7 +135,7 @@ void Drawing::drawCorrespondences(cv::Mat &image, const cv::Mat &img1,
+   roi.height = img2.rows;
+ 	
+   cvSetImageROI(ipl_ret, roi);
+-  IplImage ipl_aux2 = IplImage(aux2);
++  IplImage ipl_aux2 = cvIplImage(aux2);
+   cvCopy(&ipl_aux2, ipl_ret);
+ 
+ 	cvResetImageROI(ipl_ret);
+diff --git a/src/DUtilsCV/GUI.cpp b/src/DUtilsCV/GUI.cpp
+index 429237e..df3a841 100644
+--- a/src/DUtilsCV/GUI.cpp
++++ b/src/DUtilsCV/GUI.cpp
+@@ -12,7 +12,9 @@
+ #include <queue>
+ #include <opencv2/core.hpp>
+ #include <opencv2/highgui.hpp>
++#include <opencv2/highgui/highgui_c.h>
+ #include <opencv2/imgproc.hpp>
++#include <opencv2/imgproc/types_c.h>
+ #include <cstdio>
+ #include <string>
+ #include <sstream>
+@@ -39,7 +41,7 @@ int GUI::showImage(const cv::Mat &image, bool autosize,
+     name = ssname.str();
+     
+     int flags = 0;
+-    if(autosize) flags |= CV_WINDOW_AUTOSIZE;
++    if(autosize) flags |= cv::WINDOW_AUTOSIZE;
+     
+     cv::namedWindow( name.c_str(), flags );
+     
+@@ -237,7 +239,7 @@ void GUI::MouseHandler::attach(const tWinHandler &hwnd,
+ void GUI::MouseHandler::attachToClicks(const tWinHandler &hwnd)
+ {
+   m_valid_events.resize(1);
+-  m_valid_events[0] = CV_EVENT_LBUTTONUP;
++  m_valid_events[0] = cv::EVENT_LBUTTONUP;
+   m_attached = true;
+   cv::setMouseCallback(hwnd, GUI::MouseHandler::callbackHandlerFunction, this);
+ }
+@@ -247,7 +249,7 @@ void GUI::MouseHandler::attachToClicks(const tWinHandler &hwnd)
+ void GUI::MouseHandler::attachToMotions(const tWinHandler &hwnd)
+ {
+   m_valid_events.resize(1);
+-  m_valid_events[0] = CV_EVENT_MOUSEMOVE;
++  m_valid_events[0] = cv::EVENT_MOUSEMOVE;
+   m_attached = true;
+   cv::setMouseCallback(hwnd, GUI::MouseHandler::callbackHandlerFunction, this);
+ }
+@@ -275,16 +277,16 @@ void GUI::MouseHandler::listenToAll()
+   //@note RACE CONDITION!
+   
+   m_valid_events.resize(10);
+-  m_valid_events[0] = CV_EVENT_LBUTTONDOWN;
+-  m_valid_events[1] = CV_EVENT_LBUTTONUP;
+-  m_valid_events[2] = CV_EVENT_LBUTTONDBLCLK;
+-  m_valid_events[3] = CV_EVENT_RBUTTONDOWN;
+-  m_valid_events[4] = CV_EVENT_RBUTTONUP;
+-  m_valid_events[5] = CV_EVENT_RBUTTONDBLCLK;
+-  m_valid_events[6] = CV_EVENT_MBUTTONDOWN;
+-  m_valid_events[7] = CV_EVENT_MBUTTONUP;
+-  m_valid_events[8] = CV_EVENT_MBUTTONDBLCLK;
+-  m_valid_events[9] = CV_EVENT_MOUSEMOVE;
++  m_valid_events[0] = cv::EVENT_LBUTTONDOWN;
++  m_valid_events[1] = cv::EVENT_LBUTTONUP;
++  m_valid_events[2] = cv::EVENT_LBUTTONDBLCLK;
++  m_valid_events[3] = cv::EVENT_RBUTTONDOWN;
++  m_valid_events[4] = cv::EVENT_RBUTTONUP;
++  m_valid_events[5] = cv::EVENT_RBUTTONDBLCLK;
++  m_valid_events[6] = cv::EVENT_MBUTTONDOWN;
++  m_valid_events[7] = cv::EVENT_MBUTTONUP;
++  m_valid_events[8] = cv::EVENT_MBUTTONDBLCLK;
++  m_valid_events[9] = cv::EVENT_MOUSEMOVE;
+   
+   std::sort(m_valid_events.begin(), m_valid_events.end());
+ }
+diff --git a/src/DVision/BRIEF.cpp b/src/DVision/BRIEF.cpp
+index 2782e52..e880427 100644
+--- a/src/DVision/BRIEF.cpp
++++ b/src/DVision/BRIEF.cpp
+@@ -14,6 +14,7 @@
+ #include "DUtils.h"
+ #include <boost/dynamic_bitset.hpp>
+ #include <opencv2/imgproc.hpp>
++#include <opencv2/imgproc/types_c.h>
+ #include <vector>
+ 
+ using namespace std;
+diff --git a/src/DVision/FSolver.cpp b/src/DVision/FSolver.cpp
+index 3b62555..908f150 100644
+--- a/src/DVision/FSolver.cpp
++++ b/src/DVision/FSolver.cpp
+@@ -146,7 +146,7 @@ cv::Mat FSolver::findFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
+       cv::Mat sq_ab, norms;
+       cv::multiply(l1.rowRange(0,2), l1.rowRange(0,2), sq_ab);
+       
+-      cv::reduce(sq_ab, norms, 0, CV_REDUCE_SUM); // 0 = single row
++      cv::reduce(sq_ab, norms, 0, cv::REDUCE_SUM); // 0 = single row
+       cv::sqrt(norms, norms); // norms is Nx2
+       
+       cv::Mat thresholds = norms * reprojection_error; // Nx1
+@@ -157,7 +157,7 @@ cv::Mat FSolver::findFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
+       // d(x, l) = dot(x*, l*), * means normalized
+       cv::Mat prod, dot;
+       cv::multiply(l1, Q1, prod); // l1 against Q1 (homogeneous in image coords)
+-      cv::reduce(prod, dot, 0, CV_REDUCE_SUM); // dot is Nx1
++      cv::reduce(prod, dot, 0, cv::REDUCE_SUM); // dot is Nx1
+       
+       // error w/o sign
+       dot = abs(dot);
+diff --git a/src/DVision/HSolver.cpp b/src/DVision/HSolver.cpp
+index 1d61772..3020d4d 100644
+--- a/src/DVision/HSolver.cpp
++++ b/src/DVision/HSolver.cpp
+@@ -141,7 +141,7 @@ cv::Mat HSolver::findHomography(const cv::Mat &P1, const cv::Mat &P2,
+       cv::multiply(ab, ab, sq_ab);
+       
+       cv::Mat error;
+-      cv::reduce(sq_ab, error, 0, CV_REDUCE_SUM); // 0 = single row
++      cv::reduce(sq_ab, error, 0, cv::REDUCE_SUM); // 0 = single row
+       // squared error is positive
+     
+       // get inliers
+-- 
+2.37.1 (Apple Git-137.1)
+
