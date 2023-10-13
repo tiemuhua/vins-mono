@@ -16,13 +16,13 @@ def apply_patchs():
     for dir in directories:
         if os.path.isfile(dir):
             continue
-        os.chdir(dir)
-        if not os.path.exists("../patch/" + dir):
+        if not os.path.exists("patch/" + dir):
             print("warning: there is no directory " + dir + "in patch folder")
-        else:
-            call_shell("git reset --hard")
-            call_shell("git clean -xfd")
-            call_shell("git apply ../patch/" + dir + "/0001-build.patch")
+            continue
+        os.chdir(dir)
+        call_shell("git reset --hard")
+        call_shell("git clean -xfd")
+        call_shell("git apply ../patch/" + dir + "/0001-build.patch")
         os.chdir("..")
 
 if __name__ == '__main__':
