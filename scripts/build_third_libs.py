@@ -9,6 +9,28 @@ THIRD_PATH: str = os.path.split(os.path.realpath(__file__))[0] + '/../3rd/'
 INSTALL_FOLDER: str = "install_" + PLATFORM
 BUILD_FOLDER: str = "build_" + PLATFORM
 
+BOOST: str = "Boost"
+EIGEN: str = "Eigen3"
+OPENCV: str = "OpenCV"
+GFLAGS: str = "gflags"
+GLOG: str = "glog"
+CERES: str = "Ceres"
+DLIB: str = "DLib"
+DBOW2: str = "DBoW2"
+CAMODOCAL: str = "camodocal"
+LIBRARY_LIST: list[str] = [BOOST, EIGEN, OPENCV, GFLAGS, GLOG, CERES, DLIB, DBOW2, CAMODOCAL]
+DEPENDENCY_GRAPH: dict[str, list[str]] = {
+    BOOST: [],
+    EIGEN: [],
+    OPENCV: [],
+    GFLAGS: [],
+    GLOG: [GFLAGS],
+    CERES: [GFLAGS, GLOG],
+    DLIB: [OPENCV, BOOST],
+    DBOW2: [DLIB, OPENCV, BOOST],
+    CAMODOCAL: [DLIB, DBOW2, OPENCV, BOOST, CERES, EIGEN, GLOG, GFLAGS]
+}
+
 
 def compile_third_libs():
     my_env: dict[str, str] = os.environ.copy()
@@ -52,8 +74,7 @@ def compile_third_libs():
 
     print("-------------------------------------------------------------")
     print("please export xxx_DIR in your ~/.zshrc or ~/.bashrc manually")
-    libs: list[str] = ["Boost", "Eigen3", "OpenCV", "gflags", "glog", "Ceres", "DLib", "DBoW2", "camodocal"]
-    for lib in libs:
+    for lib in LIBRARY_LIST:
         export_expression: str = "export {lib}_DIR={path}".format(lib=lib, path=my_env[lib + "_DIR"])
         print(export_expression)
     print("-------------------------------------------------------------")
