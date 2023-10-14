@@ -8,11 +8,14 @@ def call_shell_with_env(cmd: str, env: dict[str, str]) -> CompletedProcess[Any] 
     return subprocess.run(cmd.split(" "), env=env)
 
 
+# 执行本函数时应当保证工作目录位于 CMakeLists.txt 目录中
+# 本函数结束时保证仍然位于 CMakeLists.txt 目录中
 def cmake_build_library(env: dict[str, str],
                         build_folder: str,
                         install_folder: str,
                         dependency_list: list[str],
                         cmake_options: str = ""):
+    assert os.path.exists("CMakeLists.txt")
     for dependency in dependency_list:
         assert(dependency + "_DIR" in env)
     project_path: str = os.path.abspath('.')
@@ -29,6 +32,7 @@ def cmake_build_library(env: dict[str, str],
     call_shell_with_env("make -j16", env)
     call_shell_with_env("make install", env)
     os.chdir("..")
+    assert os.path.exists("CMakeLists.txt")
 
 
 def b2_build_library(env: dict[str, str], build_folder: str, install_folder: str):
