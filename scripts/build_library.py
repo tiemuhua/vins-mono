@@ -8,7 +8,13 @@ def call_shell_with_env(cmd: str, env: dict[str, str]) -> CompletedProcess[Any] 
     return subprocess.run(cmd.split(" "), env=env)
 
 
-def cmake_build_library(env: dict[str, str], build_folder: str, install_folder: str, cmake_options: str = ""):
+def cmake_build_library(env: dict[str, str],
+                        build_folder: str,
+                        install_folder: str,
+                        dependency_list: list[str],
+                        cmake_options: str = ""):
+    for dependency in dependency_list:
+        assert(dependency + "_DIR" in env)
     project_path: str = os.path.abspath('.')
     build_path: str = os.path.join(project_path, build_folder)
     install_path: str = os.path.join(project_path, install_folder)

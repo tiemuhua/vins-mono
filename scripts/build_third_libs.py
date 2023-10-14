@@ -40,35 +40,36 @@ def compile_third_libs():
     my_env["Boost_DIR"] = THIRD_PATH + "Boost/" + INSTALL_FOLDER + "/lib/cmake/" + "/Boost-1.82.0/"
 
     os.chdir("../Eigen3")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[EIGEN])
     my_env["Eigen3_DIR"] = THIRD_PATH + "Eigen3/" + INSTALL_FOLDER + "/share/eigen3/cmake/"
 
     os.chdir("../opencv")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, cmake_options.OPENCV_CMAKE_OPTIONS)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[OPENCV],
+                                      cmake_options.OPENCV_CMAKE_OPTIONS)
     my_env["OpenCV_DIR"] = THIRD_PATH + "opencv/" + INSTALL_FOLDER + "/lib/cmake/" + "/opencv4"
 
     os.chdir("../gflags")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[GFLAGS])
     my_env["gflags_DIR"] = THIRD_PATH + "gflags/" + INSTALL_FOLDER + "/lib/cmake/" + "/gflags"
 
     os.chdir("../glog")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[GLOG])
     my_env["glog_DIR"] = THIRD_PATH + "glog/" + INSTALL_FOLDER + "/lib/cmake/" + "/glog"
 
     os.chdir("../Ceres")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[CERES])
     my_env["Ceres_DIR"] = THIRD_PATH + "Ceres/" + INSTALL_FOLDER + "/lib/cmake/" + "/Ceres"
 
     os.chdir("../DLib")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[DLIB])
     my_env["DLib_DIR"] = THIRD_PATH + "DLib/" + INSTALL_FOLDER + "/lib/cmake/" + "/DLib"
 
     os.chdir("../DBoW2")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[DBOW2])
     my_env["DBoW2_DIR"] = THIRD_PATH + "DBoW2/" + INSTALL_FOLDER + "/lib/cmake/" + "/DBoW2"
 
     os.chdir("../camodocal")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
+    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[CAMODOCAL])
     my_env["camodocal_DIR"] = THIRD_PATH + "camodocal/" + INSTALL_FOLDER + "/lib/cmake/" + "/camodocal"
     os.chdir("..")
 
