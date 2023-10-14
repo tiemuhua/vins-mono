@@ -6,14 +6,13 @@ from typing import Any
 
 PLATFORM: str = platform.platform()
 THIRD_PATH: str = os.path.split(os.path.realpath(__file__))[0] + '/../3rd/'
-INSTALL_FOLDER: str = "install_" + PLATFORM
 
 
 def call_shell(cmd: str) -> CompletedProcess[Any] | CompletedProcess[bytes]:
     return subprocess.run(cmd.split(" "))
 
 
-def apply_patchs():
+def apply_patches():
     os.chdir(THIRD_PATH)
     directories: list[str] = os.listdir(".")
     for directory in directories:
@@ -30,4 +29,4 @@ def apply_patchs():
 
 
 if __name__ == '__main__':
-    apply_patchs()
+    apply_patches()
