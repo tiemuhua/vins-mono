@@ -37,7 +37,7 @@ def compile_third_libs():
     os.chdir(THIRD_PATH)
     os.chdir("Boost")
     build_library.b2_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
-    my_env["Boost_DIR"] = THIRD_PATH + "Boost/" + INSTALL_FOLDER + "/lib/cmake/" + "/Boost-1.82.0/"
+    my_env["Boost_DIR"] = THIRD_PATH + "Boost/" + INSTALL_FOLDER + "/lib/cmake/" + "Boost-1.82.0/"
 
     os.chdir("../Eigen3")
     build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[EIGEN])
