@@ -70,7 +70,7 @@ def compile_third_libs():
 
     os.chdir("../camodocal")
     build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[CAMODOCAL])
-    my_env["camodocal_DIR"] = THIRD_PATH + "camodocal/" + INSTALL_FOLDER + "/lib/cmake/" + "/camodocal"
+    my_env["CAMODOCAL_DIR"] = THIRD_PATH + "camodocal/" + INSTALL_FOLDER + "/lib/cmake/" + "/CAMODOCAL"
     os.chdir("..")
 
     print("##############################################################")
