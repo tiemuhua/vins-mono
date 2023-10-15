@@ -26,8 +26,8 @@ DEPENDENCY_GRAPH: dict[str, list[str]] = {
     GFLAGS: [],
     GLOG: [GFLAGS],
     CERES: [GFLAGS, GLOG],
-    DLIB: [OPENCV, BOOST],
-    DBOW2: [DLIB, OPENCV, BOOST],
+    DLIB: [OPENCV, BOOST, EIGEN],
+    DBOW2: [DLIB, OPENCV, BOOST, EIGEN],
     CAMODOCAL: [DLIB, DBOW2, OPENCV, BOOST, CERES, EIGEN, GLOG, GFLAGS]
 }
 
@@ -73,12 +73,12 @@ def compile_third_libs():
     my_env["camodocal_DIR"] = THIRD_PATH + "camodocal/" + INSTALL_FOLDER + "/lib/cmake/" + "/camodocal"
     os.chdir("..")
 
-    print("-------------------------------------------------------------")
+    print("##############################################################")
     print("please export xxx_DIR in your ~/.zshrc or ~/.bashrc manually")
     for lib in LIBRARY_LIST:
         export_expression: str = "export {lib}_DIR={path}".format(lib=lib, path=my_env[lib + "_DIR"])
         print(export_expression)
-    print("-------------------------------------------------------------")
+    print("##############################################################")
 
 
 if __name__ == '__main__':
