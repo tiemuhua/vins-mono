@@ -22,3 +22,6 @@
 [submodule "3rd/camodocal"]
 	path = 3rd/camodocal
 	url = https://github.com/hengli/camodocal.git
+[submodule "3rd/Eigen3"]
+	path = 3rd/Eigen3
+	url = https://gitlab.com/libeigen/eigen.git
