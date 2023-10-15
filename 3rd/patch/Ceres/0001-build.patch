@@ -1,18 +1,14 @@
-From 5bb61d991bc5ae70847d8e25af3c6ec9270c7c94 Mon Sep 17 00:00:00 2001
+From a7009e3927f136b6ef1c8b52fb224d4a978b20b7 Mon Sep 17 00:00:00 2001
 From: tiemuhuaguo <tiemuhuaguo@tencent.com>
-Date: Sat, 24 Jun 2023 13:13:18 +0800
+Date: Sun, 15 Oct 2023 10:37:20 +0800
 Subject: [PATCH] build
 
-Change-Id: I083384b3f8ab024a6fe3c7ac4e60de5a916987d2
+Change-Id: I3ce94ec5716e60ffe92ae0867ea47238e1152b84
 ---
  .gitignore           |  3 ++-
  CMakeLists.txt       | 14 +++++++++++---
- build.py             | 36 ++++++++++++++++++++++++++++++++++++
- build_mac_m1.sh      | 13 +++++++++++++
- cmake/FindGlog.cmake |  2 +-
- 5 files changed, 63 insertions(+), 5 deletions(-)
- create mode 100644 build.py
- create mode 100755 build_mac_m1.sh
+ cmake/FindGlog.cmake |  3 ++-
+ 3 files changed, 15 insertions(+), 5 deletions(-)
 
 diff --git a/.gitignore b/.gitignore
 index 8a9403a2..5a201eef 100644
@@ -53,74 +49,15 @@ index 7f88fb48..38cbee21 100644
    if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)" AND
        Eigen3_VERSION VERSION_LESS 3.3.4)
      # As per issue #289: https://github.com/ceres-solver/ceres-solver/issues/289
-diff --git a/build.py b/build.py
-new file mode 100644
-index 00000000..add88d44
---- /dev/null
-+++ b/build.py
-@@ -0,0 +1,36 @@
-+import os
-+import subprocess
-+import platform
-+
-+PROJECT_PATH = os.path.split(os.path.realpath(__file__))[0] + '/'
-+
-+def call_shell(cmd:str)->int:
-+    return subprocess.run(cmd.split(" "))
-+
-+CMAKE_OPTIONS:str = "\
-+    -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
-+    -DCMAKE_BUILD_TYPE=Release \
-+    -DBUILD_TESTING=OFF"
-+
-+if __name__ == '__main__':
-+    assert("OpenCV_DIR" in os.environ), "please set OpenCV_DIR in envirment variables, and make sure opencv is 4.7.0"
-+    assert("Boost_DIR" in os.environ), "please set Boost_DIR in envirment variables, and make sure opencv is 1.82.0"
-+    assert("DLib_DIR" in os.environ)
-+    assert("DBoW2_DIR" in os.environ)
-+    assert("gflags_DIR" in os.environ)
-+    assert("glog_DIR" in os.environ)
-+    assert("Ceres_DIR" in os.environ)
-+    assert("Eigen3_DIR" in os.environ)
-+
-+    BUILD_PATH:str = PROJECT_PATH + "build_" + platform.platform() + "/"
-+    INSTALL_PATH:str = PROJECT_PATH + "install_" + platform.platform() + "/"
-+    if not os.path.exists(BUILD_PATH):
-+        os.makedirs(BUILD_PATH)
-+    if not os.path.exists(INSTALL_PATH):
-+        os.makedirs(INSTALL_PATH)
-+    os.chdir(BUILD_PATH)
-+    CMAKE_CMD:str = "cmake .. " + "-DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH
-+    call_shell(CMAKE_CMD)
-+    call_shell("make -j$nproc")
-+    call_shell("make install")
-+    os.chdir("..")
-diff --git a/build_mac_m1.sh b/build_mac_m1.sh
-new file mode 100755
-index 00000000..b9ecd247
---- /dev/null
-+++ b/build_mac_m1.sh
-@@ -0,0 +1,13 @@
-+mkdir build_mac_m1_dir
-+cd build_mac_m1_dir
-+cmake .. \
-+      -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
-+      -DCMAKE_BUILD_TYPE=Release \
-+      -DBUILD_TESTING=OFF \
-+      -Dglog_DIR=~/3rd/glog/install_mac_m1_dir/lib/cmake/glog \
-+      -Dgflags_DIR=~/3rd/gflags/install_mac_m1_dir/lib/cmake/gflags \
-+      -DEigen3_DIR=~/3rd/eigen/install_mac_m1_dir/ \
-+      -DCMAKE_INSTALL_PREFIX=~/3rd/ceres-solver/install_mac_m1_dir
-+
-+make -j20
-+make install
-\ No newline at end of file
 diff --git a/cmake/FindGlog.cmake b/cmake/FindGlog.cmake
-index 1a7b6c09..ac5834ad 100644
+index 1a7b6c09..2d653f41 100644
 --- a/cmake/FindGlog.cmake
 +++ b/cmake/FindGlog.cmake
-@@ -207,7 +207,7 @@ if (GLOG_PREFER_EXPORTED_GLOG_CMAKE_CONFIGURATION)
+@@ -205,9 +205,10 @@ if (GLOG_PREFER_EXPORTED_GLOG_CMAKE_CONFIGURATION)
+   #       search to use both google-glog & glog.
+   #
    # [1] http://www.cmake.org/cmake/help/v2.8.11/cmake.html#command:find_package
++  # ${HOMEBREW_INSTALL_PREFIX}必须要删掉，否则多个工具链编译的时候会出问题，Mac会试图链接ndk的库
    find_package(glog QUIET
                      NAMES google-glog glog
 -                    HINTS ${glog_DIR} ${HOMEBREW_INSTALL_PREFIX}

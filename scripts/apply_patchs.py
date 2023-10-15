@@ -14,13 +14,10 @@ def call_shell(cmd: str) -> CompletedProcess[Any] | CompletedProcess[bytes]:
 
 def apply_patches():
     os.chdir(THIRD_PATH)
-    directories: list[str] = os.listdir(".")
+    directories: list[str] = os.listdir("patch")
     for directory in directories:
-        if os.path.isfile(directory):
-            continue
-        if not os.path.exists("patch/" + directory):
-            print("warning: there is no directory " + directory + "in patch folder")
-            continue
+        assert os.path.exists(directory)
+        assert not os.path.isfile(directory)
         os.chdir(directory)
         call_shell("git reset --hard")
         call_shell("git clean -xfd")

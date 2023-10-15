@@ -1,18 +1,14 @@
-From fadc372b8d1a635de4b3197f80472d716c66938b Mon Sep 17 00:00:00 2001
+From 2dc970b3d909c6db13a2617e061aa08d21eabe27 Mon Sep 17 00:00:00 2001
 From: tiemuhuaguo <tiemuhuaguo@tencent.com>
-Date: Thu, 22 Jun 2023 17:08:15 +0800
+Date: Sun, 15 Oct 2023 10:44:00 +0800
 Subject: [PATCH] build
 
 ---
  .gitignore         |  2 ++
- CMakeLists.txt     | 31 ++++---------------------------
- build.py           | 28 ++++++++++++++++++++++++++++
- build.sh           |  6 ++++++
+ CMakeLists.txt     | 43 ++++++++++++++++---------------------------
  src/DBoW2.cmake.in |  2 +-
- 5 files changed, 41 insertions(+), 28 deletions(-)
+ 3 files changed, 19 insertions(+), 28 deletions(-)
  create mode 100644 .gitignore
- create mode 100644 build.py
- create mode 100755 build.sh
 
 diff --git a/.gitignore b/.gitignore
 new file mode 100644
@@ -24,17 +20,29 @@ index 0000000..13992f2
 +build*/
 \ No newline at end of file
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 6f83c07..6513850 100644
+index 6f83c07..616147f 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -30,36 +30,14 @@ set(SRCS
+@@ -30,36 +30,26 @@ set(SRCS
    src/BowVector.cpp     src/FBrief.cpp        src/FSurf64.cpp       src/FORB.cpp
    src/FeatureVector.cpp src/QueryResults.cpp  src/ScoringObject.cpp)
  
 -set(DEPENDENCY_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 -set(DEPENDENCY_INSTALL_DIR ${DEPENDENCY_DIR}/install)
 -
++# 这里必须要依赖Eigen，否则会报错
++#   The link interface of target "opencv_bgsegm" contains:
++#
++#    Eigen3::Eigen
++#
++#  but the target was not found.  Possible reasons include:
++#
++#    * There is a typo in the target name.
++#    * A find_package call is missing for an IMPORTED target.
++#    * An ALIAS target is missing.
++#  ld: library not found for -lEigen3::Eigen
  find_package(OpenCV REQUIRED)
++find_package(Eigen3 REQUIRED)
  include_directories(${OpenCV_INCLUDE_DIRS})
  
  find_package(Boost REQUIRED)
@@ -67,7 +75,7 @@ index 6f83c07..6513850 100644
  
  if(BUILD_DBoW2)
    add_library(${PROJECT_NAME} SHARED ${SRCS})
-@@ -82,7 +60,6 @@ if(BUILD_DBoW2)
+@@ -82,7 +72,6 @@ if(BUILD_DBoW2)
    install(DIRECTORY include/DBoW2 DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
  endif()
  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/DBoW2Config.cmake"
@@ -76,53 +84,6 @@ index 6f83c07..6513850 100644
  install(FILES "${PROJECT_BINARY_DIR}/DBoW2Config.cmake" 
    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/DBoW2/)
 -install(DIRECTORY ${DEPENDENCY_INSTALL_DIR}/ DESTINATION ${CMAKE_INSTALL_PREFIX} OPTIONAL)
-diff --git a/build.py b/build.py
-new file mode 100644
-index 0000000..a546506
---- /dev/null
-+++ b/build.py
-@@ -0,0 +1,28 @@
-+import os
-+import subprocess
-+import platform
-+
-+
-+PROJECT_PATH = os.path.split(os.path.realpath(__file__))[0] + '/'
-+
-+def call_shell(cmd:str)->int:
-+    return subprocess.run(cmd.split(" "))
-+
-+
-+if __name__ == '__main__':
-+    assert("OpenCV_DIR" in os.environ), "please set OpenCV_DIR in envirment variables, and make sure opencv is 4.7.0"
-+    assert("Boost_DIR" in os.environ), "please set Boost_DIR in envirment variables, and make sure opencv is 1.82.0"
-+    assert("DLib_DIR" in os.environ), "please set DLib_DIR in envirment variables"
-+
-+    BUILD_PATH:str = PROJECT_PATH + "build_" + platform.platform() + "/"
-+    INSTALL_PATH:str = PROJECT_PATH + "install_" + platform.platform() + "/"
-+    if not os.path.exists(BUILD_PATH):
-+        os.makedirs(BUILD_PATH)
-+    if not os.path.exists(INSTALL_PATH):
-+        os.makedirs(INSTALL_PATH)
-+    os.chdir(BUILD_PATH)
-+    CMAKE_CMD:str = "cmake .. " + "-DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH
-+    call_shell(CMAKE_CMD)
-+    call_shell("make -j$nproc")
-+    call_shell("make install")
-+    os.chdir("..")
-diff --git a/build.sh b/build.sh
-new file mode 100755
-index 0000000..64000f8
---- /dev/null
-+++ b/build.sh
-@@ -0,0 +1,6 @@
-+mkdir build
-+cd build
-+cmake .. \
-+-DCMAKE_INSTALL_PREFIX=install
-+make -j$nproc
-+make install
-\ No newline at end of file
 diff --git a/src/DBoW2.cmake.in b/src/DBoW2.cmake.in
 index c3f9203..f073131 100644
 --- a/src/DBoW2.cmake.in
