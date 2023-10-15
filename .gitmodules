@@ -1,0 +1,24 @@
+[submodule "3rd/opencv"]
+	path = 3rd/opencv
+	url = https://gitee.com/opencv/opencv.git
+[submodule "3rd/glog"]
+	path = 3rd/glog
+	url = https://github.com/google/glog.git
+[submodule "3rd/gflags"]
+	path = 3rd/gflags
+	url = https://github.com/gflags/gflags.git
+[submodule "3rd/Ceres"]
+	path = 3rd/Ceres
+	url = https://github.com/ceres-solver/ceres-solver.git
+[submodule "3rd/DLib"]
+	path = 3rd/DLib
+	url = https://github.com/dorian3d/DLib.git
+[submodule "3rd/DBoW2"]
+	path = 3rd/DBoW2
+	url = https://github.com/dorian3d/DBoW2.git
+[submodule "3rd/opencv_contrib"]
+	path = 3rd/opencv_contrib
+	url = https://github.com/opencv/opencv_contrib.git
+[submodule "3rd/camodocal"]
+	path = 3rd/camodocal
+	url = https://github.com/hengli/camodocal.git
