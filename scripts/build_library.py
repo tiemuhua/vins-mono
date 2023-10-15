@@ -26,7 +26,7 @@ def cmake_build_library(env: dict[str, str],
     if not os.path.exists(install_path):
         os.makedirs(install_path)
     os.chdir(build_path)
-    cmake_cmd: str = "cmake .. " + cmake_options + "-DCMAKE_INSTALL_PREFIX=" + install_path
+    cmake_cmd: str = "cmake .. " + cmake_options + " " + "-DCMAKE_INSTALL_PREFIX=" + install_path
     print(cmake_cmd)
     call_shell_with_env(cmake_cmd, env)
     call_shell_with_env("make -j16", env)
