@@ -1,6 +1,5 @@
 #include "feature_helper.h"
 #include <glog/logging.h>
-#include "param.h"
 
 namespace vins {
     using namespace std;
@@ -90,7 +89,7 @@ namespace vins {
         return id2index;
     }
 
-    double featureIdToDepth(const int feature_id, const std::vector<Feature> &feature_window) {
+    double FeatureHelper::featureIdToDepth(const int feature_id, const std::vector<Feature> &feature_window) {
         auto it = std::find_if(feature_window.begin(), feature_window.end(), [feature_id](const Feature &feature) {
             return feature.feature_id == feature_id;
         });

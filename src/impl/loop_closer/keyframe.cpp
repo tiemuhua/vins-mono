@@ -25,7 +25,7 @@ void KeyFrame::getVioPose(Eigen::Vector3d &_T_i_w, Eigen::Matrix3d &_R_i_w) cons
     _R_i_w = vio_R_i_w_;
 }
 
-void calculatePoseRotDrift(
+void KeyFrame::calculatePoseRotDrift(
         const Eigen::Vector3d &pos1, const Eigen::Vector3d &euler1,
         const Eigen::Vector3d &pos2, const Eigen::Vector3d &euler2,
         Eigen::Vector3d &pos_drift, Eigen::Matrix3d &rot_drift) {

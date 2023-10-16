@@ -34,7 +34,7 @@ namespace vins::FeatureHelper {
     [[nodiscard]] std::vector<Eigen::Vector3d> getPtsVecForFrame(int frame_idx,
                                                                  const std::vector<Feature> &feature_window);
 
-    [[nodiscard]]double featureIdToDepth(int feature_id, const std::vector<Feature> &feature_window);
+    [[nodiscard]]double featureIdToDepth(const int feature_id, const std::vector<Feature> &feature_window);
 }
 
 #endif

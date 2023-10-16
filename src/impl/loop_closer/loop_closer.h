@@ -23,8 +23,6 @@ namespace vins {
     public:
         LoopCloser();
 
-        ~LoopCloser();
-
         void addKeyFrame(const KeyFramePtr &kf_ptr);
 
         bool findLoop(const KeyFramePtr &kf, LoopMatchInfo &info);

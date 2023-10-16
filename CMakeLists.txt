@@ -35,10 +35,9 @@ include_directories(
         src
 )
 
-file(GLOB SELF_TEMP_SRC_FILES RELATIVE ${PROJECT_SOURCE_DIR} src/*.cc src/*.h)
-
 file(GLOB_RECURSE SRC RELATIVE ${PROJECT_SOURCE_DIR} src/*.cpp)
 add_library(vins STATIC ${SRC})
+
 target_link_libraries(vins
         Eigen3::Eigen
         Ceres::ceres
