@@ -1,6 +1,6 @@
 #include "feature_helper.h"
 #include <glog/logging.h>
-#include "vins/param.h"
+#include "param.h"
 
 namespace vins {
     using namespace std;

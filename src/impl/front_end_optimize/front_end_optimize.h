@@ -5,7 +5,7 @@
 #ifndef VINS_BATCH_ADJUSTER_H
 #define VINS_BATCH_ADJUSTER_H
 
-#include "vins/param.h"
+#include "param.h"
 #include "impl/vins_define_internal.h"
 #include "impl/feature_helper.h"
 

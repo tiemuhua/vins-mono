@@ -9,7 +9,7 @@
 #include <Eigen/Eigen>
 
 #include "camodocal/camera_models/CameraFactory.h"
-#include "vins/param.h"
+#include "param.h"
 
 namespace vins {
     class CameraWrapper {

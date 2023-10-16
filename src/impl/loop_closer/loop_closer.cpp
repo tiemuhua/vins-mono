@@ -2,7 +2,7 @@
 
 #include "loop_closer.h"
 #include "impl/vins_utils.h"
-#include "vins/vins_logic.h"
+#include "vins_logic.h"
 #include "keyframe.h"
 #include "impl/loop_relative_pos.h"
 #include "impl/loop_detector.h"

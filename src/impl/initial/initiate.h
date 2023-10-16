@@ -5,7 +5,7 @@
 #ifndef GJT_VINS_INITIATE_H
 #define GJT_VINS_INITIATE_H
 
-#include "vins/param.h"
+#include "param.h"
 
 #include "impl/vins_run_info.h"
 

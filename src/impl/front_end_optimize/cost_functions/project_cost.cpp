@@ -1,8 +1,7 @@
 #include "project_cost.h"
 #include <glog/logging.h>
 #include "impl/vins_utils.h"
-#include "vins/param.h"
-#include "vins/vins_logic.h"
+#include "vins_logic.h"
 
 using namespace vins;
 
@@ -18,7 +17,7 @@ ProjectCost::ProjectCost(const cv::Point2f &_pts_i, const cv::Point2f &_pts_j) {
     Eigen::Vector3d b2 = a.cross(b1);
     tangent_base.block<1, 3>(0, 0) = b1.transpose();
     tangent_base.block<1, 3>(1, 0) = b2.transpose();
-};
+}
 
 bool ProjectCost::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {
     Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
