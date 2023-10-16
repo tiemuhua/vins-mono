@@ -41,9 +41,12 @@ file(GLOB_RECURSE SRC RELATIVE ${PROJECT_SOURCE_DIR} src/*.cpp)
 add_library(vins STATIC ${SRC})
 target_link_libraries(vins
         Eigen3::Eigen
-        CERES_LIBRARIES
+        Ceres::ceres
         glog::glog
         camodocal_camera_models
+        ${DBoW2_LIBS}
+        ${DLib_LIBS}
+        ${OpenCV_LIBS}
         )
 
 add_executable(kitti_demo kitti_demo/main.cpp)
