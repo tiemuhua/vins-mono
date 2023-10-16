@@ -25,16 +25,13 @@ find_package(Ceres REQUIRED)
 find_package(DLib REQUIRED)
 find_package(DBoW2 REQUIRED)
 find_package(CAMODOCAL REQUIRED)
+
 include_directories(
         ${Boost_INCLUDE_DIRS}
         ${OpenCV_INCLUDE_DIRS}
-        ${EIGEN3_INCLUDE_DIRS}
-        ${GFLAG_INCLUDE_DIRS}
-        ${GLOG_INCLUDE_DIRS}
-        ${Ceres_INCLUDE_DIRS}
+        ${gflags_INCLUDE_DIRS}
         ${DLib_INCLUDE_DIRS}
         ${DBoW2_INCLUDE_DIRS}
-        ${CAMODOCAL_INCLUDE_DIRS}
         src
 )
 
@@ -42,6 +39,12 @@ file(GLOB SELF_TEMP_SRC_FILES RELATIVE ${PROJECT_SOURCE_DIR} src/*.cc src/*.h)
 
 file(GLOB_RECURSE SRC RELATIVE ${PROJECT_SOURCE_DIR} src/*.cpp)
 add_library(vins STATIC ${SRC})
+target_link_libraries(vins
+        Eigen3::Eigen
+        CERES_LIBRARIES
+        glog::glog
+        camodocal_camera_models
+        )
 
 add_executable(kitti_demo kitti_demo/main.cpp)
 target_link_libraries(kitti_demo vins)
