@@ -1,6 +1,14 @@
-sudo apt install libopenblas-dev
-python3.10 scripts/build_third_libs.py>info.log 2>error.log
-python3.10 scripts/apply_patchs.py>info.log 2>error.log
+if["$(uname)"=="Darwin"];then
+    brew install openblas
+elif["$(expr substr $(uname -s) 1 5)"=="Linux"];then
+    sudo apt install libopenblas-dev
+elif["$(expr substr $(uname -s) 1 10)"=="MINGW32_NT"];then    
+# Windows NT操作系统
+fi
+
+mkdir log
+python3.10 scripts/apply_patchs.py>log/patch_info.log 2>log/patch_error.log
+python3.10 scripts/build_third_libs.py>log/3rd_info.log 2>log/3rd_error.log
 
 mkdir dataset && cd dataset
 curl https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0001/2011_09_26_drive_0001_extract.zip --output 2011_09_26_drive_0001_extract.zip
