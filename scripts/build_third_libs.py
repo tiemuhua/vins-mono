@@ -17,7 +17,7 @@ GLOG: str = "glog"
 CERES: str = "Ceres"
 DLIB: str = "DLib"
 DBOW2: str = "DBoW2"
-CAMODOCAL: str = "camodocal"
+CAMODOCAL: str = "CAMODOCAL"
 LIBRARY_LIST: list[str] = [BOOST, EIGEN, OPENCV, GFLAGS, GLOG, CERES, DLIB, DBOW2, CAMODOCAL]
 DEPENDENCY_GRAPH: dict[str, list[str]] = {
     BOOST: [],
