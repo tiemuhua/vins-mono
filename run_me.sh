@@ -7,6 +7,7 @@ elif["$(expr substr $(uname -s) 1 10)"=="MINGW32_NT"];then
 fi
 
 mkdir log
+git submodule update --init --recursive
 python3.10 scripts/apply_patchs.py>log/patch_info.log 2>log/patch_error.log
 python3.10 scripts/build_third_libs.py>log/3rd_info.log 2>log/3rd_error.log
 
