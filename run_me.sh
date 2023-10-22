@@ -1,3 +1,7 @@
+sudo apt install libopenblas-dev
+python3.10 scripts/build_third_libs.py>info.log 2>error.log
+python3.10 scripts/apply_patchs.py>info.log 2>error.log
+
 mkdir dataset && cd dataset
 curl https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_drive_0001/2011_09_26_drive_0001_extract.zip --output 2011_09_26_drive_0001_extract.zip
 curl https://s3.eu-central-1.amazonaws.com/avg-kitti/raw_data/2011_09_26_calib.zip --output 2011_09_26_calib.zip
