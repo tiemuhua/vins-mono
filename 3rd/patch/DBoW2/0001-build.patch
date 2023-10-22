@@ -1,13 +1,13 @@
-From 2dc970b3d909c6db13a2617e061aa08d21eabe27 Mon Sep 17 00:00:00 2001
-From: tiemuhuaguo <tiemuhuaguo@tencent.com>
-Date: Sun, 15 Oct 2023 10:44:00 +0800
+From 287a4e1785efeea94348c9b0103d8c9e96775a87 Mon Sep 17 00:00:00 2001
+From: tiemuhua <tiemuhua@126.com>
+Date: Sun, 22 Oct 2023 12:03:10 +0800
 Subject: [PATCH] build
 
 ---
  .gitignore         |  2 ++
- CMakeLists.txt     | 43 ++++++++++++++++---------------------------
+ CMakeLists.txt     | 42 ++++++++++++++----------------------------
  src/DBoW2.cmake.in |  2 +-
- 3 files changed, 19 insertions(+), 28 deletions(-)
+ 3 files changed, 17 insertions(+), 29 deletions(-)
  create mode 100644 .gitignore
 
 diff --git a/.gitignore b/.gitignore
@@ -20,28 +20,18 @@ index 0000000..13992f2
 +build*/
 \ No newline at end of file
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 6f83c07..616147f 100644
+index 6f83c07..4bc0b9a 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -30,36 +30,26 @@ set(SRCS
+@@ -30,42 +30,29 @@ set(SRCS
    src/BowVector.cpp     src/FBrief.cpp        src/FSurf64.cpp       src/FORB.cpp
    src/FeatureVector.cpp src/QueryResults.cpp  src/ScoringObject.cpp)
  
 -set(DEPENDENCY_DIR ${CMAKE_CURRENT_BINARY_DIR}/dependencies)
 -set(DEPENDENCY_INSTALL_DIR ${DEPENDENCY_DIR}/install)
 -
-+# 这里必须要依赖Eigen，否则会报错
-+#   The link interface of target "opencv_bgsegm" contains:
-+#
-+#    Eigen3::Eigen
-+#
-+#  but the target was not found.  Possible reasons include:
-+#
-+#    * There is a typo in the target name.
-+#    * A find_package call is missing for an IMPORTED target.
-+#    * An ALIAS target is missing.
-+#  ld: library not found for -lEigen3::Eigen
  find_package(OpenCV REQUIRED)
++# 由于opencv::opencv_highgui依赖了eigen，因此dbow2也必须依赖eigen
 +find_package(Eigen3 REQUIRED)
  include_directories(${OpenCV_INCLUDE_DIRS})
  
@@ -73,9 +63,23 @@ index 6f83c07..616147f 100644
 +find_package(DLib REQUIRED)
 +include_directories(${DLib_INCLUDE_DIRS})
  
++# 这里不要用${OpenCV_LIBS}，不然的话，由于opencv_sfm依赖了ceres/glog/gflag，dlib也要依赖这一坨
  if(BUILD_DBoW2)
    add_library(${PROJECT_NAME} SHARED ${SRCS})
-@@ -82,7 +72,6 @@ if(BUILD_DBoW2)
+   include_directories(include/DBoW2/)
+   add_dependencies(${PROJECT_NAME} Dependencies)
+-  target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${DLib_LIBS})
++  target_link_libraries(${PROJECT_NAME}
++          ${OpenCV_LIBS}
++          ${DLib_LIBS}
++          opencv_xfeatures2d
++          opencv_core
++          opencv_highgui
++          )
+ endif(BUILD_DBoW2)
+ 
+ if(BUILD_Demo)
+@@ -82,7 +69,6 @@ if(BUILD_DBoW2)
    install(DIRECTORY include/DBoW2 DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
  endif()
  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/DBoW2Config.cmake"

@@ -1,11 +1,11 @@
-From 6ee4c34d93501b37d744a8f9dab0a0de840802d4 Mon Sep 17 00:00:00 2001
-From: tiemuhuaguo <tiemuhuaguo@tencent.com>
-Date: Sun, 15 Oct 2023 10:35:18 +0800
+From f9ea3faaf55460abd665ec9dc614554739766d33 Mon Sep 17 00:00:00 2001
+From: tiemuhua <tiemuhua@126.com>
+Date: Sun, 22 Oct 2023 12:00:54 +0800
 Subject: [PATCH] build
 
 ---
  .gitignore               |  2 ++
- CMakeLists.txt           | 21 +++++++++++++++++----
+ CMakeLists.txt           | 20 +++++++++++++++-----
  include/DUtilsCV/GUI.h   | 24 ++++++++++++------------
  src/DLib.cmake.in        |  2 +-
  src/DUtilsCV/Drawing.cpp |  7 ++++---
@@ -13,7 +13,7 @@ Subject: [PATCH] build
  src/DVision/BRIEF.cpp    |  1 +
  src/DVision/FSolver.cpp  |  4 ++--
  src/DVision/HSolver.cpp  |  2 +-
- 9 files changed, 55 insertions(+), 36 deletions(-)
+ 9 files changed, 53 insertions(+), 37 deletions(-)
  create mode 100644 .gitignore
 
 diff --git a/.gitignore b/.gitignore
@@ -26,10 +26,17 @@ index 0000000..6b27cb6
 +/install*/
 \ No newline at end of file
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index a967f55..a18577b 100644
+index a967f55..07e0edf 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -62,16 +62,29 @@ if(BUILD_DVision)
+@@ -1,5 +1,6 @@
+ cmake_minimum_required(VERSION 2.6)
+ project(DLib)
++set(CMAKE_CXX_STANDARD 14)
+ 
+ option(BUILD_DUtils   "Build DUtils (basic c++ functions)." ON)
+ option(BUILD_DUtilsCV "Build DUtilsCV (OpenCV functions, requires DUtils)." ON)
+@@ -62,16 +63,19 @@ if(BUILD_DVision)
      src/DVision/PixelPointFile.cpp
      ${SRCS})
  
@@ -43,17 +50,7 @@ index a967f55..a18577b 100644
  endif(BUILD_DVision)
  
 -
-+# 这里必须要依赖Eigen，否则会报错
-+#   The link interface of target "opencv_bgsegm" contains:
-+#
-+#    Eigen3::Eigen
-+#
-+#  but the target was not found.  Possible reasons include:
-+#
-+#    * There is a typo in the target name.
-+#    * A find_package call is missing for an IMPORTED target.
-+#    * An ALIAS target is missing.
-+#  ld: library not found for -lEigen3::Eigen
++# 由于opencv::opencv_highgui依赖了eigen，因此dlib也必须依赖eigen
  if(BUILD_DUtilsCV OR BUILD_DVision)
    find_package(OpenCV REQUIRED)
 +  find_package(Eigen3 REQUIRED)
@@ -61,18 +58,28 @@ index a967f55..a18577b 100644
  endif(BUILD_DUtilsCV OR BUILD_DVision)
  
  set(LIB_SHARED "SHARED")
-@@ -79,7 +92,7 @@ if(WIN32)
+@@ -79,9 +83,14 @@ if(WIN32)
    set(LIB_SHARED "STATIC")
  endif(WIN32)
  
 -include_directories(include/DUtils include/DUtilsCV include/DVision ${OpenCV_INCLUDE_DIRS})
 +include_directories(include/DUtils include/DUtilsCV include/DVision)
  add_library(${PROJECT_NAME} ${LIB_SHARED} ${SRCS})
- target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
++# 这里不要用${OpenCV_LIBS}，不然的话，由于opencv_sfm依赖了ceres/glog/gflag，dlib也要依赖这一坨
++target_link_libraries(${PROJECT_NAME}
++        opencv_xfeatures2d
++        opencv_core
++        opencv_highgui
++        )
  
-@@ -97,6 +110,6 @@ if(BUILD_DVision)
+ configure_file(src/DLib.cmake.in
+   "${PROJECT_BINARY_DIR}/DLibConfig.cmake" @ONLY)
+@@ -96,7 +105,8 @@ endif()
+ if(BUILD_DVision)
    install(DIRECTORY include/DVision DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
  endif()
++# DLib_INCLUDE_DIRS依赖于DLibConfig.cmake的安装位置
  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/DLibConfig.cmake"
 -  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME})
 +  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
