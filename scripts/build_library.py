@@ -5,7 +5,8 @@ from typing import Any
 
 
 def call_shell_with_env(cmd: str, env: dict[str, str]) -> CompletedProcess[Any] | CompletedProcess[bytes]:
-    return subprocess.run(cmd.split(" "), env=env)
+    word_list_of_cmd:List[str] = [word for word in cmd.split(" ") if word != ""]
+    return subprocess.run(word_list_of_cmd, env=env)
 
 
 # 执行本函数时应当保证工作目录位于 CMakeLists.txt 目录中
