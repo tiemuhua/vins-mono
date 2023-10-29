@@ -5,6 +5,7 @@
 #ifndef VINS_IMU_INTEGRATOR_H
 #define VINS_IMU_INTEGRATOR_H
 
+#include <memory>
 #include <Eigen/Eigen>
 #include "param.h"
 
