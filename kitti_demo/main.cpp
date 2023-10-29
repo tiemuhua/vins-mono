@@ -22,17 +22,11 @@ int main(int argc, char** argv) {
 
     vins::init(nullptr, nullptr);
 
-    std::string img_folder_path = argv[0];
-    std::string img_time_stamp_path = argv[1];
-    std::string imu_folder_path = argv[2];
-    std::string imu_time_stamp_path = argv[3];
-
-    if (img_folder_path.back() != '/') {
-        img_folder_path.append("/");
-    }
-    if (img_folder_path.back() != '/') {
-        img_folder_path.append("/");
-    }
+    std::string data_set_path = "/Users/gjt/vins-mono/dataset";
+    std::string img_folder_path = data_set_path + "/image/data/";
+    std::string img_time_stamp_path = data_set_path + "/image/timestamps.txt";
+    std::string imu_folder_path = data_set_path + "oxts/data/";
+    std::string imu_time_stamp_path = data_set_path + "oxts/timestamps.txt";
 
     std::ifstream img_time_stamp_stream(img_time_stamp_path, std::ios::binary);
     std::ifstream imu_time_stamp_stream(imu_time_stamp_path, std::ios::binary);
