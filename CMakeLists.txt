@@ -1,52 +1,54 @@
-cmake_minimum_required (VERSION 3.6)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "Installation directory" FORCE)
-message(STATUS "CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}")
-set(CMAKE_CXX_STANDARD 17)
-enable_language(CXX)
+# 本文件仅仅是用来给clion生成代码高亮与索引，实际编译过程中并不会用到
+cmake_minimum_required(VERSION 3.21)
+project(vins_mono)
 
-if(WIN32)
-    add_definitions(/MP) # 相当于make -j
-    add_compile_options(/utf-8)
-endif()
+set(CMAKE_CXX_STANDARD 14)
 
-project (vins)
+# install_${platform}在首次编译完成后才会生成 
+include_directories(install_macOS-13.4.1-arm64-arm-64bit)
 
-set(SELF_LIBS_OUT ${CMAKE_SYSTEM_NAME}.out)
+include_directories(vins)
+include_directories(vins/impl)
 
-# 顺序不能乱，eigen、glog必须在Ceres前面，gflags必须在glog前面，诸如此类
-find_package(Boost REQUIRED)
-find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(gflags REQUIRED)
-find_package(glog REQUIRED)
-find_package(Ceres REQUIRED)
-find_package(DLib REQUIRED)
-find_package(DBoW2 REQUIRED)
-find_package(CAMODOCAL REQUIRED)
-
-include_directories(
-        ${Boost_INCLUDE_DIRS}
-        ${OpenCV_INCLUDE_DIRS}
-        ${gflags_INCLUDE_DIRS}
-        ${DLib_INCLUDE_DIRS}
-        ${DBoW2_INCLUDE_DIRS}
-        src
-)
-
-file(GLOB_RECURSE SRC RELATIVE ${PROJECT_SOURCE_DIR} src/*.cpp)
-add_library(vins STATIC ${SRC})
-
-target_link_libraries(vins
-        Eigen3::Eigen
-        Ceres::ceres
-        glog::glog
-        camodocal_camera_models
-        ${DBoW2_LIBS}
-        ${DLib_LIBS}
-        ${OpenCV_LIBS}
-        )
-
-add_executable(kitti_demo kitti_demo/main.cpp)
-target_link_libraries(kitti_demo vins)
+add_executable(vins_mono
+    kitti_demo/main.cpp
+    vins/impl/front_end_optimize/cost_functions/imu_cost.cpp
+    vins/impl/front_end_optimize/cost_functions/imu_cost.h
+    vins/impl/front_end_optimize/cost_functions/marginal_cost.cpp
+    vins/impl/front_end_optimize/cost_functions/marginal_cost.h
+    vins/impl/front_end_optimize/cost_functions/project_cost.cpp
+    vins/impl/front_end_optimize/cost_functions/project_cost.h
+    vins/impl/front_end_optimize/cost_functions/project_td_cost.cpp
+    vins/impl/front_end_optimize/cost_functions/project_td_cost.h
+    vins/impl/front_end_optimize/front_end_optimize.cpp
+    vins/impl/front_end_optimize/front_end_optimize.h
+    vins/impl/initial/impl/visual_inertial_aligner.cpp
+    vins/impl/initial/impl/visual_inertial_aligner.h
+    vins/impl/initial/impl/visual_initiator.cpp
+    vins/impl/initial/impl/visual_initiator.h
+    vins/impl/initial/initiate.cpp
+    vins/impl/initial/initiate.h
+    vins/impl/loop_closer/impl/loop_detector.cpp
+    vins/impl/loop_closer/impl/loop_detector.h
+    vins/impl/loop_closer/impl/loop_relative_pos.cpp
+    vins/impl/loop_closer/impl/loop_relative_pos.h
+    vins/impl/loop_closer/keyframe.cpp
+    vins/impl/loop_closer/keyframe.h
+    vins/impl/loop_closer/loop_closer.cpp
+    vins/impl/loop_closer/loop_closer.h
+    vins/impl/camera_wrapper.h
+    vins/impl/feature_helper.cpp
+    vins/impl/feature_helper.h
+    vins/impl/feature_tracker.cpp
+    vins/impl/feature_tracker.h
+    vins/impl/imu_integrator.cpp
+    vins/impl/imu_integrator.h
+    vins/impl/vins_core.cpp
+    vins/impl/vins_core.h
+    vins/impl/vins_define_internal.h
+    vins/impl/vins_run_info.h
+    vins/impl/vins_utils.h
+    vins/param.h
+    vins/vins_logic.cpp
+    vins/vins_logic.h)
