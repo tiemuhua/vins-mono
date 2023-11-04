@@ -67,7 +67,11 @@ namespace vins {
             return quat_;
         }
 
+        // todo tiemuhua imu的处理仍然不够精细，imu和相机不同步时处理的不优雅
         [[nodiscard]] double deltaTime() const {
+            if (time_stamp_buf_.empty()) {
+                return 0;
+            }
             return time_stamp_buf_.back() - time_stamp_buf_.front();
         }
 

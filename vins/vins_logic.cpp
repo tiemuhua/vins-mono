@@ -19,6 +19,7 @@ namespace vins {
 
     void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
         LOG(INFO) << "handleImage ts:" << time_stamp;
+        assert(_img->rows == getParam().camera.row && _img->cols == getParam().camera.col);
         sp_vins_core->handleImage(_img, time_stamp);
     }
 

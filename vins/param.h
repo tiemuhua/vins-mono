@@ -9,15 +9,14 @@
 
 namespace vins {
     struct CameraParam {
-        int col;
-        int row;
-        int focal;
-        std::string calib_file;
+        int col = 1242;
+        int row = 375;
+        double focal = -1;
     };
     struct FrameTrackerParam {
-        double fundamental_threshold;
-        int min_dist;
-        int max_cnt;
+        double fundamental_threshold{};
+        int min_dist{};
+        int max_cnt = 100;
     };
     struct FrontEndOptimizeParam {
         bool fix_extrinsic = false;

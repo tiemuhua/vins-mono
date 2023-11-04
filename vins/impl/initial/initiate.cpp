@@ -14,14 +14,16 @@ using namespace std;
 static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     //check imu observability
     Eigen::Vector3d sum_acc;
-    for (const Frame &frame: all_image_frame_) {
+    for (int i = 1; i < all_image_frame_.size(); ++i) {
+        const Frame &frame = all_image_frame_[i];
         double dt = frame.pre_integral_->deltaTime();
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
         sum_acc += tmp_acc;
     }
     Eigen::Vector3d avg_acc = sum_acc / (double) all_image_frame_.size();
     double var = 0;
-    for (const Frame &frame: all_image_frame_) {
+    for (int i = 1; i < all_image_frame_.size(); ++i) {
+        const Frame &frame = all_image_frame_[i];
         double dt = frame.pre_integral_->deltaTime();
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
         var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);

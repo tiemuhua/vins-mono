@@ -6,7 +6,6 @@ namespace vins {
     using namespace Eigen;
 
     bool FeatureHelper::isKeyFrame(const int key_frame_idx,
-                                   const double focal,
                                    const double kf_parallax_threshold,
                                    const std::vector<FeaturePoint2D> &feature_points,
                                    const std::vector<Feature> &feature_window) {
@@ -42,9 +41,8 @@ namespace vins {
         if (parallax_num == 0) {
             return true;
         }
-        LOG(INFO) << "parallax_sum:" << parallax_sum
-                  << "\tparallax_num:" << parallax_num
-                  << "\tcurrent parallax:" << parallax_sum / parallax_num * focal;
+        LOG(INFO) << "parallax_sum:" << parallax_sum << "\t"
+                << "parallax_num:" << parallax_num << "\t";
         return parallax_sum / parallax_num >= kf_parallax_threshold;
     }
 

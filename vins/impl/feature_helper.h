@@ -17,7 +17,6 @@ namespace vins {
 }
 namespace vins::FeatureHelper {
     [[nodiscard]] bool isKeyFrame(int key_frame_idx,
-                                  double focal,
                                   double kf_parallax_threshold,
                                   const std::vector<FeaturePoint2D> &feature_points,
                                   const std::vector<Feature> &feature_window);
