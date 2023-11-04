@@ -26,7 +26,7 @@ namespace vins {
 
     class VinsCore {
     public:
-        explicit VinsCore(std::unique_ptr<Param> param, std::weak_ptr<Callback> cb);
+        explicit VinsCore(const Param& param, std::weak_ptr<Callback> cb);
 
         void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
 
@@ -34,7 +34,7 @@ namespace vins {
 
         void handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);
 
-        vins::Param *getParam() { return param_.get(); }
+        const vins::Param &getParam() { return param_; }
 
     private:
         void _handleData();
@@ -66,7 +66,7 @@ namespace vins {
 
         //.运行时信息.
         RunInfo *run_info_ = nullptr;
-        std::unique_ptr<Param> param_ = nullptr;
+        Param param_;
         ImuIntegratorPtr kf_pre_integral_ptr_ = nullptr;
         double last_init_time_stamp_ = 0.0;
 

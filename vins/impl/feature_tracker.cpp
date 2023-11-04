@@ -15,9 +15,9 @@ static inline bool inBorder(const cv::Point2f &pt, int col, int row) {
            BORDER_SIZE <= img_y && img_y < row - BORDER_SIZE;
 }
 
-FeatureTracker::FeatureTracker(Param *param, CameraWrapper *camera_wrapper) {
-    LOG(INFO) << "reading parameter of camera:" << param->camera.calib_file.c_str();
-    param_ = param;
+FeatureTracker::FeatureTracker(const Param &param, CameraWrapper *camera_wrapper)
+: param_(param)
+{
     camera_wrapper_ = camera_wrapper;
 }
 
@@ -38,7 +38,7 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
         cv::calcOpticalFlowPyrLK(prev_img_, next_img, prev_raw_pts_, next_raw_pts, status, err, winSize, 3);
 
         for (int i = 0; i < int(next_raw_pts.size()); i++) {
-            status[i] = status[i] && inBorder(next_raw_pts[i], param_->camera.col, param_->camera.row);
+            status[i] = status[i] && inBorder(next_raw_pts[i], param_.camera.col, param_.camera.row);
         }
         utils::reduceVector(prev_raw_pts_, status);
         utils::reduceVector(next_raw_pts, status);
@@ -54,7 +54,7 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
     if (next_raw_pts.size() >= 8) {
         std::vector<uchar> mask;
         cv::findFundamentalMat(prev_norm_pts_, next_norm_pts, cv::FM_RANSAC,
-                               param_->frame_tracker.fundamental_threshold, 0.99, mask);
+                               param_.frame_tracker.fundamental_threshold, 0.99, mask);
         size_t size_a = prev_raw_pts_.size();
         utils::reduceVector(prev_raw_pts_, mask);
         utils::reduceVector(next_raw_pts, mask);
@@ -65,18 +65,18 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
-    cv::Mat mask = cv::Mat(param_->camera.row, param_->camera.col, CV_8UC1, cv::Scalar(255));
+    cv::Mat mask = cv::Mat(param_.camera.row, param_.camera.col, CV_8UC1, cv::Scalar(255));
     for (const cv::Point2f &p: next_raw_pts) {
         if (mask.at<uchar>(p.x, p.y) == 255) {
-            cv::circle(mask, p, param_->frame_tracker.min_dist, 0, -1);
+            cv::circle(mask, p, param_.frame_tracker.min_dist, 0, -1);
         }
     }
 
-    int max_new_pnt_num = param_->frame_tracker.max_cnt - static_cast<int>(next_raw_pts.size());
+    int max_new_pnt_num = param_.frame_tracker.max_cnt - static_cast<int>(next_raw_pts.size());
     if (max_new_pnt_num > 0) {
         std::vector<cv::Point2f> new_pts;
         constexpr double qualityLevel = 0.01;
-        cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, param_->frame_tracker.min_dist, mask);
+        cv::goodFeaturesToTrack(next_img, new_pts, max_new_pnt_num, qualityLevel, param_.frame_tracker.min_dist, mask);
         for (auto &p: new_pts) {
             next_raw_pts.push_back(p);
             next_norm_pts.emplace_back(camera_wrapper_->rawPoint2NormPoint(p));

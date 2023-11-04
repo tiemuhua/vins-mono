@@ -15,8 +15,8 @@ ProjectTdCost::ProjectTdCost(const cv::Point2f &p1, const cv::Point2f &p2,
     pts_j = Eigen::Vector3d(p2.x, p2.y, 1.0);
     velocity_i = Eigen::Vector3d(vel1.x, vel1.y, 0.0);
     velocity_j = Eigen::Vector3d(vel2.x, vel2.y, 0.0);
-    row_i = p1.y - vins::getParam()->camera.row / 2;
-    row_j = p2.y - vins::getParam()->camera.row / 2;
+    row_i = p1.y - vins::getParam().camera.row / 2;
+    row_j = p2.y - vins::getParam().camera.row / 2;
 
     Eigen::Vector3d b1, b2;
     Eigen::Vector3d a = pts_j.normalized();
@@ -43,8 +43,8 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
 
     double td = parameters[4][0];
 
-    Eigen::Vector3d pts_i_td = pts_i - (td - td_i + vins::getParam()->getTimeShatPerRol() * row_i) * velocity_i;
-    Eigen::Vector3d pts_j_td = pts_j - (td - td_j + vins::getParam()->getTimeShatPerRol() * row_j) * velocity_j;
+    Eigen::Vector3d pts_i_td = pts_i - (td - td_i + vins::getParam().getTimeShatPerRol() * row_i) * velocity_i;
+    Eigen::Vector3d pts_j_td = pts_j - (td - td_j + vins::getParam().getTimeShatPerRol() * row_j) * velocity_j;
     Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
     Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
     Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
@@ -53,7 +53,7 @@ bool ProjectTdCost::Evaluate(double const *const *parameters, double *residuals,
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 
     residual = tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
-    Eigen::Matrix2d sqrt_info = vins::getParam()->camera.focal / 1.5 * Eigen::Matrix2d::Identity();
+    Eigen::Matrix2d sqrt_info = vins::getParam().camera.focal / 1.5 * Eigen::Matrix2d::Identity();
     residual = sqrt_info * residual;
 
     assert(jacobians && jacobians[0] && jacobians[1] && jacobians[2] && jacobians[3] && jacobians[4]);

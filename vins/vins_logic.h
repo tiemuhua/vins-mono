@@ -22,8 +22,8 @@ namespace vins {
         virtual void onPosSolved(const std::vector<PosAndTimeStamp> & pos_and_time_stamps) = 0;
     };
 
-    void init(std::unique_ptr<vins::Param> param, const std::shared_ptr<Callback> &cb);
-    vins::Param *getParam();
+    void init(const vins::Param& param, const std::shared_ptr<Callback> &cb);
+    const vins::Param &getParam();
     void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp);
     void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d & gyr, double time_stamp);
     void handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift);

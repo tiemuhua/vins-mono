@@ -14,11 +14,11 @@
 #include "camera_wrapper.h"
 
 namespace vins {
-    VinsCore::VinsCore(std::unique_ptr<Param> param, std::weak_ptr<Callback> cb) {
+    VinsCore::VinsCore(const Param& param, std::weak_ptr<Callback> cb) {
         run_info_ = new RunInfo();
         param_ = std::move(param);
-        camera_wrapper_ = new CameraWrapper(param.get());
-        feature_tracker_ = new FeatureTracker(param.get(), camera_wrapper_);
+        camera_wrapper_ = new CameraWrapper(param);
+        feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
         cb_ = std::move(cb);
         std::thread([this]() {
             struct timeval tv1{}, tv2{};
@@ -119,7 +119,7 @@ namespace vins {
 
         /******************从缓冲区中读取惯导数据*******************/
         auto frame_pre_integral =
-                std::make_shared<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
+                std::make_shared<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
         Synchronized(io_mutex_) {
             while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
                 run_info_->prev_imu_state.acc = acc_buf_.front();
@@ -133,8 +133,8 @@ namespace vins {
         }
 
         /******************非首帧图像加入滑动窗口*******************/
-        bool is_key_frame = FeatureHelper::isKeyFrame(param_->camera.focal,
-                                                      param_->key_frame_parallax_threshold,
+        bool is_key_frame = FeatureHelper::isKeyFrame(param_.camera.focal,
+                                                      param_.key_frame_parallax_threshold,
                                                       prev_kf_window_size,
                                                       feature_pts,
                                                       run_info_->feature_window);
@@ -145,7 +145,7 @@ namespace vins {
         FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
         if (kf_pre_integral_ptr_ == nullptr) {
             kf_pre_integral_ptr_ =
-                    std::make_unique<ImuIntegrator>(param_->imu_param, run_info_->prev_imu_state, run_info_->gravity);
+                    std::make_unique<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
         }
         kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
         run_info_->kf_state_window.emplace_back(
@@ -154,12 +154,12 @@ namespace vins {
         kf_pre_integral_ptr_ = nullptr;
 
         /******************滑动窗口塞满后再进行后续操作*******************/
-        if (run_info_->kf_state_window.size() < param_->window_size) {
+        if (run_info_->kf_state_window.size() < param_.window_size) {
             return;
         }
 
         /******************扔掉最老的关键帧并边缘化*******************/
-        if (run_info_->kf_state_window.size() == param_->window_size + 1) {
+        if (run_info_->kf_state_window.size() == param_.window_size + 1) {
             std::unordered_map<int, int> feature_id_2_idx_origin =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
             auto oldest_features_begin = std::remove_if(run_info_->feature_window.begin(),
@@ -186,7 +186,7 @@ namespace vins {
                 run_info_->loop_match_infos.erase(run_info_->loop_match_infos.begin());
             }
             if (vins_state_ == EVinsState::kNormal) {
-                FrontEndOptimize::slide(*param_,
+                FrontEndOptimize::slide(param_,
                                         oldest_feature,
                                         *run_info_->pre_int_window.front(),
                                         feature_id_2_idx_origin,
@@ -209,7 +209,7 @@ namespace vins {
         }
 
         /******************滑窗优化*******************/
-        FrontEndOptimize::optimize(param_->slide_window,
+        FrontEndOptimize::optimize(param_.slide_window,
                                    run_info_->pre_int_window,
                                    run_info_->loop_match_infos,
                                    run_info_->feature_window,
