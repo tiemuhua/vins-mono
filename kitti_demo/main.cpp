@@ -14,13 +14,17 @@ inline std::string id2fileName(int id) {
     return img_name.substr(0, 10 - img_id_str.size()).append(img_id_str);
 }
 
-int main(int argc, char** argv) {
-    if (argc != 4) {
-        LOG(ERROR) << "argc:" << argc << ", argc should be 4";
-        return -1;
+class Callback : public vins::Callback{
+    void onPosSolved(const std::vector<vins::PosAndTimeStamp> & pos_and_time_stamps) {
+        LOG(INFO) << pos_and_time_stamps.size() << "\n";
     }
+};
 
-    vins::init(nullptr, nullptr);
+int main(int argc, char** argv) {
+    google::InitGoogleLogging(argv[0]);
+    auto callback = std::make_shared<Callback>();
+    auto param = std::make_unique<vins::Param>();
+    vins::init(std::move(param), callback);
 
     std::string data_set_path = "/Users/gjt/vins-mono/dataset";
     std::string img_folder_path = data_set_path + "/image/data/";
@@ -34,6 +38,7 @@ int main(int argc, char** argv) {
     std::queue<double> imu_time_stamps;
     std::queue<Eigen::Vector3d> acc_vec, gyr_vec;
     std::string imu_time_stamp_line;
+    LOG(INFO) << "std::string imu_time_stamp_line";
     for (int i = 0; true; ++i) {
         if (!getline(imu_time_stamp_stream, imu_time_stamp_line)) {
             break;

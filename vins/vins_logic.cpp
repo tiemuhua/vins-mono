@@ -17,10 +17,12 @@ namespace vins {
     }
 
     void handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
+        LOG(INFO) << "handleImage ts:" << time_stamp;
         sp_vins_core->handleImage(_img, time_stamp);
     }
 
     void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr, double time_stamp) {
+        LOG(INFO) << "handleIMU ts:" << time_stamp;
         sp_vins_core->handleIMU(acc, gyr, time_stamp);
     }
 
