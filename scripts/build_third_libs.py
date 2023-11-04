@@ -65,3 +65,8 @@ def compile_third_libs():
 
 if __name__ == '__main__':
     compile_third_libs()
+    os.chdir(os.path.join(PROJECT_ROOT_PATH, "vins"))
+    cmake_build_library(BUILD_FOLDER, INSTALL_PATH)
+    os.chdir("..")
+    os.chdir(os.path.join(PROJECT_ROOT_PATH, "kitti_demo"))
+    os.chdir("..")

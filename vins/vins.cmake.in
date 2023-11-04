@@ -1,0 +1,9 @@
+FIND_LIBRARY(vins_LIBRARY vins
+    PATHS @CMAKE_INSTALL_PREFIX@/lib
+)
+FIND_PATH(vins_cmake_config_DIR vinsConfig.cmake
+    PATHS @CMAKE_INSTALL_PREFIX@/include/
+)
+SET(vins_LIBRARIES ${vins_LIBRARY})
+SET(vins_LIBS ${vins_LIBRARY})
+SET(vins_INCLUDE_DIRS ${vins_cmake_config_DIR})

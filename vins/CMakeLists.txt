@@ -30,13 +30,22 @@ include_directories(
         ${gflags_INCLUDE_DIRS}
         ${DLib_INCLUDE_DIRS}
         ${DBoW2_INCLUDE_DIRS}
-        src
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-file(GLOB_RECURSE SRC RELATIVE ${PROJECT_SOURCE_DIR} src/*.cpp)
-add_library(vins STATIC ${SRC})
+file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} *.cpp)
+list(APPEND SRC ${TMP_SRC})
+file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/*.cpp)
+list(APPEND SRC ${TMP_SRC})
+file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/front_end_optimize/*.cpp)
+list(APPEND SRC ${TMP_SRC})
+file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/initial/*.cpp)
+list(APPEND SRC ${TMP_SRC})
+file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/loop_closer/*.cpp)
+list(APPEND SRC ${TMP_SRC})
+add_library(${PROJECT_NAME} STATIC ${SRC})
 
-target_link_libraries(vins
+target_link_libraries(${PROJECT_NAME}
         Eigen3::Eigen
         Ceres::ceres
         glog::glog
@@ -45,3 +54,16 @@ target_link_libraries(vins
         ${DLib_LIBS}
         ${OpenCV_LIBS}
         )
+
+configure_file(vins.cmake.in
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake" @ONLY)
+install(FILES vins_logic.h
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME})
+install(FILES param.h
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME})
+install(TARGETS ${PROJECT_NAME}
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include/)
