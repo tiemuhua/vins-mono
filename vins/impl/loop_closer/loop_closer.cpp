@@ -119,6 +119,9 @@ void LoopCloser::optimize4DoFImpl() {
     key_frame_list_.insert(key_frame_list_.end(), tmp_key_frame_buffer.begin(), tmp_key_frame_buffer.end());
 
     // todo 这里是ID还是idx？
+    if (key_frame_list_.empty()) {
+        return;
+    }
     loop_interval_upper_bound_ = key_frame_list_.back()->loop_relative_pose_.peer_frame_id;
 
     if (loop_interval_upper_bound_ == -1) { return; }

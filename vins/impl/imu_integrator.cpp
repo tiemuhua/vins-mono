@@ -122,7 +122,7 @@ namespace vins {
         const Eigen::Matrix3d mid_rot = pre_rot * pre_acc_hat + cur_rot * cur_acc_hat * mat;
         Matrix3d identity = MatrixXd::Identity(3, 3);
 
-        MatrixXd F = MatrixXd::Zero(15, 15);
+        Eigen::Matrix<double, StateDim, StateDim>  F = Eigen::Matrix<double, StateDim, StateDim>::Zero();
         F.block<3, 3>(kOrderPos, kOrderPos) = identity;
         F.block<3, 3>(kOrderPos, kOrderRot) = -0.25 * dt2 * mid_rot;
         F.block<3, 3>(kOrderPos, kOrderVel) = identity * dt;
@@ -137,7 +137,7 @@ namespace vins {
         F.block<3, 3>(kOrderBA, kOrderBA) = identity;
         F.block<3, 3>(kOrderBG, kOrderBG) = identity;
 
-        MatrixXd V = MatrixXd::Zero(15, 18);
+        Eigen::Matrix<double, StateDim, NoiseDim> V = Eigen::Matrix<double, StateDim, NoiseDim>::Zero();
         V.block<3, 3>(kOrderPos, kAccNoise) = 0.25 * (pre_rot + cur_rot) * dt2;
         V.block<3, 3>(kOrderPos, kGyrNoise) = -cur_rot * cur_acc_hat * dt3 / 4.0;
         V.block<3, 3>(kOrderRot, kGyrNoise) = identity * dt;

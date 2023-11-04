@@ -16,18 +16,22 @@
 namespace vins {
     VinsCore::VinsCore(const Param& param, std::weak_ptr<Callback> cb) {
         run_info_ = new RunInfo();
-        param_ = std::move(param);
+        param_ = param;
         camera_wrapper_ = new CameraWrapper(param);
         feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
         cb_ = std::move(cb);
         std::thread([this]() {
-            struct timeval tv1{}, tv2{};
-            gettimeofday(&tv1, nullptr);
-            _handleData();
-            gettimeofday(&tv2, nullptr);
-            int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
-            if (cost_us < 1 * 1000) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            while(true) {
+                struct timeval tv1{}, tv2{};
+                gettimeofday(&tv1, nullptr);
+                if (vins_state_ != EVinsState::kNoIMUData) {
+                    _handleData();
+                }
+                gettimeofday(&tv2, nullptr);
+                int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
+                if (cost_us < 1 * 1000) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
             }
         }).detach();
     }
@@ -85,10 +89,6 @@ namespace vins {
     }
 
     void VinsCore::_handleData() {
-        if (vins_state_ == EVinsState::kNoIMUData) {
-            return;
-        }
-
         /******************从缓冲区中读取图像数据*******************/
         double img_time_stamp = -1;
         std::shared_ptr<cv::Mat> img_ptr = nullptr;
@@ -103,7 +103,6 @@ namespace vins {
         }
 
         /******************提取特征点*******************/
-        int prev_kf_window_size = run_info_->kf_state_window.size();
         std::vector<FeaturePoint2D> feature_pts;
         std::vector<cv::KeyPoint> feature_raw_pts;
         feature_tracker_->extractFeatures(*img_ptr, img_time_stamp, feature_pts, feature_raw_pts);
@@ -112,7 +111,7 @@ namespace vins {
         if (vins_state_ == EVinsState::kNoImgData) {
             run_info_->kf_state_window.push_back({});
             run_info_->frame_window.emplace_back(feature_pts, nullptr, true);
-            FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
+            FeatureHelper::addFeatures(0, img_time_stamp, feature_pts, run_info_->feature_window);
             vins_state_ = EVinsState::kInitial;
             return;
         }
@@ -133,6 +132,7 @@ namespace vins {
         }
 
         /******************非首帧图像加入滑动窗口*******************/
+        int prev_kf_window_size = run_info_->kf_state_window.size();
         bool is_key_frame = FeatureHelper::isKeyFrame(param_.camera.focal,
                                                       param_.key_frame_parallax_threshold,
                                                       prev_kf_window_size,
