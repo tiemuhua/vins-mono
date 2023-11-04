@@ -21,7 +21,7 @@ def call_shell(cmd: str) -> subprocess.CompletedProcess[Any] | subprocess.Comple
 # 本函数结束时保证仍然位于 CMakeLists.txt 目录中
 def cmake_build_library(build_folder: str,
                         install_path: str,
-                        cmake_options: str = ""):
+                        options: str = ""):
     assert os.path.exists("CMakeLists.txt")
     project_path: str = os.path.abspath('.')
     build_path: str = os.path.join(project_path, build_folder)
@@ -30,7 +30,7 @@ def cmake_build_library(build_folder: str,
     if not os.path.exists(install_path):
         os.makedirs(install_path)
     os.chdir(build_path)
-    cmake_cmd: str = "cmake .. " + cmake_options + \
+    cmake_cmd: str = "cmake .. " + options + \
                      " -DCMAKE_POSITION_INDEPENDENT_CODE=ON" + \
                      " -DCMAKE_INSTALL_PREFIX=" + install_path + \
                      " -DCMAKE_PREFIX_PATH=" + install_path
