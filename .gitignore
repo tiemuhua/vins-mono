@@ -6,3 +6,4 @@ build/
 dataset
 *.pyc
 *.log
+install_*/

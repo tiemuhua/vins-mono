@@ -1,85 +1,67 @@
-import glob
 import platform
 import os
+import subprocess
+from typing import List, Any
 
-import build_library
 import cmake_options
 
 PLATFORM: str = platform.platform()
-THIRD_PATH: str = os.path.split(os.path.realpath(__file__))[0] + '/../3rd/'
-INSTALL_FOLDER: str = "install_" + PLATFORM
+PROJECT_ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+THIRD_PATH: str = os.path.join(PROJECT_ROOT_PATH, "3rd")
+INSTALL_PATH: str = os.path.abspath(os.path.join(PROJECT_ROOT_PATH, "install_" + PLATFORM))
 BUILD_FOLDER: str = "build_" + PLATFORM
 
-BOOST: str = "Boost"
-EIGEN: str = "Eigen3"
-OPENCV: str = "OpenCV"
-GFLAGS: str = "gflags"
-GLOG: str = "glog"
-CERES: str = "Ceres"
-DLIB: str = "DLib"
-DBOW2: str = "DBoW2"
-CAMODOCAL: str = "CAMODOCAL"
-LIBRARY_LIST: list[str] = [BOOST, EIGEN, OPENCV, GFLAGS, GLOG, CERES, DLIB, DBOW2, CAMODOCAL]
-DEPENDENCY_GRAPH: dict[str, list[str]] = {
-    BOOST: [],
-    EIGEN: [],
-    OPENCV: [],
-    GFLAGS: [],
-    GLOG: [GFLAGS],
-    CERES: [GFLAGS, GLOG],
-    DLIB: [OPENCV, BOOST, EIGEN],
-    DBOW2: [DLIB, OPENCV, BOOST, EIGEN],
-    CAMODOCAL: [DLIB, DBOW2, OPENCV, BOOST, CERES, EIGEN, GLOG, GFLAGS]
-}
+
+def call_shell(cmd: str) -> subprocess.CompletedProcess[Any] | subprocess.CompletedProcess[bytes]:
+    word_list_of_cmd: List[str] = [word for word in cmd.split(" ") if word != ""]
+    return subprocess.run(word_list_of_cmd)
+
+
+# 执行本函数时应当保证工作目录位于 CMakeLists.txt 目录中
+# 本函数结束时保证仍然位于 CMakeLists.txt 目录中
+def cmake_build_library(build_folder: str,
+                        install_path: str,
+                        cmake_options: str = ""):
+    assert os.path.exists("CMakeLists.txt")
+    project_path: str = os.path.abspath('.')
+    build_path: str = os.path.join(project_path, build_folder)
+    if not os.path.exists(build_path):
+        os.makedirs(build_path)
+    if not os.path.exists(install_path):
+        os.makedirs(install_path)
+    os.chdir(build_path)
+    cmake_cmd: str = "cmake .. " + cmake_options + \
+                     " -DCMAKE_POSITION_INDEPENDENT_CODE=ON" + \
+                     " -DCMAKE_INSTALL_PREFIX=" + install_path + \
+                     " -DCMAKE_PREFIX_PATH=" + install_path
+    print(cmake_cmd)
+    call_shell(cmake_cmd)
+    call_shell("make -j16")
+    call_shell("make install")
+    os.chdir("..")
+    assert os.path.exists("CMakeLists.txt")
+
+
+def b2_build_library(build_folder: str, install_folder: str):
+    call_shell("./bootstrap.sh --with-python-version=3.10 --prefix=" + install_folder)
+    call_shell("./b2 install --build-dir=" + build_folder)
 
 
 def compile_third_libs():
-    my_env: dict[str, str] = os.environ.copy()
     os.chdir(THIRD_PATH)
-    os.chdir("boost")
-    build_library.b2_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER)
-    my_env["Boost_DIR"] = THIRD_PATH + "boost/" + INSTALL_FOLDER + "/lib/cmake/" + "Boost-1.82.0/"
-
-    os.chdir("../Eigen3")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[EIGEN])
-    my_env["Eigen3_DIR"] = THIRD_PATH + "Eigen3/" + INSTALL_FOLDER + "/share/eigen3/cmake/"
-
-    os.chdir("../gflags")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[GFLAGS])
-    my_env["gflags_DIR"] = THIRD_PATH + "gflags/" + INSTALL_FOLDER + "/lib/cmake/" + "/gflags"
-
-    os.chdir("../glog")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[GLOG])
-    my_env["glog_DIR"] = THIRD_PATH + "glog/" + INSTALL_FOLDER + "/lib/cmake/" + "/glog"
-
-    os.chdir("../opencv")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[OPENCV],
-                                      cmake_options.OPENCV_CMAKE_OPTIONS)
-    my_env["OpenCV_DIR"] = THIRD_PATH + "opencv/" + INSTALL_FOLDER + "/lib/cmake/" + "/opencv4"
-
-    os.chdir("../Ceres")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[CERES])
-    my_env["Ceres_DIR"] = THIRD_PATH + "Ceres/" + INSTALL_FOLDER + "/lib/cmake/" + "/Ceres"
-
-    os.chdir("../DLib")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[DLIB])
-    my_env["DLib_DIR"] = THIRD_PATH + "DLib/" + INSTALL_FOLDER + "/lib/cmake/" + "/DLib"
-
-    os.chdir("../DBoW2")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[DBOW2])
-    my_env["DBoW2_DIR"] = THIRD_PATH + "DBoW2/" + INSTALL_FOLDER + "/lib/cmake/" + "/DBoW2"
-
-    os.chdir("../camodocal")
-    build_library.cmake_build_library(my_env, BUILD_FOLDER, INSTALL_FOLDER, DEPENDENCY_GRAPH[CAMODOCAL])
-    my_env["CAMODOCAL_DIR"] = THIRD_PATH + "camodocal/" + INSTALL_FOLDER + "/lib/cmake/" + "/CAMODOCAL"
-    os.chdir("..")
-
-    print("##############################################################")
-    print("please export xxx_DIR in your ~/.zshrc or ~/.bashrc manually")
-    for lib in LIBRARY_LIST:
-        export_expression: str = "export {lib}_DIR={path}".format(lib=lib, path=my_env[lib + "_DIR"])
-        print(export_expression)
-    print("##############################################################")
+    for _, dirs, _ in os.walk("."):
+        for lib in dirs:
+            if lib.lower() == "patch" or lib.lower() == "opencv_contrib":
+                continue
+            os.chdir(lib)
+            if lib.lower() == "boost":
+                b2_build_library(BUILD_FOLDER, INSTALL_PATH)
+            elif lib.lower() == "opencv":
+                cmake_build_library(BUILD_FOLDER, INSTALL_PATH,
+                                    cmake_options.OPENCV_CMAKE_OPTIONS)
+            else:
+                cmake_build_library(BUILD_FOLDER, INSTALL_PATH)
+            os.chdir("..")
 
 
 if __name__ == '__main__':

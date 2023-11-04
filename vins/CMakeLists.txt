@@ -13,8 +13,6 @@ endif()
 
 project (vins)
 
-set(SELF_LIBS_OUT ${CMAKE_SYSTEM_NAME}.out)
-
 # 顺序不能乱，eigen、glog必须在Ceres前面，gflags必须在glog前面，诸如此类
 find_package(Boost REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -47,6 +45,3 @@ target_link_libraries(vins
         ${DLib_LIBS}
         ${OpenCV_LIBS}
         )
-
-add_executable(kitti_demo kitti_demo/main.cpp)
-target_link_libraries(kitti_demo vins)
