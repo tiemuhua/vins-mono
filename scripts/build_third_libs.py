@@ -49,19 +49,18 @@ def b2_build_library(build_folder: str, install_folder: str):
 
 def compile_third_libs():
     os.chdir(THIRD_PATH)
-    for _, dirs, _ in os.walk("."):
-        for lib in dirs:
-            if lib.lower() == "patch" or lib.lower() == "opencv_contrib":
-                continue
-            os.chdir(lib)
-            if lib.lower() == "boost":
-                b2_build_library(BUILD_FOLDER, INSTALL_PATH)
-            elif lib.lower() == "opencv":
-                cmake_build_library(BUILD_FOLDER, INSTALL_PATH,
-                                    cmake_options.OPENCV_CMAKE_OPTIONS)
-            else:
-                cmake_build_library(BUILD_FOLDER, INSTALL_PATH)
-            os.chdir("..")
+    # 这个顺序已经考虑了三方库之间的依赖关系。如果三方库有几十个的话，有必要通过拓扑排序来自动根据依赖关系求解编译顺序。
+    # macOS对文件夹大小写不敏感，但是Linux对大小写敏感
+    for lib in ["boost", "Eigen3", "gflags", "glog", "opencv", "Ceres", "DLib", "DBoW2", "camodocal"]:
+        os.chdir(lib)
+        if lib == "boost":
+            b2_build_library(BUILD_FOLDER, INSTALL_PATH)
+        elif lib == "opencv":
+            cmake_build_library(BUILD_FOLDER, INSTALL_PATH,
+                                cmake_options.OPENCV_CMAKE_OPTIONS)
+        else:
+            cmake_build_library(BUILD_FOLDER, INSTALL_PATH)
+        os.chdir("..")
 
 
 if __name__ == '__main__':
