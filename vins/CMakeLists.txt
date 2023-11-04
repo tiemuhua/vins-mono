@@ -1,8 +1,5 @@
 cmake_minimum_required (VERSION 3.6)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "Installation directory" FORCE)
-message(STATUS "CMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}")
 set(CMAKE_CXX_STANDARD 17)
 enable_language(CXX)
 
