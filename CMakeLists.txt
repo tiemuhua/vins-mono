@@ -5,8 +5,10 @@ project(vins_mono)
 
 set(CMAKE_CXX_STANDARD 14)
 
-# install_${platform}在首次编译完成后才会生成 
-include_directories(install_macOS-13.4.1-arm64-arm-64bit)
+# install_${platform}在首次编译完成后才会生成，请用户自行修改相应的install目录
+include_directories(install_macOS-13.4.1-arm64-arm-64bit/include)
+include_directories(install_macOS-13.4.1-arm64-arm-64bit/include/eigen3)
+include_directories(install_macOS-13.4.1-arm64-arm-64bit/include/opencv4)
 
 include_directories(vins)
 include_directories(vins/impl)
