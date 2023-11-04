@@ -32,14 +32,6 @@ include_directories(
 
 file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} *.cpp)
 list(APPEND SRC ${TMP_SRC})
-file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/*.cpp)
-list(APPEND SRC ${TMP_SRC})
-file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/front_end_optimize/*.cpp)
-list(APPEND SRC ${TMP_SRC})
-file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/initial/*.cpp)
-list(APPEND SRC ${TMP_SRC})
-file(GLOB_RECURSE TMP_SRC RELATIVE ${PROJECT_SOURCE_DIR} impl/loop_closer/*.cpp)
-list(APPEND SRC ${TMP_SRC})
 add_library(${PROJECT_NAME} STATIC ${SRC})
 
 target_link_libraries(${PROJECT_NAME}

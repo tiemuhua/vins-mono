@@ -19,21 +19,19 @@ def call_shell(cmd: str) -> subprocess.CompletedProcess[Any] | subprocess.Comple
 
 # 执行本函数时应当保证工作目录位于 CMakeLists.txt 目录中
 # 本函数结束时保证仍然位于 CMakeLists.txt 目录中
-def cmake_build_library(build_folder: str,
-                        install_path: str,
-                        options: str = ""):
+def cmake_build_library(options: str = ""):
     assert os.path.exists("CMakeLists.txt")
     project_path: str = os.path.abspath('.')
-    build_path: str = os.path.join(project_path, build_folder)
+    build_path: str = os.path.join(project_path, BUILD_FOLDER)
     if not os.path.exists(build_path):
         os.makedirs(build_path)
-    if not os.path.exists(install_path):
-        os.makedirs(install_path)
+    if not os.path.exists(INSTALL_PATH):
+        os.makedirs(INSTALL_PATH)
     os.chdir(build_path)
     cmake_cmd: str = "cmake .. " + options + \
                      " -DCMAKE_POSITION_INDEPENDENT_CODE=ON" + \
-                     " -DCMAKE_INSTALL_PREFIX=" + install_path + \
-                     " -DCMAKE_PREFIX_PATH=" + install_path
+                     " -DCMAKE_INSTALL_PREFIX=" + INSTALL_PATH + \
+                     " -DCMAKE_PREFIX_PATH=" + INSTALL_PATH
     print(cmake_cmd)
     call_shell(cmake_cmd)
     call_shell("make -j16")
@@ -42,9 +40,9 @@ def cmake_build_library(build_folder: str,
     assert os.path.exists("CMakeLists.txt")
 
 
-def b2_build_library(build_folder: str, install_folder: str):
-    call_shell("./bootstrap.sh --with-python-version=3.10 --prefix=" + install_folder)
-    call_shell("./b2 install --build-dir=" + build_folder)
+def b2_build_library():
+    call_shell("./bootstrap.sh --with-python-version=3.10 --prefix=" + INSTALL_PATH)
+    call_shell("./b2 install --build-dir=" + BUILD_FOLDER)
 
 
 def compile_third_libs():
@@ -54,19 +52,18 @@ def compile_third_libs():
     for lib in ["boost", "Eigen3", "gflags", "glog", "opencv", "Ceres", "DLib", "DBoW2", "camodocal"]:
         os.chdir(lib)
         if lib == "boost":
-            b2_build_library(BUILD_FOLDER, INSTALL_PATH)
+            b2_build_library()
         elif lib == "opencv":
-            cmake_build_library(BUILD_FOLDER, INSTALL_PATH,
-                                cmake_options.OPENCV_CMAKE_OPTIONS)
+            cmake_build_library(cmake_options.OPENCV_CMAKE_OPTIONS)
         else:
-            cmake_build_library(BUILD_FOLDER, INSTALL_PATH)
+            cmake_build_library()
         os.chdir("..")
 
 
 if __name__ == '__main__':
-    compile_third_libs()
+    # compile_third_libs()
     os.chdir(os.path.join(PROJECT_ROOT_PATH, "vins"))
-    cmake_build_library(BUILD_FOLDER, INSTALL_PATH)
+    cmake_build_library()
     os.chdir("..")
     os.chdir(os.path.join(PROJECT_ROOT_PATH, "kitti_demo"))
     os.chdir("..")
