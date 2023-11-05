@@ -55,13 +55,12 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
         std::vector<uchar> mask;
         cv::findFundamentalMat(prev_norm_pts_, next_norm_pts, cv::FM_RANSAC,
                                param_.frame_tracker.fundamental_threshold, 0.99, mask);
-        size_t size_a = prev_raw_pts_.size();
         utils::reduceVector(prev_raw_pts_, mask);
         utils::reduceVector(next_raw_pts, mask);
         utils::reduceVector(prev_norm_pts_, mask);
         utils::reduceVector(next_norm_pts, mask);
         utils::reduceVector(feature_ids_, mask);
-        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << size_a << "next_raw_pts.size" << next_raw_pts.size();
+        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << prev_raw_pts_.size() << "\t" << "next_raw_pts.size" << next_raw_pts.size();
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点

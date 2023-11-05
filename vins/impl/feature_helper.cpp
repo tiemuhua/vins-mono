@@ -9,21 +9,13 @@ namespace vins {
                                    const double kf_parallax_threshold,
                                    const std::vector<FeaturePoint2D> &feature_points,
                                    const std::vector<Feature> &feature_window) {
-        LOG(INFO) << "input feature: " << feature_points.size()
-                  << "\tnum of feature: " << feature_window.size();
+        auto new_track_num = count_if(feature_points.begin(),
+                                     feature_points.end(),
+                                     [&](const FeaturePoint2D &it) -> bool {
+            return it.feature_id > feature_window.back().feature_id;
+        });
 
-        int last_track_num = 0;
-        for (const FeaturePoint2D &point: feature_points) {
-            auto it = find_if(feature_window.begin(), feature_window.end(), [point](const Feature &it) -> bool {
-                return it.feature_id == point.feature_id;
-            });
-
-            if (it != feature_window.end()) {
-                last_track_num++;
-            }
-        }
-
-        if (key_frame_idx < 2 || last_track_num < 20)
+        if (key_frame_idx < 2 || new_track_num < 20)
             return true;
 
         int parallax_num = 0;
@@ -49,18 +41,19 @@ namespace vins {
     void FeatureHelper::addFeatures(int frame_idx, double time_stamp,
                                     const std::vector<FeaturePoint2D> &feature_points,
                                     std::vector<Feature> &feature_window) {
+        std::unordered_map<int,int> feature_id_2_feature_idx;
+        for (int idx = 0; idx < feature_window.size(); ++idx) {
+            feature_id_2_feature_idx[feature_window[idx].feature_id] = idx;
+        }
         for (const FeaturePoint2D &point: feature_points) {
-            auto it = find_if(feature_window.begin(), feature_window.end(), [point](const Feature &it) -> bool {
-                return it.feature_id == point.feature_id;
-            });
-
-            if (it == feature_window.end()) {
+            if (!feature_id_2_feature_idx.count(point.feature_id)) {
                 feature_window.emplace_back(Feature(point.feature_id, frame_idx));
-                it = feature_window.end()--;
+                feature_id_2_feature_idx[feature_window.size() - 1] = point.feature_id;
             }
-            it->points.push_back(point.point);
-            it->velocities.push_back(point.velocity);
-            it->time_stamps_ms.emplace_back(time_stamp);
+            int idx = feature_id_2_feature_idx[point.feature_id];
+            feature_window[idx].points.push_back(point.point);
+            feature_window[idx].velocities.push_back(point.velocity);
+            feature_window[idx].time_stamps_ms.emplace_back(time_stamp);
         }
     }
 

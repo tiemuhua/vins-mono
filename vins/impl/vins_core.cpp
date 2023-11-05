@@ -137,6 +137,10 @@ namespace vins {
                                                       prev_kf_window_size,
                                                       feature_pts,
                                                       run_info_->feature_window);
+        LOG(INFO) << "input feature: " << feature_pts.size() << "\t"
+                  << "num of feature: " << run_info_->feature_window.size() << "\t"
+                  << "is key frame: " << (is_key_frame ? "true" : "false");
+
         run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame);
         if (!is_key_frame) {
             return;
