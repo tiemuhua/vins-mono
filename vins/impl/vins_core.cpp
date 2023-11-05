@@ -171,6 +171,7 @@ namespace vins {
                     marginal_features.emplace_back(feature);
                 }
             }
+            LOG(INFO) << "margin features size:" << marginal_features.size();
 
             // 对于首次出现于oldest_kf或更早时刻的特征点，将oldest_kf对应的二维坐标/速度从feature中移除
             // 对于oldest_kf时刻尚未出现的特征点，start_kf_window_idx--
@@ -186,6 +187,7 @@ namespace vins {
             // 若特征点在滑动窗口中出现的次数不足两次，则无法构造观测方程，从feature_window中扔掉。
             // 并分别记录扔掉过期特征点前后的feature_id_2_idx。
             // 扔掉的不是第一次出现于oldest_kf的特征点，而是最后一次或倒数第二次出现于oldest_kf的特征点。
+            LOG(INFO) << "features size before discard:" << run_info_->feature_window.size();
             std::unordered_map<int, int> feature_id_2_idx_before_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
             utils::erase_if_wrapper(run_info_->feature_window, [](const Feature &feature){
@@ -193,6 +195,7 @@ namespace vins {
             });
             std::unordered_map<int, int> feature_id_2_idx_after_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
+            LOG(INFO) << "features size after discard:" << run_info_->feature_window.size();
 
             // 边缘化
             if (vins_state_ == EVinsState::kNormal) {
@@ -204,9 +207,11 @@ namespace vins {
             }
 
             // 移除滑动窗口中过期的帧、关键帧状态、关键帧IMU积分、回环匹配
+            LOG(INFO) << "frame_window size before discard:" << run_info_->frame_window.size();
             utils::erase_if_wrapper(run_info_->frame_window, [&](const Frame& frame) ->bool {
-                return frame.time_stamp >= run_info_->kf_state_window.begin()->time_stamp;
+                return frame.time_stamp < run_info_->kf_state_window.begin()->time_stamp;
             });
+            LOG(INFO) << "frame_window size before discard:" << run_info_->frame_window.size();
             run_info_->kf_state_window.erase(run_info_->kf_state_window.begin());
             run_info_->pre_int_window.erase(run_info_->pre_int_window.begin());
             for (LoopMatchInfo &info: run_info_->loop_match_infos) {
