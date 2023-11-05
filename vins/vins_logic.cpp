@@ -24,7 +24,9 @@ namespace vins {
     }
 
     void handleIMU(const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr, double time_stamp) {
-        LOG(INFO) << "handleIMU ts:" << time_stamp;
+        LOG(INFO) << "handleIMU ts:" << time_stamp
+            << ", acc:" << acc.transpose()
+            << ", gyr:" << gyr.transpose();
         sp_vins_core->handleIMU(acc, gyr, time_stamp);
     }
 

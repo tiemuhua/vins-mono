@@ -61,13 +61,15 @@ namespace vins {
 
         Frame(const std::vector<FeaturePoint2D> &_features,
               std::shared_ptr<ImuIntegrator> _pre_integral,
-              bool _is_key_frame) {
+              bool _is_key_frame,
+              double ts) {
             for (const FeaturePoint2D &feature: _features) {
                 points.emplace_back(feature.point);
                 feature_ids.emplace_back(feature.feature_id);
             }
             pre_integral_ = std::move(_pre_integral);
             is_key_frame_ = _is_key_frame;
+            time_stamp = ts;
         };
         std::vector<cv::Point2f> points;
         std::vector<int> feature_ids;

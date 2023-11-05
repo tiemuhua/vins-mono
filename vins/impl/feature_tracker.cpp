@@ -60,7 +60,7 @@ void FeatureTracker::extractFeatures(const cv::Mat &_img, double _cur_time,
         utils::reduceVector(prev_norm_pts_, mask);
         utils::reduceVector(next_norm_pts, mask);
         utils::reduceVector(feature_ids_, mask);
-        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << prev_raw_pts_.size() << "\t" << "next_raw_pts.size" << next_raw_pts.size();
+        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << prev_raw_pts_.size() << ", next_raw_pts.size:" << next_raw_pts.size();
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点

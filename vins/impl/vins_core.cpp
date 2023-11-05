@@ -110,7 +110,7 @@ namespace vins {
         /******************首帧图像加入滑动窗口*******************/
         if (vins_state_ == EVinsState::kNoImgData) {
             run_info_->kf_state_window.push_back({});
-            run_info_->frame_window.emplace_back(feature_pts, nullptr, true);
+            run_info_->frame_window.emplace_back(feature_pts, nullptr, true, img_time_stamp);
             FeatureHelper::addFeatures(0, img_time_stamp, feature_pts, run_info_->feature_window);
             vins_state_ = EVinsState::kInitial;
             return;
@@ -141,7 +141,7 @@ namespace vins {
                   << "num of feature: " << run_info_->feature_window.size() << "\t"
                   << "is key frame: " << (is_key_frame ? "true" : "false");
 
-        run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame);
+        run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame, img_time_stamp);
         if (!is_key_frame) {
             return;
         }
@@ -151,8 +151,9 @@ namespace vins {
                     std::make_unique<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
         }
         kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
-        run_info_->kf_state_window.emplace_back(
-                recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_));
+        KeyFrameState kf_state = recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
+        kf_state.time_stamp = img_time_stamp;
+        run_info_->kf_state_window.emplace_back(kf_state);
         run_info_->pre_int_window.emplace_back(std::move(kf_pre_integral_ptr_));
         kf_pre_integral_ptr_ = nullptr;
 

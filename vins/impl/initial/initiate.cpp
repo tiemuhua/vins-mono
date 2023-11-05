@@ -17,20 +17,30 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     for (int i = 1; i < all_image_frame_.size(); ++i) {
         const Frame &frame = all_image_frame_[i];
         double dt = frame.pre_integral_->deltaTime();
+        if (abs(dt) < 1e-5) {
+            LOG(INFO) << "dt is too small";
+            continue;
+        }
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
         sum_acc += tmp_acc;
     }
     Eigen::Vector3d avg_acc = sum_acc / (double) all_image_frame_.size();
+    assert(avg_acc.norm() < 1e4);
     double var = 0;
     for (int i = 1; i < all_image_frame_.size(); ++i) {
         const Frame &frame = all_image_frame_[i];
         double dt = frame.pre_integral_->deltaTime();
+        if (abs(dt) < 1e-5) {
+            LOG(INFO) << "dt is too small";
+            continue;
+        }
         Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
-        var += (tmp_acc - avg_acc).transpose() * (tmp_acc - avg_acc);
+        var += (tmp_acc - avg_acc).norm();
     }
 
     var = sqrt(var / (double) all_image_frame_.size());
-    LOG(INFO) << "IMU acc variant:" << var;
+    assert(abs(var) < 1e4);
+    LOG(INFO) << "acc average:" << avg_acc.transpose() << ", acc variant:" << var;
     return var > 0.25;
 }
 

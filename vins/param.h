@@ -9,8 +9,8 @@
 
 namespace vins {
     struct CameraParam {
-        int col = 1242;
-        int row = 375;
+        int col = -1;
+        int row = -1;
         double focal = -1;
     };
     struct FrameTrackerParam {
@@ -24,10 +24,10 @@ namespace vins {
         int max_iter_num = 100;
     };
     struct IMUParam {
-        double ACC_N;
-        double ACC_W;
-        double GYR_N;
-        double GYR_W;
+        double ACC_N = 2.0000e-3;
+        double ACC_W = 5.0000e-3;
+        double GYR_N = 1.6968e-04;
+        double GYR_W = 0.003491;
     };
 
     class Param {
