@@ -129,8 +129,10 @@ namespace vins {
             rr.emplace_back(correspondence.second);
         }
         cv::Mat mask;
-        cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);
-        cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+        cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
+        // 秦博用的不是findEssentialMat而是findFundamentalMat，算出来的结果直接发散了
+        // calib3d.h中recoverPose的官方demo里面就是用的findEssentialMat
+        cv::Mat E = findEssentialMat(ll, rr, cameraMatrix, cv::RANSAC, 0.999, 1.0, mask);
         cv::Mat cv_rot, cv_trans;
         int inliner_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, cv_rot, cv_trans, mask);
         if (inliner_cnt < 13) {
@@ -139,6 +141,7 @@ namespace vins {
         cv::cv2eigen(cv_rot, rotation);
         cv::cv2eigen(cv_trans, unit_translation);
         assert(abs(unit_translation.norm() - 1) < 1e-5);
+        assert((rotation * rotation.transpose() - Eigen::Matrix3d::Identity()).norm() < 1e-5);
         return true;
     }
 
@@ -157,18 +160,20 @@ namespace vins {
             sfm_features.push_back(sfm_feature);
         }
 
-        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿
+        // 找到和末帧视差足够大的帧，并计算末帧相对该帧的位姿。转的不太快的话，一般来说就是首帧。
         Eigen::Matrix3d relative_R;
         Eigen::Vector3d relative_unit_T;
         int big_parallax_frame_id = -1;
         for (int i = 0; i < window_size; ++i) {
             vector<pair<cv::Point2f, cv::Point2f>> correspondences =
-                    FeatureHelper::getCorrespondences(i, window_size, feature_window);
+                    FeatureHelper::getCorrespondences(i, window_size - 1, feature_window);
             constexpr double avg_parallax_threshold = 30.0 / 460;
             if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
                 continue;
             }
-            solveRelativeRT(correspondences, relative_R, relative_unit_T);
+            if (!solveRelativeRT(correspondences, relative_R, relative_unit_T)) {
+                continue;
+            }
             big_parallax_frame_id = i;
             break;
         }
