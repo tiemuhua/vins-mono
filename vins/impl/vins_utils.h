@@ -15,6 +15,12 @@ namespace vins {
 
     namespace utils {
 
+        template<typename T, typename F>
+        void erase_if_wrapper(std::vector<T> &vec, const F& func) {
+            auto it = std::remove_if(vec.begin(), vec.end(), func);
+            vec.erase(it, vec.end());
+        }
+
         template<typename T>
         std::string eigen2string(T mat) {
             std::stringstream sstream;

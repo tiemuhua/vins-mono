@@ -280,14 +280,14 @@ static MarginalInfo *marginalize(const FrontEndOptimizeParam &param,
 void FrontEndOptimize::slide(const Param &param,
                              const std::vector<Feature> &oldest_features,
                              const ImuIntegrator &oldest_pre_integral,
-                             const std::unordered_map<int, int> &feature_id_2_idx_origin,
+                             const std::unordered_map<int, int> &feature_id_2_idx_before_discard,
                              const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
     sp_marginal_info = marginalize(param.slide_window, oldest_features, oldest_pre_integral, reserve_block_origin);
 
     std::unordered_map<double *, double *> slide_addr_map;
-    for (const auto &id2idx_origin: feature_id_2_idx_origin) {
+    for (const auto &id2idx_origin: feature_id_2_idx_before_discard) {
         int id = id2idx_origin.first;
         int idx_origin = id2idx_origin.second;
         int idx_after_discard = feature_id_2_idx_after_discard.at(id);

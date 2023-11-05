@@ -164,23 +164,49 @@ namespace vins {
 
         /******************扔掉最老的关键帧并边缘化*******************/
         if (run_info_->kf_state_window.size() == param_.window_size + 1) {
-            std::unordered_map<int, int> feature_id_2_idx_origin =
+            // 边缘化所涉及的特征点
+            std::vector<Feature> marginal_features;
+            for (const Feature &feature: run_info_->feature_window) {
+                if (feature.start_kf_window_idx == 0) {
+                    marginal_features.emplace_back(feature);
+                }
+            }
+
+            // 对于首次出现于oldest_kf或更早时刻的特征点，将oldest_kf对应的二维坐标/速度从feature中移除
+            // 对于oldest_kf时刻尚未出现的特征点，start_kf_window_idx--
+            for (Feature &feature: run_info_->feature_window) {
+                if (feature.start_kf_window_idx == 0) {
+                    feature.points.erase(feature.points.begin());
+                    feature.velocities.erase(feature.velocities.begin());
+                } else {
+                    feature.start_kf_window_idx--;
+                }
+            }
+
+            // 若特征点在滑动窗口中出现的次数不足两次，则无法构造观测方程，从feature_window中扔掉。
+            // 并分别记录扔掉过期特征点前后的feature_id_2_idx。
+            // 扔掉的不是第一次出现于oldest_kf的特征点，而是最后一次或倒数第二次出现于oldest_kf的特征点。
+            std::unordered_map<int, int> feature_id_2_idx_before_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
-            auto oldest_features_begin = std::remove_if(run_info_->feature_window.begin(),
-                                                        run_info_->feature_window.end(), [](const Feature &feature) {
-                        return feature.start_kf_window_idx == 0;
-                    });
-            std::vector<Feature> oldest_feature(oldest_features_begin, run_info_->feature_window.end());
-            run_info_->feature_window.erase(oldest_features_begin, run_info_->feature_window.end());
+            utils::erase_if_wrapper(run_info_->feature_window, [](const Feature &feature){
+                return feature.points.size() <= 1;
+            });
             std::unordered_map<int, int> feature_id_2_idx_after_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
-            for (Feature &feature: run_info_->feature_window) {
-                feature.start_kf_window_idx--;
+
+            // 边缘化
+            if (vins_state_ == EVinsState::kNormal) {
+                FrontEndOptimize::slide(param_,
+                                        marginal_features,
+                                        *run_info_->pre_int_window.front(),
+                                        feature_id_2_idx_before_discard,
+                                        feature_id_2_idx_after_discard);
             }
-            auto it = std::find_if(run_info_->frame_window.begin(), run_info_->frame_window.end(), [&](auto &frame) {
+
+            // 移除滑动窗口中过期的帧、关键帧状态、关键帧IMU积分、回环匹配
+            utils::erase_if_wrapper(run_info_->frame_window, [&](const Frame& frame) ->bool {
                 return frame.time_stamp >= run_info_->kf_state_window.begin()->time_stamp;
             });
-            run_info_->frame_window.erase(run_info_->frame_window.begin(), it);
             run_info_->kf_state_window.erase(run_info_->kf_state_window.begin());
             run_info_->pre_int_window.erase(run_info_->pre_int_window.begin());
             for (LoopMatchInfo &info: run_info_->loop_match_infos) {
@@ -188,13 +214,6 @@ namespace vins {
             }
             if (!run_info_->loop_match_infos.empty() && run_info_->loop_match_infos[0].window_idx == -1) {
                 run_info_->loop_match_infos.erase(run_info_->loop_match_infos.begin());
-            }
-            if (vins_state_ == EVinsState::kNormal) {
-                FrontEndOptimize::slide(param_,
-                                        oldest_feature,
-                                        *run_info_->pre_int_window.front(),
-                                        feature_id_2_idx_origin,
-                                        feature_id_2_idx_after_discard);
             }
         }
 

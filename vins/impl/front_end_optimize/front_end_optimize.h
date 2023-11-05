@@ -21,7 +21,7 @@ namespace vins::FrontEndOptimize {
     void slide(const Param &param,
                const std::vector<Feature> &oldest_features,
                const ImuIntegrator &oldest_pre_integral,
-               const std::unordered_map<int, int> &feature_id_2_idx_origin,
+               const std::unordered_map<int, int> &feature_id_2_idx_before_discard,
                const std::unordered_map<int, int> &feature_id_2_idx_after_discard);
 }
 
