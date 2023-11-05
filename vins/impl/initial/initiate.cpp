@@ -49,10 +49,10 @@ bool Initiate::initiate(RunInfo &run_info) {
         return false;
     }
 
-    std::vector<Eigen::Matrix3d> kf_img_rot;
-    std::vector<Eigen::Vector3d> kf_img_pos;
-    std::vector<Eigen::Matrix3d> frames_img_rot;
-    std::vector<Eigen::Vector3d> frames_img_pos;
+    std::vector<Eigen::Matrix3d> kf_img_rot(run_info.kf_state_window.size());
+    std::vector<Eigen::Vector3d> kf_img_pos(run_info.kf_state_window.size());
+    std::vector<Eigen::Matrix3d> frames_img_rot(run_info.frame_window.size());
+    std::vector<Eigen::Vector3d> frames_img_pos(run_info.frame_window.size());
 
     bool visual_succ = initiateByVisual((int) run_info.kf_state_window.size(),
                                         run_info.feature_window,

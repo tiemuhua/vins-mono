@@ -160,7 +160,7 @@ namespace vins {
             sfm_features.push_back(sfm_feature);
         }
 
-        // 找到和末帧视差足够大的帧，并计算末帧相对该帧的位姿。转的不太快的话，一般来说就是首帧。
+        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿。转的不太快的话，一般来说就是首帧。
         Eigen::Matrix3d relative_R;
         Eigen::Vector3d relative_unit_T;
         int big_parallax_frame_id = -1;
@@ -245,6 +245,7 @@ namespace vins {
             int frame_1 = sfm.feature.start_kf_window_idx + (int) sfm.feature.points.size();
             cv::Point2f point1 = sfm.feature.points.back();
             sfm.position = triangulatePoint(kf_poses[frame_0], kf_poses[frame_1], point0, point1);
+            assert(sfm.position.norm() < 3e3);
             sfm.has_been_triangulated = true;
         }
 
@@ -313,6 +314,8 @@ namespace vins {
          *             利用关键帧位姿和特征点深度PNP求解非关键帧位姿             *
          * ****************************************************************/
         int kf_idx = 0;
+        frames_img_rot.resize(all_frames.size());
+        frames_img_pos.resize(all_frames.size());
         for (int frame_idx = 0; frame_idx < all_frames.size(); ++frame_idx) {
             const Frame &frame = all_frames[frame_idx];
             // provide initial guess
