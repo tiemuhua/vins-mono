@@ -14,8 +14,8 @@ namespace vins {
                                      const std::vector<Eigen::Matrix3d> &img_delta_rots,
                                      const std::vector<Eigen::Matrix3d> &jacobians_bg_2_rot) {
         int interval_size = (int) imu_delta_rots.size();
-        Eigen::MatrixXd A = Eigen::Matrix3d::Zero(interval_size, 3);
-        Eigen::VectorXd b = Eigen::Vector3d::Zero(interval_size);
+        Eigen::MatrixXd A = Eigen::MatrixXd::Zero(interval_size * 3, 3);
+        Eigen::VectorXd b = Eigen::VectorXd::Zero(interval_size * 3);
         for (int i = 0; i < interval_size; ++i) {
             A.block<3, 3>(i * 3, 0) = jacobians_bg_2_rot[i];
             // todo 下面这行感觉好像写反了
@@ -52,7 +52,7 @@ namespace vins {
             R.block<1, 3>(3, 0) = -imu_q.transpose();
             R(3, 3) = imu_w;
 
-            A.block<4, 4>((i - 1) * 4, 0) = L - R;
+            A.block<4, 4>(i * 4, 0) = L - R;
         }
 
         Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -76,14 +76,14 @@ namespace vins {
                                          double &scale,
                                          std::vector<Eigen::Vector3d> &vel) {
         int frame_size = (int) frames_img_rot.size();
-        int n_state = frame_size * 3 + 3 + 1;
+        int n_state = frame_size * 3 + 3 + 1 + 3;
         int gravity_idx = frame_size * 3;
         int scale_idx = gravity_idx + 3;
         int tic_idx = scale_idx + 1;
         int n_equation = frame_size * 6;
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(n_equation, n_state);
-        Eigen::VectorXd b = Eigen::VectorXd::Zero(n_state);
+        Eigen::VectorXd b = Eigen::VectorXd::Zero(n_equation);
 
         for (int i = 0; i < frame_size - 1; ++i) {
             const double dt = delta_times[i];

@@ -9,6 +9,9 @@ namespace vins {
                                    const double kf_parallax_threshold,
                                    const std::vector<FeaturePoint2D> &feature_points,
                                    const std::vector<Feature> &feature_window) {
+        if (key_frame_idx == 0) {
+            return true;
+        }
         auto new_track_num = count_if(feature_points.begin(),
                                      feature_points.end(),
                                      [&](const FeaturePoint2D &it) -> bool {
