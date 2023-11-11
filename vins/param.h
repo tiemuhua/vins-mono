@@ -6,6 +6,7 @@
 #define GJT_VINS_PARAMETERS_H
 
 #include <string>
+#include <vector>
 
 namespace vins {
     struct CameraParam {

@@ -196,7 +196,8 @@ namespace vins {
             LOG(INFO) << "features size before discard:" << run_info_->feature_window.size();
             std::unordered_map<int, int> feature_id_2_idx_before_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
-            utils::erase_if_wrapper(run_info_->feature_window, [](const Feature &feature){
+            utils::erase_if_wrapper(run_info_->feature_window, [](const Feature &feature) -> bool {
+                // 这里不能根据feature.points.size()<=1来判断，否则所有特征都会在出现第一次之后就被扔掉
                 return feature.points.size() <= 1;
             });
             std::unordered_map<int, int> feature_id_2_idx_after_discard =

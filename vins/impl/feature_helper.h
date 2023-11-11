@@ -22,7 +22,7 @@ namespace vins::FeatureHelper {
                                   const std::vector<Feature> &feature_window);
 
     void addFeatures(int frame_idx, double time_stamp,
-                     const std::vector<FeaturePoint2D> &feature_points,
+                     const std::vector<FeaturePoint2D> &feature_pts,
                      std::vector<Feature> &feature_window);
 
     [[nodiscard]] Correspondences getCorrespondences(int frame_idx_left, int frame_idx_right,

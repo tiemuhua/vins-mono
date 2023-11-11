@@ -42,10 +42,10 @@ namespace vins {
     }
 
     void FeatureHelper::addFeatures(int frame_idx, double time_stamp,
-                                    const std::vector<FeaturePoint2D> &feature_points,
+                                    const std::vector<FeaturePoint2D> &feature_pts,
                                     std::vector<Feature> &feature_window) {
         std::unordered_map<int,int> feature_id_2_feature_idx = FeatureHelper::getFeatureId2Index(feature_window);
-        for (const FeaturePoint2D &point: feature_points) {
+        for (const FeaturePoint2D &point: feature_pts) {
             if (!feature_id_2_feature_idx.count(point.feature_id)) {
                 feature_window.emplace_back(Feature(point.feature_id, frame_idx));
                 feature_id_2_feature_idx[point.feature_id] = feature_window.size() - 1;

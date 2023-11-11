@@ -6,7 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <Eigen/Eigen>
 
-#include "vins_logic.h"
+#include "vins/vins_logic.h"
 
 inline std::string id2fileName(int id) {
     std::string img_name = "0000000000";
@@ -23,8 +23,10 @@ class Callback : public vins::Callback{
 int main(int argc, char** argv) {
     google::InitGoogleLogging(argv[0]);
     auto callback = std::make_shared<Callback>();
-    auto param = std::make_unique<vins::Param>();
-    vins::init(std::move(param), callback);
+    vins::Param param;
+    param.camera.row = 512;
+    param.camera.col = 1392;
+    vins::init(param, callback);
 
     std::string data_set_path = "/Users/gjt/vins-mono/dataset";
     std::string img_folder_path = data_set_path + "/image/data/";
