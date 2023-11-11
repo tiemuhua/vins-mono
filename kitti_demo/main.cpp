@@ -20,6 +20,21 @@ class Callback : public vins::Callback{
     }
 };
 
+std::string join_path(const std::string& path) {
+    return path;
+}
+
+template <typename ... Args>
+std::string join_path(const std::string &t, const Args&... args) {
+    assert(!t.empty());
+    std::string sum = t;
+    if (t.back() != '/') {
+        sum += '/';
+    }
+    sum += join_path(args...);
+    return sum;
+}
+
 int main(int argc, char** argv) {
     google::InitGoogleLogging(argv[0]);
     auto callback = std::make_shared<Callback>();
@@ -29,10 +44,10 @@ int main(int argc, char** argv) {
     vins::init(param, callback);
 
     std::string data_set_path = "/Users/gjt/vins-mono/dataset";
-    std::string img_folder_path = data_set_path + "/image/data/";
-    std::string img_time_stamp_path = data_set_path + "/image/timestamps.txt";
-    std::string imu_folder_path = data_set_path + "oxts/data/";
-    std::string imu_time_stamp_path = data_set_path + "oxts/timestamps.txt";
+    std::string img_folder_path = join_path(data_set_path, "image/data");
+    std::string img_time_stamp_path = join_path(data_set_path, "image/timestamps.txt");
+    std::string imu_folder_path = join_path(data_set_path, "oxts/data");
+    std::string imu_time_stamp_path = join_path(data_set_path, "oxts/timestamps.txt");
 
     std::ifstream img_time_stamp_stream(img_time_stamp_path, std::ios::binary);
     std::ifstream imu_time_stamp_stream(imu_time_stamp_path, std::ios::binary);
@@ -80,5 +95,7 @@ int main(int argc, char** argv) {
         *img = cv::imread(img_folder_path + id2fileName(i) + ".png");
         vins::handleImage(img, img_time_stamp);
     }
+    int a;
+    scanf("%d", &a);
     return 0;
 }
