@@ -304,8 +304,11 @@ namespace vins {
             key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
-        auto cur_kf = std::make_shared<KeyFrame>(run_info_->frame_window.back(), key_pts_3d, descriptors,
-                                                 external_descriptors);
+        auto cur_kf = std::make_shared<KeyFrame>(
+                run_info_->frame_window.back(),
+                key_pts_3d,
+                descriptors,
+                external_descriptors);
         LoopMatchInfo info;
         info.window_idx = run_info_->kf_state_window.size() - 1;
         if (loop_closer_.findLoop(cur_kf, info)) {
