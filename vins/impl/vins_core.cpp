@@ -179,8 +179,7 @@ namespace vins {
             }
             LOG(INFO) << "margin features size:" << marginal_features.size();
 
-            // 对于首次出现于oldest_kf或更早时刻的特征点，将oldest_kf对应的二维坐标/速度从feature中移除
-            // 对于oldest_kf时刻尚未出现的特征点，start_kf_window_idx--
+            // 删掉即将溜出滑动窗口的帧所对应的特征点
             for (Feature &feature: run_info_->feature_window) {
                 if (feature.start_kf_window_idx == 0) {
                     feature.points.erase(feature.points.begin());
@@ -188,17 +187,22 @@ namespace vins {
                 } else {
                     feature.start_kf_window_idx--;
                 }
+                // feature.points.size() == 1的时候就被删了
+                assert(!feature.points.empty());
             }
 
-            // 若特征点在滑动窗口中出现的次数不足两次，则无法构造观测方程，从feature_window中扔掉。
-            // 并分别记录扔掉过期特征点前后的feature_id_2_idx。
-            // 扔掉的不是第一次出现于oldest_kf的特征点，而是最后一次或倒数第二次出现于oldest_kf的特征点。
+            // 可以三角化的特征必然包括两个以上的特征点，删除所有无法三角化的特征
+            // 并记录删除特征前后的feature_id_2_idx
             LOG(INFO) << "features size before discard:" << run_info_->feature_window.size();
             std::unordered_map<int, int> feature_id_2_idx_before_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
-            utils::erase_if_wrapper(run_info_->feature_window, [](const Feature &feature) -> bool {
-                // 这里不能根据feature.points.size()<=1来判断，否则所有特征都会在出现第一次之后就被扔掉
-                return feature.points.size() <= 1;
+            utils::erase_if_wrapper(run_info_->feature_window, [&](const Feature &feature) -> bool {
+                // 后继无帧，该特征要溜出滑动窗口了
+                bool is_too_old = feature.start_kf_window_idx == 0 && feature.points.size() == 1;
+                // 相邻帧中没有出现该特征，无法三角化，大概率是计算误差导致的离群点
+                bool is_outline_feature =
+                        feature.start_kf_window_idx != param_.window_size - 1 && feature.points.size() == 1;
+                return is_too_old || is_outline_feature;
             });
             std::unordered_map<int, int> feature_id_2_idx_after_discard =
                     FeatureHelper::getFeatureId2Index(run_info_->feature_window);
