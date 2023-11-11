@@ -62,7 +62,7 @@ namespace vins {
         FeatureTracker *feature_tracker_ = nullptr;
         CameraWrapper *camera_wrapper_ = nullptr;
         LoopCloser loop_closer_;
-        BriefExtractor *brief_extractor_ = nullptr;
+        DVision::BRIEF *brief_extractor_ = nullptr;
 
         //.运行时信息.
         RunInfo *run_info_ = nullptr;

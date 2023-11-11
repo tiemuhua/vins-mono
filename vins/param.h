@@ -29,6 +29,12 @@ namespace vins {
         double GYR_N = 1.6968e-04;
         double GYR_W = 0.003491;
     };
+    struct BRIEFParam {
+        std::vector<int> x1;
+        std::vector<int> y1;
+        std::vector<int> x2;
+        std::vector<int> y2;
+    };
 
     class Param {
     public:
@@ -36,6 +42,7 @@ namespace vins {
         FrameTrackerParam frame_tracker{};
         FrontEndOptimizeParam slide_window;
         IMUParam imu_param{};
+        BRIEFParam brief_param;
 
         double time_rolling_shatter = 0;
         int window_size = 10;

@@ -20,6 +20,12 @@ namespace vins {
         camera_wrapper_ = new CameraWrapper(param);
         feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
         cb_ = std::move(cb);
+        brief_extractor_ = new DVision::BRIEF();
+        brief_extractor_->importPairs(param.brief_param.x1,
+                                      param.brief_param.y1,
+                                      param.brief_param.x2,
+                                      param.brief_param.y2);
+
         std::thread([this]() {
             while(true) {
                 struct timeval tv1{}, tv2{};
@@ -264,9 +270,9 @@ namespace vins {
 
         // 描述符
         std::vector<DVision::BRIEF::bitset> descriptors;
-        brief_extractor_->brief_.compute(*img_ptr, feature_raw_pts, descriptors);
+        brief_extractor_->compute(*img_ptr, feature_raw_pts, descriptors);
         std::vector<DVision::BRIEF::bitset> external_descriptors;
-        brief_extractor_->brief_.compute(*img_ptr, external_raw_pts, external_descriptors);
+        brief_extractor_->compute(*img_ptr, external_raw_pts, external_descriptors);
 
         //.特征点三维坐标.
         std::vector<cv::Point3f> key_pts_3d;
