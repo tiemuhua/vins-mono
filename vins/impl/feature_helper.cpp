@@ -1,43 +1,41 @@
 #include "feature_helper.h"
+#include <unordered_map>
 #include <glog/logging.h>
+#include "vins_utils.h"
 
 namespace vins {
     using namespace std;
     using namespace Eigen;
 
-    bool FeatureHelper::isKeyFrame(const int key_frame_idx,
-                                   const double kf_parallax_threshold,
-                                   const std::vector<FeaturePoint2D> &feature_points,
+    bool FeatureHelper::isKeyFrame(const double kf_parallax_threshold,
+                                   const std::vector<FeaturePoint2D> &new_feature_pts,
                                    const std::vector<Feature> &feature_window) {
-        if (key_frame_idx == 0) {
-            return true;
-        }
-        auto new_track_num = count_if(feature_points.begin(),
-                                     feature_points.end(),
-                                     [&](const FeaturePoint2D &it) -> bool {
+        // 若冒出来一堆全新的特征点，则是特征帧
+        int new_track_num = utils::count_if_wrapper(new_feature_pts, [&](const FeaturePoint2D &it) -> bool {
             return it.feature_id > feature_window.back().feature_id;
         });
-
-        if (key_frame_idx < 2 || new_track_num < 20)
+        LOG(INFO) << "new_track_num:" << new_track_num;
+        if (new_track_num > 20) {
             return true;
+        }
 
+        // 若出现较大视差，则是特征帧
+        std::unordered_map<int, cv::Point2f> feature_id_2_point_in_new_frame;
+        for (const FeaturePoint2D& point: new_feature_pts) {
+            feature_id_2_point_in_new_frame[point.feature_id] = point.point;
+        }
         int parallax_num = 0;
         double parallax_sum = 0;
         for (const Feature &feature: feature_window) {
-            if (feature.start_kf_window_idx <= key_frame_idx - 2 &&
-                feature.start_kf_window_idx + int(feature.points.size()) >= key_frame_idx) {
-                cv::Point2f p_i = feature.points[key_frame_idx - 2 - feature.start_kf_window_idx];
-                cv::Point2f p_j = feature.points[key_frame_idx - 1 - feature.start_kf_window_idx];
+            if (feature_id_2_point_in_new_frame.count(feature.feature_id)) {
+                cv::Point2f p_i = feature.points.back();
+                cv::Point2f p_j = feature_id_2_point_in_new_frame[feature.feature_id];
                 parallax_sum += cv::norm(p_i - p_j);
                 parallax_num++;
             }
         }
-
-        if (parallax_num == 0) {
-            return true;
-        }
         LOG(INFO) << "parallax_sum:" << parallax_sum << "\t"
-                << "parallax_num:" << parallax_num << "\t";
+                << "parallax_num:" << parallax_num;
         return parallax_sum / parallax_num >= kf_parallax_threshold;
     }
 

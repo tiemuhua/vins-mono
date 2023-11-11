@@ -20,6 +20,10 @@ namespace vins {
             auto it = std::remove_if(vec.begin(), vec.end(), func);
             vec.erase(it, vec.end());
         }
+        template<typename T, typename F>
+        int count_if_wrapper(const std::vector<T> &vec, const F& func) {
+            return std::count_if(vec.begin(), vec.end(), func);
+        }
 
         template<typename T>
         std::string eigen2string(T mat) {

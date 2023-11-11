@@ -277,6 +277,9 @@ static MarginalInfo *marginalize(const FrontEndOptimizeParam &param,
     return marginal_info;
 }
 
+/**
+ * @param oldest_features 包含本轮循环应当溜出滑动窗口的特征点
+ * */
 void FrontEndOptimize::slide(const Param &param,
                              const std::vector<Feature> &oldest_features,
                              const ImuIntegrator &oldest_pre_integral,

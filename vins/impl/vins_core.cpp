@@ -42,6 +42,7 @@ namespace vins {
         }).detach();
     }
 
+    // 外部IO线程调用
     void VinsCore::handleIMU(const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr, double time_stamp) {
         Synchronized(io_mutex_) {
             if (vins_state_ == EVinsState::kNoIMUData) {
@@ -61,13 +62,20 @@ namespace vins {
         }
     }
 
+    // 外部IO线程调用
     void VinsCore::handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
         Synchronized(io_mutex_) {
             img_buf_.emplace(_img);
             img_time_stamp_buf_.emplace(time_stamp);
+            // 收到首帧后需要马上在当前线程修改系统状态，不能等到vins工作线程中修改
+            // 否则无法向IMU缓冲区中写入数据
+            if (vins_state_ == EVinsState::kNoImgData) {
+                vins_state_ = EVinsState::kInitial;
+            }
         }
     }
 
+    // 回环线程调用
     void VinsCore::handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift) {
         Synchronized(io_mutex_) {
             t_drift_ = t_drift;
@@ -75,7 +83,8 @@ namespace vins {
         }
     }
 
-    static KeyFrameState recurseByImu(const KeyFrameState &prev_state, const ImuIntegrator &pre_integral) {
+    // _handleData调用
+    static KeyFrameState __recurseByImu(const KeyFrameState &prev_state, const ImuIntegrator &pre_integral) {
         const Eigen::Vector3d &delta_pos = pre_integral.deltaPos();
         const Eigen::Vector3d &delta_vel = pre_integral.deltaVel();
         const Eigen::Quaterniond &delta_quat = pre_integral.deltaQuat();
@@ -94,6 +103,7 @@ namespace vins {
         return cur_state;
     }
 
+    // vins工作线程调用
     void VinsCore::_handleData() {
         /******************从缓冲区中读取图像数据*******************/
         double img_time_stamp = -1;
@@ -113,20 +123,20 @@ namespace vins {
         std::vector<cv::KeyPoint> feature_raw_pts;
         feature_tracker_->extractFeatures(*img_ptr, img_time_stamp, feature_pts, feature_raw_pts);
 
-        /******************首帧图像加入滑动窗口*******************/
-        if (vins_state_ == EVinsState::kNoImgData) {
-            run_info_->kf_state_window.push_back({});
-            run_info_->frame_window.emplace_back(feature_pts, nullptr, true, img_time_stamp);
-            FeatureHelper::addFeatures(0, img_time_stamp, feature_pts, run_info_->feature_window);
-            vins_state_ = EVinsState::kInitial;
-            return;
-        }
-
         /******************从缓冲区中读取惯导数据*******************/
-        auto frame_pre_integral =
+        std::shared_ptr<ImuIntegrator> frame_pre_integral = nullptr;
+        if (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
+            // 首帧对应的IMU积分应当为空指针，需要特殊处理
+            // vins为异步系统，handleImage添加首帧时系统处于kNoImgData状态，而_handleData处理首帧时系统已经变为kInitial状态
+            // 因此无法通过vins_state_判断本帧是否为首帧
+            // 若IMU缓冲区为空，或缓冲区时间戳晚于当前帧时间戳，则说明当前帧为首帧，frame_pre_integral应当为nullptr
+            // 反之当前帧不是首帧，frame_pre_integral需要初始化
+            frame_pre_integral =
                 std::make_shared<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
+        }
         Synchronized(io_mutex_) {
             while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
+                assert(frame_pre_integral != nullptr);
                 run_info_->prev_imu_state.acc = acc_buf_.front();
                 run_info_->prev_imu_state.gyr = gyr_buf_.front();
                 run_info_->prev_imu_state.time_stamp = imu_time_stamp_buf_.front();
@@ -137,27 +147,27 @@ namespace vins {
             }
         }
 
-        /******************非首帧图像加入滑动窗口*******************/
-        int prev_kf_window_size = run_info_->kf_state_window.size();
-        bool is_key_frame = FeatureHelper::isKeyFrame(prev_kf_window_size,
-                                                      param_.key_frame_parallax_threshold,
-                                                      feature_pts,
-                                                      run_info_->feature_window);
+        /******************当前帧加入滑动窗口*******************/
+        bool is_key_frame = run_info_->kf_state_window.size() < 2 ||
+                FeatureHelper::isKeyFrame(param_.key_frame_parallax_threshold,
+                                          feature_pts,
+                                          run_info_->feature_window);
         LOG(INFO) << "input feature: " << feature_pts.size() << "\t"
                   << "num of feature: " << run_info_->feature_window.size() << "\t"
                   << "is key frame: " << (is_key_frame ? "true" : "false");
-
         run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame, img_time_stamp);
         if (!is_key_frame) {
             return;
         }
-        FeatureHelper::addFeatures(prev_kf_window_size, img_time_stamp, feature_pts, run_info_->feature_window);
+        FeatureHelper::addFeatures(run_info_->kf_state_window.size(),
+                                   img_time_stamp, feature_pts,
+                                   run_info_->feature_window);
         if (kf_pre_integral_ptr_ == nullptr) {
             kf_pre_integral_ptr_ =
                     std::make_unique<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
         }
         kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
-        KeyFrameState kf_state = recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
+        KeyFrameState kf_state = __recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
         kf_state.time_stamp = img_time_stamp;
         run_info_->kf_state_window.emplace_back(kf_state);
         run_info_->pre_int_window.emplace_back(std::move(kf_pre_integral_ptr_));

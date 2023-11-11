@@ -85,6 +85,9 @@ int main(int argc, char** argv) {
         }
         std::string img_time_stamp_str = img_time_stamp_line.substr(17);
         double img_time_stamp = std::stod(img_time_stamp_str);
+        if (imu_time_stamps.front() > img_time_stamp) {
+            continue;
+        }
         while (!imu_time_stamps.empty() && imu_time_stamps.front() < img_time_stamp) {
             vins::handleIMU(acc_vec.front(), gyr_vec.front(), imu_time_stamps.front());
             acc_vec.pop();

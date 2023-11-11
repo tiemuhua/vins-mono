@@ -16,9 +16,8 @@ namespace vins {
     typedef std::vector<std::pair<cv::Point2f, cv::Point2f>> Correspondences;
 }
 namespace vins::FeatureHelper {
-    [[nodiscard]] bool isKeyFrame(int key_frame_idx,
-                                  double kf_parallax_threshold,
-                                  const std::vector<FeaturePoint2D> &feature_points,
+    [[nodiscard]] bool isKeyFrame(double kf_parallax_threshold,
+                                  const std::vector<FeaturePoint2D> &new_feature_pts,
                                   const std::vector<Feature> &feature_window);
 
     void addFeatures(int frame_idx, double time_stamp,
