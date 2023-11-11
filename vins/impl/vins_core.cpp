@@ -148,7 +148,6 @@ namespace vins {
                                                                              run_info_->gravity);
         Synchronized(io_mutex_) {
             while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
-                assert(frame_pre_integral != nullptr);
                 run_info_->prev_imu_state.acc = acc_buf_.front();
                 run_info_->prev_imu_state.gyr = gyr_buf_.front();
                 run_info_->prev_imu_state.time_stamp = imu_time_stamp_buf_.front();
