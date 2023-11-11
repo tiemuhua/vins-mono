@@ -27,18 +27,7 @@ namespace vins {
                                       param.brief_param.y2);
 
         std::thread([this]() {
-            while(true) {
-                struct timeval tv1{}, tv2{};
-                gettimeofday(&tv1, nullptr);
-                if (vins_state_ != EVinsState::kNoIMUData) {
-                    _handleData();
-                }
-                gettimeofday(&tv2, nullptr);
-                int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
-                if (cost_us < 1 * 1000) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-                }
-            }
+            _handleData();
         }).detach();
     }
 
@@ -84,7 +73,7 @@ namespace vins {
     }
 
     // _handleData调用
-    static KeyFrameState __recurseByImu(const KeyFrameState &prev_state, const ImuIntegral &imu_integral) {
+    static KeyFrameState _recurseByImu(const KeyFrameState &prev_state, const ImuIntegral &imu_integral) {
         const Eigen::Vector3d &delta_pos = imu_integral.deltaPos();
         const Eigen::Vector3d &delta_vel = imu_integral.deltaVel();
         const Eigen::Quaterniond &delta_quat = imu_integral.deltaQuat();
@@ -104,7 +93,23 @@ namespace vins {
     }
 
     // vins工作线程调用
-    void VinsCore::_handleData() {
+    [[noreturn]] void VinsCore::_handleData(){
+        while(true) {
+            struct timeval tv1{}, tv2{};
+            gettimeofday(&tv1, nullptr);
+            if (vins_state_ != EVinsState::kNoIMUData) {
+                _handleDataImpl();
+            }
+            gettimeofday(&tv2, nullptr);
+            auto cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
+            if (cost_us < 1 * 1000) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+        }
+    }
+
+    // vins工作线程调用
+    void VinsCore::_handleDataImpl() {
         /******************从缓冲区中读取图像数据*******************/
         double img_time_stamp = -1;
         std::shared_ptr<cv::Mat> img_ptr = nullptr;
@@ -177,7 +182,7 @@ namespace vins {
         FeatureHelper::addFeatures(run_info_->kf_state_window.size(),
                                    img_time_stamp, feature_pts,
                                    run_info_->feature_window);
-        KeyFrameState kf_state = __recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
+        KeyFrameState kf_state = _recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
         kf_state.time_stamp = img_time_stamp;
         run_info_->kf_state_window.emplace_back(kf_state);
         run_info_->pre_int_window.emplace_back(std::move(kf_pre_integral_ptr_));

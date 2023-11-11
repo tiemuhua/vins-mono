@@ -37,7 +37,8 @@ namespace vins {
         const vins::Param &getParam() { return param_; }
 
     private:
-        void _handleData();
+        [[noreturn]] void _handleData();
+        void _handleDataImpl();
 
     private:
         enum class EVinsState : int {

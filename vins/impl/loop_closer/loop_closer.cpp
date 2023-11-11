@@ -104,7 +104,7 @@ bool LoopCloser::findLoop(KeyFrame &kf, LoopMatchInfo &info) {
         gettimeofday(&tv1, nullptr);
         optimize4DoFImpl();
         gettimeofday(&tv2, nullptr);
-        int cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
+        auto cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
         if (cost_us < 1 * 1000) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
