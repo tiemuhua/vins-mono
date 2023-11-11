@@ -131,8 +131,9 @@ namespace vins {
             // 因此无法通过vins_state_判断本帧是否为首帧
             // 若IMU缓冲区为空，或缓冲区时间戳晚于当前帧时间戳，则说明当前帧为首帧，frame_pre_integral应当为nullptr
             // 反之当前帧不是首帧，frame_pre_integral需要初始化
-            frame_pre_integral =
-                std::make_shared<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
+            frame_pre_integral = std::make_shared<ImuIntegrator>(param_.imu_param,
+                                                                 run_info_->prev_imu_state,
+                                                                 run_info_->gravity);
         }
         Synchronized(io_mutex_) {
             while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
@@ -163,8 +164,9 @@ namespace vins {
                                    img_time_stamp, feature_pts,
                                    run_info_->feature_window);
         if (kf_pre_integral_ptr_ == nullptr) {
-            kf_pre_integral_ptr_ =
-                    std::make_unique<ImuIntegrator>(param_.imu_param, run_info_->prev_imu_state, run_info_->gravity);
+            kf_pre_integral_ptr_ = std::make_unique<ImuIntegrator>(param_.imu_param,
+                                                                   run_info_->prev_imu_state,
+                                                                   run_info_->gravity);
         }
         kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
         KeyFrameState kf_state = __recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
