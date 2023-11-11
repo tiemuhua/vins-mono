@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <thread>
 
 #include <glog/logging.h>
 #include <opencv2/opencv.hpp>
@@ -99,6 +100,7 @@ int main(int argc, char** argv) {
         // cv::goodFeaturesToTrack必须是灰度图
         *img = cv::imread(join_path(img_folder_path, id2fileName(i) + ".png"), cv::IMREAD_GRAYSCALE);
         vins::handleImage(img, img_time_stamp);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     int a;
     scanf("%d", &a);
