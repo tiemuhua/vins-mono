@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
             imu_time_stamps.pop();
         }
         std::shared_ptr<cv::Mat> img = std::make_shared<cv::Mat>();
-        *img = cv::imread(img_folder_path + id2fileName(i) + ".png");
+        *img = cv::imread(join_path(img_folder_path, id2fileName(i) + ".png"));
         vins::handleImage(img, img_time_stamp);
     }
     int a;
