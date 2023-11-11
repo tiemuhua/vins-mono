@@ -23,17 +23,17 @@ namespace vins {
     public:
         LoopCloser();
 
-        void addKeyFrame(const KeyFramePtr &kf_ptr);
+        void addKeyFrame(KeyFrameUniPtr kf_ptr);
 
-        bool findLoop(const KeyFramePtr &kf, LoopMatchInfo &info);
+        bool findLoop(KeyFrame &kf, LoopMatchInfo &info);
 
     private:
         [[noreturn]] void optimize4DoF();
 
         void optimize4DoFImpl();
 
-        std::vector<KeyFramePtr> key_frame_list_;
-        std::vector<KeyFramePtr> key_frame_buffer_;
+        std::vector<KeyFrameUniPtr> key_frame_list_;
+        std::vector<KeyFrameUniPtr> key_frame_buffer_;
         std::mutex key_frame_buffer_mutex_;
 
         Eigen::Vector3d t_drift = Eigen::Vector3d::Zero();

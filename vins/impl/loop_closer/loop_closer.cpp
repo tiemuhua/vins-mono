@@ -73,25 +73,25 @@ LoopCloser::LoopCloser() {
     std::thread(&LoopCloser::optimize4DoF, this).detach();
 }
 
-void LoopCloser::addKeyFrame(const KeyFramePtr &kf_ptr) {
+void LoopCloser::addKeyFrame(KeyFrameUniPtr kf_ptr) {
     Synchronized(key_frame_buffer_mutex_) {
-        key_frame_buffer_.emplace_back(kf_ptr);
+        key_frame_buffer_.emplace_back(std::move(kf_ptr));
     }
 }
 
-bool LoopCloser::findLoop(const KeyFramePtr &kf, LoopMatchInfo &info) {
-    int peer_loop_id = loop_detector_->detectSimilarDescriptor(kf->external_descriptors_, key_frame_list_.size());
-    loop_detector_->addDescriptors(kf->external_descriptors_);
+bool LoopCloser::findLoop(KeyFrame &kf, LoopMatchInfo &info) {
+    int peer_loop_id = loop_detector_->detectSimilarDescriptor(kf.external_descriptors_, key_frame_list_.size());
+    loop_detector_->addDescriptors(kf.external_descriptors_);
     if (peer_loop_id == -1) {
         return false;
     }
     std::vector<uint8_t> status;
     std::vector<cv::Point2f> old_frame_pts2d;
-    bool succ = buildLoopRelation(key_frame_list_[peer_loop_id], peer_loop_id, kf, status, old_frame_pts2d);
+    bool succ = buildLoopRelation(*key_frame_list_[peer_loop_id], peer_loop_id, kf, status, old_frame_pts2d);
     if (!succ) { return false; }
-    for (int i = 0; i < kf->base_frame_.points.size(); ++i) {
+    for (int i = 0; i < kf.points_.size(); ++i) {
         if (status[i]) {
-            info.feature_ids.emplace_back(kf->base_frame_.feature_ids[i]);
+            info.feature_ids.emplace_back(kf.feature_ids_[i]);
             info.peer_pts.emplace_back(old_frame_pts2d[i]);
         }
     }
@@ -112,11 +112,11 @@ bool LoopCloser::findLoop(const KeyFramePtr &kf, LoopMatchInfo &info) {
 }
 
 void LoopCloser::optimize4DoFImpl() {
-    std::vector<KeyFramePtr> tmp_key_frame_buffer;
+    std::vector<KeyFrameUniPtr> tmp_key_frame_buffer;
     Synchronized(key_frame_buffer_mutex_) {
         std::swap(key_frame_buffer_, tmp_key_frame_buffer);
     }
-    key_frame_list_.insert(key_frame_list_.end(), tmp_key_frame_buffer.begin(), tmp_key_frame_buffer.end());
+    utils::insert_move_wrapper(key_frame_list_, tmp_key_frame_buffer);
 
     // todo 这里是ID还是idx？
     if (key_frame_list_.empty()) {
@@ -142,8 +142,8 @@ void LoopCloser::optimize4DoFImpl() {
     ceres::Manifold *angle_manifold_pi = AngleManifoldPi::Create();
 
     for (int frame_idx = loop_interval_lower_bound_; frame_idx <= loop_interval_upper_bound_; ++frame_idx) {
-        auto kf = key_frame_list_[frame_idx];
-        kf->getVioPose(t_array[frame_idx], r_array[frame_idx]);
+        const KeyFrame& kf = *key_frame_list_[frame_idx];
+        kf.getVioPose(t_array[frame_idx], r_array[frame_idx]);
         euler_array[frame_idx] = utils::rot2ypr(r_array[frame_idx]);
 
         problem.AddParameterBlock(euler_array[frame_idx].data(), 1, angle_manifold_pi);
@@ -166,12 +166,12 @@ void LoopCloser::optimize4DoFImpl() {
         }
 
         //add loop edge
-        if (kf->loop_relative_pose_.peer_frame_id != -1) {
-            int peer_frame_id = kf->loop_relative_pose_.peer_frame_id;
+        if (kf.loop_relative_pose_.peer_frame_id != -1) {
+            int peer_frame_id = kf.loop_relative_pose_.peer_frame_id;
             assert(peer_frame_id >= loop_interval_lower_bound_);
             Vector3d peer_euler = utils::rot2ypr(r_array[peer_frame_id]);
-            Vector3d relative_t = kf->loop_relative_pose_.relative_pos;
-            double relative_yaw = kf->loop_relative_pose_.relative_yaw;
+            Vector3d relative_t = kf.loop_relative_pose_.relative_pos;
+            double relative_yaw = kf.loop_relative_pose_.relative_yaw;
             ceres::CostFunction *cost_function =
                     Edge4Dof::Create(relative_t, relative_yaw, peer_euler.y(), peer_euler.z());
             problem.AddResidualBlock(cost_function, loss_function,
@@ -182,9 +182,9 @@ void LoopCloser::optimize4DoFImpl() {
 
     ceres::Solve(options, &problem, &summary);
 
-    ConstKeyFramePtr last_loop_kf = key_frame_list_[loop_interval_upper_bound_];
+    const KeyFrame &last_loop_kf = *key_frame_list_[loop_interval_upper_bound_];
     KeyFrame::calculatePoseRotDrift(t_array[loop_interval_upper_bound_], euler_array[loop_interval_upper_bound_],
-                                    last_loop_kf->vio_T_i_w_, utils::rot2ypr(last_loop_kf->vio_R_i_w_),
+                                    last_loop_kf.vio_T_i_w_, utils::rot2ypr(last_loop_kf.vio_R_i_w_),
                                     t_drift, r_drift);
 
     for (int frame_idx = loop_interval_lower_bound_; frame_idx <= loop_interval_upper_bound_; ++frame_idx) {

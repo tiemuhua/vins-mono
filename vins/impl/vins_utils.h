@@ -24,6 +24,10 @@ namespace vins {
         int count_if_wrapper(const std::vector<T> &vec, const F& func) {
             return std::count_if(vec.begin(), vec.end(), func);
         }
+        template<typename T>
+        void insert_move_wrapper(std::vector<T> &vec1, std::vector<T> &vec2) {
+            vec1.insert(vec1.end(), std::make_move_iterator(vec2.begin()), std::make_move_iterator(vec2.end()));
+        }
 
         template<typename T>
         std::string eigen2string(T mat) {

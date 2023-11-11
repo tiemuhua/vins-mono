@@ -33,7 +33,7 @@ namespace vins {
         Eigen::Vector3d bg = Eigen::Vector3d::Zero();
     };
 
-    class ImuIntegrator {
+    class ImuIntegral {
     public:
         static constexpr int NoiseDim = 12;
         static constexpr int StateDim = 15;
@@ -41,9 +41,9 @@ namespace vins {
         typedef Eigen::Matrix<double, NoiseDim, NoiseDim> Noise;
         typedef Eigen::Matrix<double, StateDim, 1> State;
 
-        ImuIntegrator() = delete;
+        ImuIntegral() = delete;
 
-        ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity);
+        ImuIntegral(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity);
 
         void predict(double time_stamp, const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr);
 
@@ -53,7 +53,7 @@ namespace vins {
         evaluate(const Eigen::Vector3d& Pi, const Eigen::Quaterniond& Qi, const Eigen::Vector3d& Vi, const Eigen::Vector3d& Bai, const Eigen::Vector3d& Bgi,
                  const Eigen::Vector3d& Pj, const Eigen::Quaterniond& Qj, const Eigen::Vector3d& Vj, const Eigen::Vector3d& Baj, const Eigen::Vector3d& Bgj) const;
 
-        void jointLaterIntegrator(const ImuIntegrator &later_int);
+        void jointLaterIntegrator(const ImuIntegral &later_int);
 
         [[nodiscard]] const Eigen::Vector3d &deltaPos() const {
             return pos_;
@@ -114,7 +114,7 @@ namespace vins {
 
     };
 
-    typedef std::unique_ptr<ImuIntegrator> ImuIntegratorPtr;
+    typedef std::unique_ptr<ImuIntegral> ImuIntegralUniPtr;
 }
 
 #endif //VINS_IMU_INTEGRATOR_H

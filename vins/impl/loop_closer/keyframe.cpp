@@ -12,7 +12,8 @@ KeyFrame::KeyFrame(const Frame &_base_frame,
                    const std::vector<cv::Point3f> &_point_3d,
                    const std::vector<DVision::BRIEF::bitset> &descriptors,
                    const std::vector<DVision::BRIEF::bitset> &external_descriptors) {
-    base_frame_ = _base_frame;
+    feature_ids_ = _base_frame.feature_ids;
+    points_ = _base_frame.points;
     T_i_w_ = vio_T_i_w_;
     R_i_w_ = vio_R_i_w_;
     key_pts3d_ = _point_3d;

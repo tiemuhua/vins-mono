@@ -89,7 +89,7 @@ static void c2eigen(std::vector<KeyFrameState> &window,
 }
 
 void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
-                                const std::vector<ImuIntegratorPtr> &pre_int_window,
+                                const std::vector<ImuIntegralUniPtr> &pre_int_window,
                                 const std::vector<vins::LoopMatchInfo> &loop_match_infos,
                                 std::vector<Feature> &feature_window,
                                 std::vector<KeyFrameState> &state_window,
@@ -206,7 +206,7 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
 
 static MarginalInfo *marginalize(const FrontEndOptimizeParam &param,
                                  const std::vector<Feature> &oldest_features,
-                                 const ImuIntegrator &oldest_pre_integral,
+                                 const ImuIntegral &oldest_pre_integral,
                                  std::vector<double *> &reserve_block_origin) {
     auto *marginal_info = new MarginalInfo();
 
@@ -282,7 +282,7 @@ static MarginalInfo *marginalize(const FrontEndOptimizeParam &param,
  * */
 void FrontEndOptimize::slide(const Param &param,
                              const std::vector<Feature> &oldest_features,
-                             const ImuIntegrator &oldest_pre_integral,
+                             const ImuIntegral &oldest_pre_integral,
                              const std::unordered_map<int, int> &feature_id_2_idx_before_discard,
                              const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
     std::vector<double *> reserve_block_origin;

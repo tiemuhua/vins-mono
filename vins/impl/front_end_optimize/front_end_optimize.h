@@ -11,7 +11,7 @@
 
 namespace vins::FrontEndOptimize {
     void optimize(const FrontEndOptimizeParam &param,
-                  const std::vector<ImuIntegratorPtr> &pre_int_window,
+                  const std::vector<ImuIntegralUniPtr> &pre_int_window,
                   const std::vector<vins::LoopMatchInfo> &loop_match_infos,
                   std::vector<Feature> &feature_window,
                   std::vector<KeyFrameState> &state_window,
@@ -20,7 +20,7 @@ namespace vins::FrontEndOptimize {
 
     void slide(const Param &param,
                const std::vector<Feature> &oldest_features,
-               const ImuIntegrator &oldest_pre_integral,
+               const ImuIntegral &oldest_pre_integral,
                const std::unordered_map<int, int> &feature_id_2_idx_before_discard,
                const std::unordered_map<int, int> &feature_id_2_idx_after_discard);
 }

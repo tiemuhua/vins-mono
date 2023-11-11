@@ -84,10 +84,10 @@ namespace vins {
     }
 
     // _handleData调用
-    static KeyFrameState __recurseByImu(const KeyFrameState &prev_state, const ImuIntegrator &pre_integral) {
-        const Eigen::Vector3d &delta_pos = pre_integral.deltaPos();
-        const Eigen::Vector3d &delta_vel = pre_integral.deltaVel();
-        const Eigen::Quaterniond &delta_quat = pre_integral.deltaQuat();
+    static KeyFrameState __recurseByImu(const KeyFrameState &prev_state, const ImuIntegral &imu_integral) {
+        const Eigen::Vector3d &delta_pos = imu_integral.deltaPos();
+        const Eigen::Vector3d &delta_vel = imu_integral.deltaVel();
+        const Eigen::Quaterniond &delta_quat = imu_integral.deltaQuat();
 
         const Eigen::Vector3d &prev_pos = prev_state.pos;
         const Eigen::Vector3d &prev_vel = prev_state.vel;
@@ -123,18 +123,23 @@ namespace vins {
         std::vector<cv::KeyPoint> feature_raw_pts;
         feature_tracker_->extractFeatures(*img_ptr, img_time_stamp, feature_pts, feature_raw_pts);
 
-        /******************从缓冲区中读取惯导数据*******************/
-        std::shared_ptr<ImuIntegrator> frame_pre_integral = nullptr;
-        if (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
-            // 首帧对应的IMU积分应当为空指针，需要特殊处理
-            // vins为异步系统，handleImage添加首帧时系统处于kNoImgData状态，而_handleData处理首帧时系统已经变为kInitial状态
-            // 因此无法通过vins_state_判断本帧是否为首帧
-            // 若IMU缓冲区为空，或缓冲区时间戳晚于当前帧时间戳，则说明当前帧为首帧，frame_pre_integral应当为nullptr
-            // 反之当前帧不是首帧，frame_pre_integral需要初始化
-            frame_pre_integral = std::make_shared<ImuIntegrator>(param_.imu_param,
-                                                                 run_info_->prev_imu_state,
-                                                                 run_info_->gravity);
+        // 首帧不存在对应的IMU数据，需要特殊处理
+        // vins为异步系统，handleImage添加首帧时系统处于kNoImgData状态，而_handleData处理首帧时系统已经变为kInitial状态
+        // 因此无法通过vins_state_判断本帧是否为首帧
+        // 若IMU缓冲区为空，或缓冲区时间戳晚于当前帧时间戳，则说明当前帧为首帧
+        bool is_first_frame = acc_buf_.empty() || imu_time_stamp_buf_.front() >= img_time_stamp;
+        if (is_first_frame) {
+            run_info_->frame_window.emplace_back(feature_pts, nullptr, true, img_time_stamp);
+            FeatureHelper::addFeatures(run_info_->kf_state_window.size(),
+                                       img_time_stamp, feature_pts,
+                                       run_info_->feature_window);
+            return;
         }
+        
+        /******************从缓冲区中读取惯导数据*******************/
+        ImuIntegralUniPtr frame_pre_integral = std::make_unique<ImuIntegral>(param_.imu_param,
+                                                                             run_info_->prev_imu_state,
+                                                                             run_info_->gravity);
         Synchronized(io_mutex_) {
             while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
                 assert(frame_pre_integral != nullptr);
@@ -147,6 +152,12 @@ namespace vins {
                 gyr_buf_.pop();
             }
         }
+        if (kf_pre_integral_ptr_ == nullptr) {
+            kf_pre_integral_ptr_ = std::make_unique<ImuIntegral>(param_.imu_param,
+                                                                 run_info_->prev_imu_state,
+                                                                 run_info_->gravity);
+        }
+        kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
 
         /******************当前帧加入滑动窗口*******************/
         bool is_key_frame = run_info_->kf_state_window.size() < 2 ||
@@ -156,19 +167,16 @@ namespace vins {
         LOG(INFO) << "input feature: " << feature_pts.size() << "\t"
                   << "num of feature: " << run_info_->feature_window.size() << "\t"
                   << "is key frame: " << (is_key_frame ? "true" : "false");
-        run_info_->frame_window.emplace_back(feature_pts, frame_pre_integral, is_key_frame, img_time_stamp);
+        run_info_->frame_window.emplace_back(feature_pts,
+                                             std::move(frame_pre_integral),
+                                             is_key_frame,
+                                             img_time_stamp);
         if (!is_key_frame) {
             return;
         }
         FeatureHelper::addFeatures(run_info_->kf_state_window.size(),
                                    img_time_stamp, feature_pts,
                                    run_info_->feature_window);
-        if (kf_pre_integral_ptr_ == nullptr) {
-            kf_pre_integral_ptr_ = std::make_unique<ImuIntegrator>(param_.imu_param,
-                                                                   run_info_->prev_imu_state,
-                                                                   run_info_->gravity);
-        }
-        kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
         KeyFrameState kf_state = __recurseByImu(run_info_->kf_state_window.back(), *kf_pre_integral_ptr_);
         kf_state.time_stamp = img_time_stamp;
         run_info_->kf_state_window.emplace_back(kf_state);
@@ -304,17 +312,16 @@ namespace vins {
             key_pts_3d.emplace_back(utils::cvPoint2fToCvPoint3f(p2d, depth));
         }
 
-        auto cur_kf = std::make_shared<KeyFrame>(
-                run_info_->frame_window.back(),
-                key_pts_3d,
-                descriptors,
-                external_descriptors);
+        KeyFrameUniPtr cur_kf = std::make_unique<KeyFrame>(run_info_->frame_window.back(),
+                                                           key_pts_3d,
+                                                           descriptors,
+                                                           external_descriptors);
         LoopMatchInfo info;
         info.window_idx = run_info_->kf_state_window.size() - 1;
-        if (loop_closer_.findLoop(cur_kf, info)) {
+        if (loop_closer_.findLoop(*cur_kf, info)) {
             run_info_->loop_match_infos.emplace_back(std::move(info));
         }
-        loop_closer_.addKeyFrame(cur_kf);
+        loop_closer_.addKeyFrame(std::move(cur_kf));
 
         /******************后端线程算出结果后，前端线程相应校正*******************/
         Synchronized(io_mutex_) {

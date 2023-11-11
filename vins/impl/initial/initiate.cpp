@@ -16,12 +16,12 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     Eigen::Vector3d sum_acc;
     for (int i = 1; i < all_image_frame_.size(); ++i) {
         const Frame &frame = all_image_frame_[i];
-        double dt = frame.pre_integral_->deltaTime();
+        double dt = frame.imu_integral_->deltaTime();
         if (abs(dt) < 1e-5) {
             LOG(INFO) << "dt is too small";
             continue;
         }
-        Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
+        Eigen::Vector3d tmp_acc = frame.imu_integral_->deltaVel() / dt;
         sum_acc += tmp_acc;
     }
     Eigen::Vector3d avg_acc = sum_acc / (double) all_image_frame_.size();
@@ -29,12 +29,12 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     double var = 0;
     for (int i = 1; i < all_image_frame_.size(); ++i) {
         const Frame &frame = all_image_frame_[i];
-        double dt = frame.pre_integral_->deltaTime();
+        double dt = frame.imu_integral_->deltaTime();
         if (abs(dt) < 1e-5) {
             LOG(INFO) << "dt is too small";
             continue;
         }
-        Eigen::Vector3d tmp_acc = frame.pre_integral_->deltaVel() / dt;
+        Eigen::Vector3d tmp_acc = frame.imu_integral_->deltaVel() / dt;
         var += (tmp_acc - avg_acc).norm();
     }
 
@@ -86,7 +86,7 @@ bool Initiate::initiate(RunInfo &run_info) {
         }
         bg += bg_step;
         for (Frame &frame: run_info.frame_window) {
-            frame.pre_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
+            frame.imu_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
         }
         for (auto &pre_integrate: run_info.pre_int_window) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
@@ -120,9 +120,9 @@ bool Initiate::initiate(RunInfo &run_info) {
     std::vector<Eigen::Vector3d> imu_delta_poses, imu_delta_velocities;
     std::vector<double> imu_delta_times;
     for (const Frame &frame: run_info.frame_window) {
-        imu_delta_poses.emplace_back(frame.pre_integral_->deltaPos());
-        imu_delta_velocities.emplace_back(frame.pre_integral_->deltaVel());
-        imu_delta_times.emplace_back(frame.pre_integral_->deltaTime());
+        imu_delta_poses.emplace_back(frame.imu_integral_->deltaPos());
+        imu_delta_velocities.emplace_back(frame.imu_integral_->deltaVel());
+        imu_delta_times.emplace_back(frame.imu_integral_->deltaTime());
     }
     if (!estimateTICGravityScaleVelocity(frames_img_rot,
                                          img_delta_poses,

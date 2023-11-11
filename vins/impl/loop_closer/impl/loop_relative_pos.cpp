@@ -87,14 +87,14 @@ static void PnpRANSAC(const vector<cv::Point2f> &pts2d_in_old_frame,
 
 static constexpr int min_loop_key_points_num = 25;
 
-bool vins::buildLoopRelation(ConstKeyFramePtr &old_kf,
+bool vins::buildLoopRelation(const KeyFrame &old_kf,
                              int old_kf_id,
-                             const KeyFramePtr &new_kf,
+                             KeyFrame &new_kf,
                              std::vector<uint8_t> &status,
                              std::vector<cv::Point2f> &old_frame_pts2d) {
-    searchByBRIEFDes(new_kf->descriptors_, old_kf->descriptors_, old_kf->base_frame_.points, old_frame_pts2d, status);
+    searchByBRIEFDes(new_kf.descriptors_, old_kf.descriptors_, old_kf.points_, old_frame_pts2d, status);
     utils::reduceVector(old_frame_pts2d, status);
-    vector<cv::Point3f> new_frame_pts3d = new_kf->key_pts3d_;
+    vector<cv::Point3f> new_frame_pts3d = new_kf.key_pts3d_;
     utils::reduceVector(new_frame_pts3d, status);
     if (old_frame_pts2d.size() < min_loop_key_points_num) {
         return false;
@@ -104,8 +104,8 @@ bool vins::buildLoopRelation(ConstKeyFramePtr &old_kf,
     // R_o_w: old帧在world坐标系中的姿态
     // R_o_n: old帧在new帧坐标系中的姿态
     // 则有R_o_n = R_o_w * R_w_n
-    Eigen::Matrix3d R_o_n_vio = old_kf->vio_R_i_w_ * new_kf->vio_R_i_w_.transpose();
-    Eigen::Vector3d T_o_n_vio = new_kf->vio_R_i_w_.transpose() * (old_kf->vio_T_i_w_ - new_kf->vio_T_i_w_);
+    Eigen::Matrix3d R_o_n_vio = old_kf.vio_R_i_w_ * new_kf.vio_R_i_w_.transpose();
+    Eigen::Vector3d T_o_n_vio = new_kf.vio_R_i_w_.transpose() * (old_kf.vio_T_i_w_ - new_kf.vio_T_i_w_);
     Eigen::Matrix3d R_o_n_pnp;
     Eigen::Vector3d T_o_n_pnp;
     status.clear();
@@ -117,13 +117,13 @@ bool vins::buildLoopRelation(ConstKeyFramePtr &old_kf,
     }
     PnpRANSAC(old_frame_pts2d, new_frame_pts3d, R_o_n_vio, T_o_n_vio, status, R_o_n_pnp, T_o_n_pnp);
 
-    new_kf->loop_relative_pose_.relative_pos = T_o_n_pnp;
-    double old_yaw = utils::rot2ypr(R_o_n_vio * new_kf->vio_R_i_w_).x();
-    double new_yaw = utils::rot2ypr(new_kf->vio_R_i_w_).x();
-    new_kf->loop_relative_pose_.relative_yaw = utils::normalizeAnglePi(old_yaw - new_yaw);
-    if (abs(new_kf->loop_relative_pose_.relative_yaw) < pi / 6 &&
-        new_kf->loop_relative_pose_.relative_pos.norm() < 20.0) {
-        new_kf->loop_relative_pose_.peer_frame_id = old_kf_id;
+    new_kf.loop_relative_pose_.relative_pos = T_o_n_pnp;
+    double old_yaw = utils::rot2ypr(R_o_n_vio * new_kf.vio_R_i_w_).x();
+    double new_yaw = utils::rot2ypr(new_kf.vio_R_i_w_).x();
+    new_kf.loop_relative_pose_.relative_yaw = utils::normalizeAnglePi(old_yaw - new_yaw);
+    if (abs(new_kf.loop_relative_pose_.relative_yaw) < pi / 6 &&
+        new_kf.loop_relative_pose_.relative_pos.norm() < 20.0) {
+        new_kf.loop_relative_pose_.peer_frame_id = old_kf_id;
         return true;
     }
     return false;

@@ -60,14 +60,14 @@ namespace vins {
         Frame() = default;
 
         Frame(const std::vector<FeaturePoint2D> &_features,
-              std::shared_ptr<ImuIntegrator> _pre_integral,
+              ImuIntegralUniPtr _imu_integral,
               bool _is_key_frame,
               double ts) {
             for (const FeaturePoint2D &feature: _features) {
                 points.emplace_back(feature.point);
                 feature_ids.emplace_back(feature.feature_id);
             }
-            pre_integral_ = std::move(_pre_integral);
+            imu_integral_ = std::move(_imu_integral);
             is_key_frame_ = _is_key_frame;
             time_stamp = ts;
         };
@@ -75,7 +75,7 @@ namespace vins {
         std::vector<int> feature_ids;
         Eigen::Matrix3d imu_rot;
         Eigen::Vector3d imu_pos;
-        std::shared_ptr<ImuIntegrator> pre_integral_;
+        ImuIntegralUniPtr imu_integral_;
         bool is_key_frame_ = false;
         double time_stamp = -1;
     };

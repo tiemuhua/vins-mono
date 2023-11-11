@@ -67,7 +67,7 @@ namespace vins {
         //.运行时信息.
         RunInfo *run_info_ = nullptr;
         Param param_;
-        ImuIntegratorPtr kf_pre_integral_ptr_ = nullptr;
+        ImuIntegralUniPtr kf_pre_integral_ptr_ = nullptr;
         double last_init_time_stamp_ = 0.0;
 
         //.回调.

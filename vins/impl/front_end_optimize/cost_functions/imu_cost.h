@@ -14,10 +14,10 @@ namespace vins {
     public:
         IMUCost() = delete;
 
-        explicit IMUCost(const ImuIntegrator &_pre_integral) : pre_integral_(_pre_integral) {}
+        explicit IMUCost(const ImuIntegral &_pre_integral) : pre_integral_(_pre_integral) {}
 
         bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const override;
 
-        const ImuIntegrator &pre_integral_;
+        const ImuIntegral &pre_integral_;
     };
 }

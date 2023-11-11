@@ -46,15 +46,14 @@ namespace vins {
         Eigen::Matrix3d R_i_w_;
 
         // pnp匹配的时候新帧提供key_pts3d_和descriptors_
+        std::vector<cv::Point2f> points_;
+        std::vector<int> feature_ids_;
         std::vector<cv::Point3f> key_pts3d_;
         std::vector<DVision::BRIEF::bitset> descriptors_;
         std::vector<DVision::BRIEF::bitset> external_descriptors_;
 
         LoopRelativePose loop_relative_pose_;
-
-        Frame base_frame_;
     };
 
-    typedef std::shared_ptr<KeyFrame> KeyFramePtr;
-    typedef const std::shared_ptr<const KeyFrame> ConstKeyFramePtr;
+    typedef std::unique_ptr<KeyFrame> KeyFrameUniPtr;
 }

@@ -31,12 +31,12 @@ namespace vins {
         const Eigen::Vector3d ba_j = utils::array2vec3d(parameters[8]);
         const Eigen::Vector3d bg_j = utils::array2vec3d(parameters[9]);
 
-        Eigen::Map<ImuIntegrator::State> residual(residuals);
+        Eigen::Map<ImuIntegral::State> residual(residuals);
         residual = pre_integral_.evaluate(pos_i, quat_i, vel_i, ba_i, bg_i,
                                           pos_j, quat_j, vel_j, ba_j, bg_j);
 
-        ImuIntegrator::SqrtInfo sqrt_info =
-                Eigen::LLT<ImuIntegrator::Covariance>(pre_integral_.getCovariance().inverse()).matrixL().transpose();
+        ImuIntegral::SqrtInfo sqrt_info =
+                Eigen::LLT<ImuIntegral::Covariance>(pre_integral_.getCovariance().inverse()).matrixL().transpose();
         residual = sqrt_info * residual;
 
         assert(jacobians);

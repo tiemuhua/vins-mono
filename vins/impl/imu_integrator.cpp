@@ -8,7 +8,7 @@
 
 using namespace Eigen;
 namespace vins {
-    ImuIntegrator::ImuIntegrator(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity) :
+    ImuIntegral::ImuIntegral(IMUParam imu_param, PrevIMUState prev_imu_state, Eigen::Vector3d gravity) :
             ba_{std::move(prev_imu_state.ba)},
             bg_{std::move(prev_imu_state.bg)},
             gravity_(std::move(gravity)) {
@@ -22,14 +22,14 @@ namespace vins {
         noise_.block<3, 3>(kGyrWhite, kGyrWhite) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
     }
 
-    void ImuIntegrator::jointLaterIntegrator(const ImuIntegrator &later_int) {
+    void ImuIntegral::jointLaterIntegrator(const ImuIntegral &later_int) {
         int size = (int) later_int.time_stamp_buf_.size();
         for (int i = 1; i < size; ++i) {
             predict(later_int.time_stamp_buf_[i], later_int.acc_buf_[i], later_int.gyr_buf_[i]);
         }
     }
 
-    ImuIntegrator::State ImuIntegrator::evaluate(
+    ImuIntegral::State ImuIntegral::evaluate(
             const Eigen::Vector3d& Pi, const Eigen::Quaterniond& Qi, const Eigen::Vector3d& Vi, const Eigen::Vector3d& Bai, const Eigen::Vector3d& Bgi,
             const Eigen::Vector3d& Pj, const Eigen::Quaterniond& Qj, const Eigen::Vector3d& Vj, const Eigen::Vector3d& Baj, const Eigen::Vector3d& Bgj) const {
         Eigen::Matrix3d dp_dba = jacobian_.block<3, 3>(kOrderPos, kOrderBA);
@@ -58,7 +58,7 @@ namespace vins {
         return residuals;
     }
 
-    void ImuIntegrator::predict(double time_stamp, const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr) {
+    void ImuIntegral::predict(double time_stamp, const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr) {
         midPointIntegral(time_stamp_buf_.back(), acc_buf_.back(), gyr_buf_.back(),
                          time_stamp, acc, gyr,
                          ba_, bg_,
@@ -70,7 +70,7 @@ namespace vins {
         gyr_buf_.push_back(gyr);
     }
 
-    void ImuIntegrator::rePredict(const Eigen::Vector3d& new_ba, const Eigen::Vector3d& new_bg) {
+    void ImuIntegral::rePredict(const Eigen::Vector3d& new_ba, const Eigen::Vector3d& new_bg) {
         pos_.setZero();
         quat_.setIdentity();
         vel_.setZero();
@@ -88,11 +88,11 @@ namespace vins {
         }
     }
 
-    void ImuIntegrator::midPointIntegral(double pre_time_stamp, const Eigen::Vector3d& pre_acc, const Eigen::Vector3d& pre_gyr,
-                                         double cur_time_stamp, const Eigen::Vector3d& cur_acc, const Eigen::Vector3d& cur_gyr,
-                                         const Eigen::Vector3d& ba, const Eigen::Vector3d& bg,
-                                         Eigen::Vector3d& cur_pos, Eigen::Quaterniond& cur_quat, Eigen::Vector3d& cur_vel,
-                                         Jacobian &jacobian, Covariance &covariance, Noise &noise) {
+    void ImuIntegral::midPointIntegral(double pre_time_stamp, const Eigen::Vector3d& pre_acc, const Eigen::Vector3d& pre_gyr,
+                                       double cur_time_stamp, const Eigen::Vector3d& cur_acc, const Eigen::Vector3d& cur_gyr,
+                                       const Eigen::Vector3d& ba, const Eigen::Vector3d& bg,
+                                       Eigen::Vector3d& cur_pos, Eigen::Quaterniond& cur_quat, Eigen::Vector3d& cur_vel,
+                                       Jacobian &jacobian, Covariance &covariance, Noise &noise) {
         const double dt = cur_time_stamp - pre_time_stamp;
         const double dt2 = dt * dt;
         const double dt3 = dt2 * dt;
