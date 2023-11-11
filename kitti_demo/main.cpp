@@ -92,7 +92,8 @@ int main(int argc, char** argv) {
             imu_time_stamps.pop();
         }
         std::shared_ptr<cv::Mat> img = std::make_shared<cv::Mat>();
-        *img = cv::imread(join_path(img_folder_path, id2fileName(i) + ".png"));
+        // cv::goodFeaturesToTrack必须是灰度图
+        *img = cv::imread(join_path(img_folder_path, id2fileName(i) + ".png"), cv::IMREAD_GRAYSCALE);
         vins::handleImage(img, img_time_stamp);
     }
     int a;
