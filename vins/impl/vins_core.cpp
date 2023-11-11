@@ -139,8 +139,8 @@ namespace vins {
 
         /******************非首帧图像加入滑动窗口*******************/
         int prev_kf_window_size = run_info_->kf_state_window.size();
-        bool is_key_frame = FeatureHelper::isKeyFrame(param_.key_frame_parallax_threshold,
-                                                      prev_kf_window_size,
+        bool is_key_frame = FeatureHelper::isKeyFrame(prev_kf_window_size,
+                                                      param_.key_frame_parallax_threshold,
                                                       feature_pts,
                                                       run_info_->feature_window);
         LOG(INFO) << "input feature: " << feature_pts.size() << "\t"
