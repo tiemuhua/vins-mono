@@ -135,6 +135,7 @@ namespace vins {
         bool is_first_frame = acc_buf_.empty() || imu_time_stamp_buf_.front() >= img_time_stamp;
         if (is_first_frame) {
             run_info_->frame_window.emplace_back(feature_pts, nullptr, true, img_time_stamp);
+            run_info_->kf_state_window.emplace_back(KeyFrameState());
             FeatureHelper::addFeatures(run_info_->kf_state_window.size(),
                                        img_time_stamp, feature_pts,
                                        run_info_->feature_window);
