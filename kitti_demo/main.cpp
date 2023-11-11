@@ -37,6 +37,7 @@ std::string join_path(const std::string &t, const Args&... args) {
 
 int main(int argc, char** argv) {
     google::InitGoogleLogging(argv[0]);
+    FLAGS_logtostderr = 1;  //输出到控制台
     auto callback = std::make_shared<Callback>();
     vins::Param param;
     param.camera.row = 512;
