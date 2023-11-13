@@ -25,7 +25,7 @@ namespace vins {
         double time_stamp;
     };
 
-    struct RunInfo {
+    struct VinsModel {
         Eigen::Vector3d tic;
         Eigen::Matrix3d ric;
         Eigen::Vector3d gravity;

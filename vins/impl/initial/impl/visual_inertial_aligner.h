@@ -6,7 +6,7 @@
 #define VINS_VISUAL_INERTIAL_ALIGNER_H
 
 #include <Eigen/Eigen>
-#include "impl/vins_run_info.h"
+#include "impl/vins_model.h"
 
 namespace vins {
     Eigen::Vector3d estimateGyroBias(const std::vector<Eigen::Matrix3d> &imu_delta_rots,

@@ -11,6 +11,16 @@
 #include <opencv2/opencv.hpp>
 #include "vins_define_internal.h"
 
+#define Synchronized(mutex_)  for(ScopedLocker locker(mutex_); locker.cnt < 1; locker.cnt++)
+
+class ScopedLocker {
+public:
+    explicit ScopedLocker(std::mutex &mutex) : guard(mutex) {}
+
+    std::lock_guard<std::mutex> guard;
+    int cnt = 0;
+};
+
 namespace vins {
 
     namespace utils {

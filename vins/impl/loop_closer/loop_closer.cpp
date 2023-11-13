@@ -1,11 +1,11 @@
 #include <sys/time.h>
 
-#include "loop_closer.h"
-#include "impl/vins_utils.h"
 #include "vins_logic.h"
-#include "keyframe.h"
 #include "impl/loop_relative_pos.h"
 #include "impl/loop_detector.h"
+#include "impl/vins_utils.h"
+#include "impl/loop_closer/loop_closer.h"
+#include "impl/loop_closer/keyframe.h"
 
 using namespace vins;
 using namespace DVision;

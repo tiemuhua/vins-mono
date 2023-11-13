@@ -3,7 +3,7 @@
 //
 #include <sys/time.h>
 
-#include "vins_core.h"
+#include "vins_controller.h"
 #include "vins_utils.h"
 #include "vins_define_internal.h"
 #include "initial/initiate.h"
@@ -14,8 +14,8 @@
 #include "camera_wrapper.h"
 
 namespace vins {
-    VinsCore::VinsCore(const Param& param, std::weak_ptr<Callback> cb) {
-        run_info_ = new RunInfo();
+    VinsController::VinsController(const Param& param, std::weak_ptr<Callback> cb) {
+        run_info_ = new VinsModel();
         param_ = param;
         camera_wrapper_ = new CameraWrapper(param);
         feature_tracker_ = new FeatureTracker(param, camera_wrapper_);
@@ -32,7 +32,7 @@ namespace vins {
     }
 
     // 外部IO线程调用
-    void VinsCore::handleIMU(const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr, double time_stamp) {
+    void VinsController::handleIMU(const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr, double time_stamp) {
         Synchronized(io_mutex_) {
             if (vins_state_ == EVinsState::kNoIMUData) {
                 run_info_->prev_imu_state.acc = acc;
@@ -52,7 +52,7 @@ namespace vins {
     }
 
     // 外部IO线程调用
-    void VinsCore::handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
+    void VinsController::handleImage(const std::shared_ptr<cv::Mat> &_img, double time_stamp) {
         Synchronized(io_mutex_) {
             img_buf_.emplace(_img);
             img_time_stamp_buf_.emplace(time_stamp);
@@ -65,7 +65,7 @@ namespace vins {
     }
 
     // 回环线程调用
-    void VinsCore::handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift) {
+    void VinsController::handleDriftCalibration(const Eigen::Vector3d &t_drift, const Eigen::Matrix3d &r_drift) {
         Synchronized(io_mutex_) {
             t_drift_ = t_drift;
             r_drift_ = r_drift;
@@ -93,7 +93,7 @@ namespace vins {
     }
 
     // vins工作线程调用
-    [[noreturn]] void VinsCore::_handleData(){
+    [[noreturn]] void VinsController::_handleData(){
         while(true) {
             struct timeval tv1{}, tv2{};
             gettimeofday(&tv1, nullptr);
@@ -109,7 +109,7 @@ namespace vins {
     }
 
     // vins工作线程调用
-    void VinsCore::_handleDataImpl() {
+    void VinsController::_handleDataImpl() {
         /******************从缓冲区中读取图像数据*******************/
         double img_time_stamp = -1;
         std::shared_ptr<cv::Mat> img_ptr = nullptr;
@@ -287,7 +287,7 @@ namespace vins {
         bool fail;
         if (fail) {
             delete run_info_;
-            run_info_ = new RunInfo;
+            run_info_ = new VinsModel;
             vins_state_ = EVinsState::kInitial;
             return;
         }

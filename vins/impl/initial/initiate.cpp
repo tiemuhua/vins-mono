@@ -44,7 +44,7 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     return var > 0.25;
 }
 
-bool Initiate::initiate(RunInfo &run_info) {
+bool Initiate::initiate(VinsModel &run_info) {
     if (!isAccVariantBigEnough(run_info.frame_window)) {
         return false;
     }

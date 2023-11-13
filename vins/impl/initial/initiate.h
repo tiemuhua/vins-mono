@@ -7,12 +7,12 @@
 
 #include "param.h"
 
-#include "impl/vins_run_info.h"
+#include "impl/vins_model.h"
 
 namespace vins {
     class Initiate {
     public:
-        static bool initiate(RunInfo &run_info);
+        static bool initiate(VinsModel &run_info);
     };
 }
 

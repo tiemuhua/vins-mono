@@ -3,13 +3,13 @@
 //
 
 #include "vins_logic.h"
-#include "impl/vins_core.h"
+#include "impl/vins_controller.h"
 
 namespace vins {
-    static VinsCore *sp_vins_core;
+    static VinsController *sp_vins_core;
 
     void init(const vins::Param& param, const std::shared_ptr<Callback> &cb) {
-        sp_vins_core = new VinsCore(param, cb);
+        sp_vins_core = new VinsController(param, cb);
     }
 
     const vins::Param &getParam() {

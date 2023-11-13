@@ -10,12 +10,12 @@
 #include <opencv2/opencv.hpp>
 
 #include "vins_define_internal.h"
-#include "vins_run_info.h"
+#include "vins_model.h"
 
 namespace vins {
     typedef std::vector<std::pair<cv::Point2f, cv::Point2f>> Correspondences;
 }
-namespace vins::FeatureHelper {
+namespace vins { namespace FeatureHelper {
     [[nodiscard]] bool isKeyFrame(double kf_parallax_threshold,
                                   const std::vector<FeaturePoint2D> &new_feature_pts,
                                   const std::vector<Feature> &feature_window);
@@ -32,7 +32,7 @@ namespace vins::FeatureHelper {
     [[nodiscard]] std::vector<Eigen::Vector3d> getPtsVecForFrame(int frame_idx,
                                                                  const std::vector<Feature> &feature_window);
 
-    [[nodiscard]]double featureIdToDepth(const int feature_id, const std::vector<Feature> &feature_window);
-}
+    [[nodiscard]]double featureIdToDepth(int feature_id, const std::vector<Feature> &feature_window);
+} }
 
 #endif

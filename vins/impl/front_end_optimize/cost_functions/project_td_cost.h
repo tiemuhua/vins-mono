@@ -3,7 +3,7 @@
 #include <ceres/ceres.h>
 #include <Eigen/Dense>
 #include "impl/vins_define_internal.h"
-#include "impl/vins_run_info.h"
+#include "impl/vins_model.h"
 
 namespace vins {
     // 残差为二维平面上的投影误差
