@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
         std::string imu_time_stamp_str = imu_time_stamp_line.substr(17);
         imu_time_stamps.push(std::stod(imu_time_stamp_str));
         std::string imu_file_name = id2fileName(i);
-        std::ifstream imu_stream(imu_folder_path + imu_file_name + ".txt", std::ios::binary);
+        std::ifstream imu_stream(join_path(imu_folder_path, imu_file_name + ".txt"), std::ios::binary);
         double lat, lon, alt, roll, pitch, yaw;
         double vn, ve, vf, vl, vu, ax, ay, az, af, al, au, wx, wy, wz, wf, wl, wu;
         double pos_accuracy, vel_accuracy, navstat, numsats, posmode, velmode, orimode;
