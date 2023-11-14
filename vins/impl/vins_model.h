@@ -25,6 +25,16 @@ namespace vins {
         double time_stamp;
     };
 
+    struct FeatureTrackerModel {
+        std::shared_ptr<cv::Mat> prev_img;
+        std::vector<cv::Point2f> prev_raw_pts;
+        std::vector<cv::Point2f> prev_norm_pts;
+        double prev_time{};
+        std::unordered_map<int, cv::Point2f> prev_feature_id_2_norm_pts;
+        std::vector<int> feature_ids;
+        int feature_id_cnt = 0;
+    };
+
     struct VinsModel {
         Eigen::Vector3d tic;
         Eigen::Matrix3d ric;
@@ -42,6 +52,12 @@ namespace vins {
         std::vector<vins::LoopMatchInfo> loop_match_infos;
 
         PrevIMUState prev_imu_state;
+
+        FeatureTrackerModel feature_tracker_model;
+
+        ImuIntegralUniPtr kf_pre_integral_ptr_ = nullptr;
+
+        double last_init_time_stamp_ = 0.0;
     };
 }
 

@@ -16,7 +16,6 @@
 #include "param.h"
 
 #include "camera_wrapper.h"
-#include "feature_tracker.h"
 #include "imu_integrator.h"
 #include "vins_define_internal.h"
 #include "vins_model.h"
@@ -59,17 +58,14 @@ namespace vins {
         std::mutex io_mutex_;
 
 
-        //.子求解器.
-        FeatureTracker *feature_tracker_ = nullptr;
+        //.子求解器。某些子求解器的默认初始化没有意义，因此使用指针来保证显式初始化.
         CameraWrapper *camera_wrapper_ = nullptr;
         LoopCloser loop_closer_;
         DVision::BRIEF *brief_extractor_ = nullptr;
 
         //.运行时信息.
-        VinsModel *run_info_ = nullptr;
+        VinsModel vins_model_;
         Param param_;
-        ImuIntegralUniPtr kf_pre_integral_ptr_ = nullptr;
-        double last_init_time_stamp_ = 0.0;
 
         //.回调.
         std::weak_ptr<Callback> cb_;

@@ -23,7 +23,7 @@ namespace vins {
             focal_ = param.camera.focal;
         }
 
-        cv::Point2f rawPoint2NormPoint(const cv::Point2f &p) {
+        cv::Point2f rawPoint2NormPoint(const cv::Point2f &p) const {
             return p;
 //            Eigen::Vector3d tmp_p;
 //            camera_->liftProjective(Eigen::Vector2d(p.x, p.y), tmp_p);
@@ -32,8 +32,7 @@ namespace vins {
 //            return {col, row};
         }
 
-    private:
-        camodocal::CameraPtr camera_;
+        camodocal::CameraPtr camera_ = nullptr;
         double focal_ = -1.0;
     };
 }
