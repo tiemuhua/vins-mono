@@ -9,7 +9,7 @@
 #include <sstream>
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
-#include "vins_define_internal.h"
+#include "vins_model.h"
 
 #define Synchronized(mutex_)  for(ScopedLocker locker(mutex_); locker.cnt < 1; locker.cnt++)
 
@@ -24,6 +24,8 @@ public:
 namespace vins {
 
     namespace utils {
+
+        constexpr double pi = 3.1415926;
 
         template<typename T, typename F>
         void erase_if_wrapper(std::vector<T> &vec, const F& func) {

@@ -6,7 +6,7 @@
 #define VINS_BATCH_ADJUSTER_H
 
 #include "param.h"
-#include "impl/vins_define_internal.h"
+#include "impl/vins_model.h"
 #include "impl/feature_helper.h"
 
 namespace vins::FrontEndOptimize {

@@ -5,11 +5,11 @@
 
 #include "vins_controller.h"
 #include "vins_utils.h"
-#include "vins_define_internal.h"
+#include "vins_model.h"
 #include "initial/initiate.h"
 #include "feature_tracker.h"
 #include "feature_helper.h"
-#include "impl/front_end_optimize/front_end_optimize.h"
+#include "front_end_optimize/front_end_optimize.h"
 #include "loop_closer/loop_closer.h"
 #include "camera_wrapper.h"
 

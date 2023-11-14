@@ -9,7 +9,6 @@
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
 
-#include "vins_define_internal.h"
 #include "vins_model.h"
 
 namespace vins {

@@ -2,7 +2,7 @@
 
 #include <ceres/ceres.h>
 #include <Eigen/Dense>
-#include "impl/vins_define_internal.h"
+#include "impl/vins_model.h"
 #include "impl/vins_model.h"
 
 namespace vins {

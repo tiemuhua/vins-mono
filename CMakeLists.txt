@@ -48,7 +48,6 @@ add_executable(vins_mono
         vins/impl/imu_integrator.h
         vins/impl/vins_controller.cpp
         vins/impl/vins_controller.h
-        vins/impl/vins_define_internal.h
         vins/impl/vins_model.h
         vins/impl/vins_utils.h
         vins/param.h

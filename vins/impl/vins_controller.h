@@ -17,7 +17,6 @@
 
 #include "camera_wrapper.h"
 #include "imu_integrator.h"
-#include "vins_define_internal.h"
 #include "vins_model.h"
 #include "loop_closer/loop_closer.h"
 
