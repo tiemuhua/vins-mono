@@ -44,19 +44,19 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     return var > 0.25;
 }
 
-bool Initiate::initiate(VinsModel &run_info) {
-    if (!isAccVariantBigEnough(run_info.frame_window)) {
+bool Initiate::initiate(VinsModel &vins_model) {
+    if (!isAccVariantBigEnough(vins_model.frame_window)) {
         return false;
     }
 
-    std::vector<Eigen::Matrix3d> kf_img_rot(run_info.kf_state_window.size());
-    std::vector<Eigen::Vector3d> kf_img_pos(run_info.kf_state_window.size());
-    std::vector<Eigen::Matrix3d> frames_img_rot(run_info.frame_window.size());
-    std::vector<Eigen::Vector3d> frames_img_pos(run_info.frame_window.size());
+    std::vector<Eigen::Matrix3d> kf_img_rot(vins_model.kf_state_window.size());
+    std::vector<Eigen::Vector3d> kf_img_pos(vins_model.kf_state_window.size());
+    std::vector<Eigen::Matrix3d> frames_img_rot(vins_model.frame_window.size());
+    std::vector<Eigen::Vector3d> frames_img_pos(vins_model.frame_window.size());
 
-    bool visual_succ = initiateByVisual((int) run_info.kf_state_window.size(),
-                                        run_info.feature_window,
-                                        run_info.frame_window,
+    bool visual_succ = initiateByVisual((int) vins_model.kf_state_window.size(),
+                                        vins_model.feature_window,
+                                        vins_model.frame_window,
                                         kf_img_rot,
                                         kf_img_pos,
                                         frames_img_rot,
@@ -76,7 +76,7 @@ bool Initiate::initiate(VinsModel &run_info) {
     for (int i = 0; i < 4; ++i) {
         imu_delta_rots.clear();
         jacobians_bg_2_rot.clear();
-        for (const auto &it: run_info.pre_int_window) {
+        for (const auto &it: vins_model.pre_int_window) {
             imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
             jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
         }
@@ -85,25 +85,25 @@ bool Initiate::initiate(VinsModel &run_info) {
             return false;
         }
         bg += bg_step;
-        for (Frame &frame: run_info.frame_window) {
+        for (Frame &frame: vins_model.frame_window) {
             frame.imu_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
         }
-        for (auto &pre_integrate: run_info.pre_int_window) {
+        for (auto &pre_integrate: vins_model.pre_int_window) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
         }
     }
-    for (KeyFrameState &state: run_info.kf_state_window) {
+    for (KeyFrameState &state: vins_model.kf_state_window) {
         state.bg = bg;
     }
 
     //.求解ric.
     imu_delta_rots.clear();
     jacobians_bg_2_rot.clear();
-    for (const auto &it: run_info.pre_int_window) {
+    for (const auto &it: vins_model.pre_int_window) {
         imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
         jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
     }
-    bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, run_info.ric);
+    bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, vins_model.ric);
     if (!ric_succ) {
         return false;
     }
@@ -119,7 +119,7 @@ bool Initiate::initiate(VinsModel &run_info) {
     }
     std::vector<Eigen::Vector3d> imu_delta_poses, imu_delta_velocities;
     std::vector<double> imu_delta_times;
-    for (const Frame &frame: run_info.frame_window) {
+    for (const Frame &frame: vins_model.frame_window) {
         imu_delta_poses.emplace_back(frame.imu_integral_->deltaPos());
         imu_delta_velocities.emplace_back(frame.imu_integral_->deltaVel());
         imu_delta_times.emplace_back(frame.imu_integral_->deltaTime());
@@ -129,9 +129,9 @@ bool Initiate::initiate(VinsModel &run_info) {
                                          imu_delta_poses,
                                          imu_delta_velocities,
                                          imu_delta_times,
-                                         run_info.ric,
-                                         run_info.tic,
-                                         run_info.gravity,
+                                         vins_model.ric,
+                                         vins_model.tic,
+                                         vins_model.gravity,
                                          scale,
                                          velocities)) {
         return false;
@@ -143,39 +143,39 @@ bool Initiate::initiate(VinsModel &run_info) {
         pos *= scale;
     }
 
-    assert(run_info.frame_window.front().is_key_frame_);
-    Eigen::Matrix3d rot_diff = rotGravityToZAxis(run_info.gravity, run_info.frame_window.front().imu_rot);
-    run_info.gravity = rot_diff * run_info.gravity;
+    assert(vins_model.frame_window.front().is_key_frame_);
+    Eigen::Matrix3d rot_diff = rotGravityToZAxis(vins_model.gravity, vins_model.frame_window.front().imu_rot);
+    vins_model.gravity = rot_diff * vins_model.gravity;
 
     std::unordered_map<int, int> kf_idx_2_frame_idx;
     int kf_idx_iter = 0;
-    for (int i = 0; i < run_info.frame_window.size(); ++i) {
-        if (run_info.frame_window[i].is_key_frame_) {
+    for (int i = 0; i < vins_model.frame_window.size(); ++i) {
+        if (vins_model.frame_window[i].is_key_frame_) {
             kf_idx_2_frame_idx[kf_idx_iter] = i;
             kf_idx_iter++;
         }
     }
-    for (int i = 0; i < run_info.frame_window.size(); ++i) {
-        run_info.frame_window[i].imu_pos = rot_diff * (run_info.ric.transpose() * frames_img_pos[i] - run_info.tic);
-        run_info.frame_window[i].imu_rot = frames_img_rot[i] * rot_diff;
+    for (int i = 0; i < vins_model.frame_window.size(); ++i) {
+        vins_model.frame_window[i].imu_pos = rot_diff * (vins_model.ric.transpose() * frames_img_pos[i] - vins_model.tic);
+        vins_model.frame_window[i].imu_rot = frames_img_rot[i] * rot_diff;
     }
-    for (int i = 0; i < run_info.kf_state_window.size(); ++i) {
-        run_info.kf_state_window[i].pos = rot_diff * (run_info.ric.transpose() * kf_img_pos[i] - run_info.tic);
-        run_info.kf_state_window[i].rot = kf_img_rot[i] * rot_diff;
-        run_info.kf_state_window[i].vel = rot_diff * velocities[kf_idx_2_frame_idx[i]];
+    for (int i = 0; i < vins_model.kf_state_window.size(); ++i) {
+        vins_model.kf_state_window[i].pos = rot_diff * (vins_model.ric.transpose() * kf_img_pos[i] - vins_model.tic);
+        vins_model.kf_state_window[i].rot = kf_img_rot[i] * rot_diff;
+        vins_model.kf_state_window[i].vel = rot_diff * velocities[kf_idx_2_frame_idx[i]];
     }
 
     // triangulate on cam pose , no tic
     //.计算特征点深度，initialStructure里面算出来的特征点三维坐标没有ba，也没有对齐惯导
-    for (Feature &feature: run_info.feature_window) {
-        if (!(feature.points.size() >= 2 && feature.start_kf_window_idx < run_info.kf_state_window.size() - 2))
+    for (Feature &feature: vins_model.feature_window) {
+        if (!(feature.points.size() >= 2 && feature.start_kf_window_idx < vins_model.kf_state_window.size() - 2))
             continue;
 
         Eigen::MatrixXd svd_A(2 * feature.points.size(), 4);
 
         int start_kf_idx = feature.start_kf_window_idx;
-        Eigen::Vector3d t0 = run_info.kf_state_window[start_kf_idx].pos;
-        Eigen::Matrix3d R0 = run_info.kf_state_window[start_kf_idx].rot * run_info.ric;
+        Eigen::Vector3d t0 = vins_model.kf_state_window[start_kf_idx].pos;
+        Eigen::Matrix3d R0 = vins_model.kf_state_window[start_kf_idx].rot * vins_model.ric;
 
         // 特征点深度记为d，特征点在start_kf_idx系中坐标记为p0，在在kf_idx系中坐标记为p_i
         // start_kf_idx 帧的归一化像素坐标为 pixel0 = (x0, y0, 1.0)^T，kf_idx帧的归一化像素坐标为 pixel_i = (x_i, y_i, 1.0)
@@ -195,8 +195,8 @@ bool Initiate::initiate(VinsModel &run_info) {
         Eigen::Vector3d pixel0 = Eigen::Vector3d(feature.points[0].x, feature.points[0].y, 1.0);
         for (int i = 1; i < feature.points.size(); ++i) {
             int kf_idx = start_kf_idx + i;
-            Eigen::Vector3d t1 = run_info.kf_state_window[kf_idx].pos;
-            Eigen::Matrix3d R1 = run_info.kf_state_window[kf_idx].rot * run_info.ric;
+            Eigen::Vector3d t1 = vins_model.kf_state_window[kf_idx].pos;
+            Eigen::Matrix3d R1 = vins_model.kf_state_window[kf_idx].rot * vins_model.ric;
             Eigen::Vector3d t = R0.transpose() * (t1 - t0);
             Eigen::Matrix3d R = R0.transpose() * R1;
 

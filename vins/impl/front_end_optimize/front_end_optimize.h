@@ -9,7 +9,7 @@
 #include "impl/vins_model.h"
 #include "impl/feature_helper.h"
 
-namespace vins::FrontEndOptimize {
+namespace vins { namespace FrontEndOptimize {
     void optimize(const FrontEndOptimizeParam &param,
                   const std::vector<ImuIntegralUniPtr> &pre_int_window,
                   const std::vector<vins::LoopMatchInfo> &loop_match_infos,
@@ -23,6 +23,6 @@ namespace vins::FrontEndOptimize {
                const ImuIntegral &oldest_pre_integral,
                const std::unordered_map<int, int> &feature_id_2_idx_before_discard,
                const std::unordered_map<int, int> &feature_id_2_idx_after_discard);
-}
+} }
 
 #endif //VINS_BATCH_ADJUSTER_H

@@ -96,6 +96,7 @@ namespace vins {
         int feature_id_cnt = 0;
     };
 
+    // VinsModel和VinsController名称源于MVC结构，VinsState是状态机，VinsModel才是系统数据
     struct VinsModel {
         Eigen::Vector3d tic;
         Eigen::Matrix3d ric;
