@@ -26,20 +26,12 @@ namespace vins {
     struct Feature {
         int feature_id = -1;
         int start_kf_window_idx = -1;
-        bool is_outlier = false;
         double inv_depth = -1;
         std::vector<cv::Point2f> points;
         std::vector<cv::Point2f> velocities;
         std::vector<double> time_stamps_ms;
 
-        enum {
-            kDepthUnknown,
-            kDepthSolved,
-            kDepthSolvedFail,
-        } solve_flag_ = kDepthUnknown;
-
         Feature() = default;
-
         Feature(int _feature_id, int _start_frame)
                 : feature_id(_feature_id), start_kf_window_idx(_start_frame) {}
 
@@ -51,7 +43,6 @@ namespace vins {
     class Frame {
     public:
         Frame() = default;
-
         Frame(const std::vector<FeaturePoint2D> &_features,
               ImuIntegralUniPtr _imu_integral,
               bool _is_key_frame,

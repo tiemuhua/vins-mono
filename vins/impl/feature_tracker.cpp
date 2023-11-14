@@ -25,7 +25,7 @@ void FeatureTracker::extractFeatures(const std::shared_ptr<cv::Mat> &_img,
     const int rows = camera_wrapper.camera_->imageHeight();
     assert(_img != nullptr);
     std::shared_ptr<cv::Mat> next_img = _img;
-    if (feature_tracker_model.prev_img->empty()) {
+    if (feature_tracker_model.prev_img == nullptr) {
         feature_tracker_model.prev_img = _img;
     }
 
