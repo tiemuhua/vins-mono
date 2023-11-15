@@ -211,6 +211,7 @@ namespace vins {
                                    vins_model_.feature_window);
         KeyFrameState kf_state = _recurseByImu(vins_model_.kf_state_window.back(), *vins_model_.kf_imu_integral);
         kf_state.time_stamp = raw_frame_sensor_data.img_time_stamp_ms;
+        // addFeatures用到了kf_state_window.size，顺序不能反
         vins_model_.kf_state_window.emplace_back(kf_state);
         vins_model_.pre_int_window.emplace_back(std::move(vins_model_.kf_imu_integral));
         vins_model_.kf_imu_integral = nullptr;
