@@ -101,6 +101,7 @@ namespace vins {
                 pts_3d.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
         }
+        assert(pts_2d.size() > sfm_features.size() / 3);
     }
 
     static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2d, const vector<cv::Point3f> &pts_3d,

@@ -28,7 +28,7 @@ namespace vins {
     struct PrevIMUState {
         Eigen::Vector3d acc = Eigen::Vector3d::Zero();
         Eigen::Vector3d gyr = Eigen::Vector3d::Zero();
-        double time_stamp = 0;
+        double time = 0;
         Eigen::Vector3d ba = Eigen::Vector3d::Zero();
         Eigen::Vector3d bg = Eigen::Vector3d::Zero();
     };

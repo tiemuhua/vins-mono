@@ -36,7 +36,8 @@ namespace vins {
 
     private:
         [[noreturn]] void _handleData();
-        void _handleDataImpl();
+        void _handleDataImpl(RawFrameData raw_frame_sensor_data);
+        bool readRawFrameDataUnsafe(RawFrameData& raw_frame_data);
 
     private:
         enum class EVinsState : int {
@@ -51,7 +52,7 @@ namespace vins {
         std::queue<double> img_time_stamp_buf_;
         std::queue<Eigen::Vector3d> acc_buf_;
         std::queue<Eigen::Vector3d> gyr_buf_;
-        std::queue<double> imu_time_stamp_buf_;
+        std::queue<double> imu_time_buf_;
         Eigen::Vector3d t_drift_;
         Eigen::Matrix3d r_drift_;
         std::mutex io_mutex_;

@@ -32,20 +32,9 @@ namespace vins {
     // 外部IO线程调用
     void VinsController::handleIMU(const Eigen::Vector3d& acc, const Eigen::Vector3d& gyr, double time_stamp) {
         Synchronized(io_mutex_) {
-            if (vins_state_ == EVinsState::kNoIMUData) {
-                vins_model_.prev_imu_state.acc = acc;
-                vins_model_.prev_imu_state.gyr = gyr;
-                vins_model_.prev_imu_state.time_stamp = time_stamp;
-                vins_state_ = EVinsState::kNoImgData;
-            } else if (vins_state_ == EVinsState::kNoImgData) {
-                vins_model_.prev_imu_state.acc = acc;
-                vins_model_.prev_imu_state.gyr = gyr;
-                vins_model_.prev_imu_state.time_stamp = time_stamp;
-            } else {
-                acc_buf_.emplace(acc);
-                gyr_buf_.emplace(gyr);
-                imu_time_stamp_buf_.emplace(time_stamp);
-            }
+            acc_buf_.emplace(acc);
+            gyr_buf_.emplace(gyr);
+            imu_time_buf_.emplace(time_stamp);
         }
     }
 
@@ -54,11 +43,6 @@ namespace vins {
         Synchronized(io_mutex_) {
             img_buf_.emplace(_img);
             img_time_stamp_buf_.emplace(time_stamp);
-            // 收到首帧后需要马上在当前线程修改系统状态，不能等到vins工作线程中修改
-            // 否则无法向IMU缓冲区中写入数据
-            if (vins_state_ == EVinsState::kNoImgData) {
-                vins_state_ = EVinsState::kInitial;
-            }
         }
     }
 
@@ -91,82 +75,118 @@ namespace vins {
     }
 
     // vins工作线程调用
+    constexpr int wait_data_interval_us = 100;
     [[noreturn]] void VinsController::_handleData(){
         while(true) {
-            struct timeval tv1{}, tv2{};
-            gettimeofday(&tv1, nullptr);
-            if (vins_state_ != EVinsState::kNoIMUData) {
-                _handleDataImpl();
+            RawFrameData raw_frame_data;
+            bool has_data = false;
+            Synchronized(io_mutex_) {
+                has_data = readRawFrameDataUnsafe(raw_frame_data);
             }
-            gettimeofday(&tv2, nullptr);
-            auto cost_us = (tv2.tv_sec - tv1.tv_sec) * 1000000 + tv2.tv_usec - tv1.tv_usec;
-            if (cost_us < 1 * 1000) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            if (has_data) {
+                _handleDataImpl(std::move(raw_frame_data));
+            } else {
+                std::this_thread::sleep_for(std::chrono::microseconds (wait_data_interval_us));
             }
         }
     }
 
-    // vins工作线程调用
-    void VinsController::_handleDataImpl() {
-        /******************从缓冲区中读取图像数据*******************/
-        double img_time_stamp = -1;
-        std::shared_ptr<cv::Mat> img_ptr = nullptr;
-        Synchronized(io_mutex_) {
-            if (img_buf_.empty()) {
-                return;
+    /**
+     * @brief 从缓冲区中读取数据
+     * @return 若读到数据需要处理则返回true，否则返回false
+     * */
+    bool VinsController::readRawFrameDataUnsafe(RawFrameData& raw_frame_data) {
+        // 首次循环
+        if (vins_state_ == EVinsState::kNoIMUData) {
+            if (acc_buf_.empty()) {
+                return false;
             }
-            img_ptr = img_buf_.front();
-            img_time_stamp = img_time_stamp_buf_.front();
-            img_buf_.pop();
-            img_time_stamp_buf_.pop();
+            vins_state_ = EVinsState::kNoImgData;
+            vins_model_.prev_imu_state.acc = acc_buf_.back();
+            vins_model_.prev_imu_state.gyr = gyr_buf_.back();
+            vins_model_.prev_imu_state.time = imu_time_buf_.back();
+            acc_buf_ = std::queue<Eigen::Vector3d>();
+            gyr_buf_ = std::queue<Eigen::Vector3d>();
+            imu_time_buf_ = std::queue<double>();
+            img_buf_ = std::queue<std::shared_ptr<cv::Mat>>();
+            img_time_stamp_buf_ = std::queue<double>();
+            return false;
         }
 
+        // 读取图像数据
+        if (img_buf_.empty()) {
+            return false;
+        }
+        double img_time_stamp = img_time_stamp_buf_.front();
+        std::shared_ptr<cv::Mat> img_ptr = img_buf_.front();
+        img_buf_.pop();
+        img_time_stamp_buf_.pop();
+
+        // 首帧特殊处理
+        if (vins_state_ == EVinsState::kNoImgData) {
+            while (!acc_buf_.empty() && imu_time_buf_.front() <= img_time_stamp) {
+                vins_model_.prev_imu_state.acc = acc_buf_.front();
+                vins_model_.prev_imu_state.gyr = gyr_buf_.front();
+                vins_model_.prev_imu_state.time = imu_time_buf_.front();
+                imu_time_buf_.pop();
+                acc_buf_.pop();
+                gyr_buf_.pop();
+            }
+            vins_state_ = EVinsState::kInitial;
+            return true;
+        }
+
+        // 非首帧正常读取IMU数据
+        raw_frame_data.imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
+                                                                    vins_model_.prev_imu_state,
+                                                                    vins_model_.gravity);
+        while (!acc_buf_.empty() && imu_time_buf_.front() <= img_time_stamp) {
+            vins_model_.prev_imu_state.acc = acc_buf_.front();
+            vins_model_.prev_imu_state.gyr = gyr_buf_.front();
+            vins_model_.prev_imu_state.time = imu_time_buf_.front();
+            raw_frame_data.imu_integral->predict(imu_time_buf_.front(),
+                                                 acc_buf_.front(),
+                                                 gyr_buf_.front());
+            imu_time_buf_.pop();
+            acc_buf_.pop();
+            gyr_buf_.pop();
+        }
+        return true;
+    }
+
+    // vins工作线程调用
+    void VinsController::_handleDataImpl(RawFrameData raw_frame_sensor_data) {
         /******************提取特征点*******************/
         std::vector<FeaturePoint2D> feature_pts;
         std::vector<cv::KeyPoint> feature_raw_pts;
-        FeatureTracker::extractFeatures(img_ptr,
-                                        img_time_stamp,
+        FeatureTracker::extractFeatures(raw_frame_sensor_data.img,
+                                        raw_frame_sensor_data.img_time_stamp_ms,
                                         *camera_wrapper_,
                                         param_.frame_tracker,
                                         feature_pts,
                                         feature_raw_pts,
                                         vins_model_.feature_tracker_model);
 
-        // 首帧不存在对应的IMU数据，需要特殊处理
-        // vins为异步系统，handleImage添加首帧时系统处于kNoImgData状态，而_handleData处理首帧时系统已经变为kInitial状态
-        // 因此无法通过vins_state_判断本帧是否为首帧
-        // 若IMU缓冲区为空，或缓冲区时间戳晚于当前帧时间戳，则说明当前帧为首帧
-        bool is_first_frame = acc_buf_.empty() || imu_time_stamp_buf_.front() >= img_time_stamp;
-        if (is_first_frame) {
-            vins_model_.frame_window.emplace_back(feature_pts, nullptr, true, img_time_stamp);
+        // 首帧不存在对应的IMU数据，需要特殊处理。
+        if (raw_frame_sensor_data.imu_integral == nullptr) {
+            vins_model_.frame_window.emplace_back(feature_pts,
+                                                  nullptr,
+                                                  true,
+                                                  raw_frame_sensor_data.img_time_stamp_ms);
             vins_model_.kf_state_window.emplace_back(KeyFrameState());
             FeatureHelper::addFeatures(vins_model_.kf_state_window.size(),
-                                       img_time_stamp, feature_pts,
+                                       raw_frame_sensor_data.img_time_stamp_ms,
+                                       feature_pts,
                                        vins_model_.feature_window);
             return;
         }
         
-        /******************从缓冲区中读取惯导数据*******************/
-        ImuIntegralUniPtr frame_pre_integral = std::make_unique<ImuIntegral>(param_.imu_param,
-                                                                             vins_model_.prev_imu_state,
-                                                                             vins_model_.gravity);
-        Synchronized(io_mutex_) {
-            while (!acc_buf_.empty() && imu_time_stamp_buf_.front() <= img_time_stamp) {
-                vins_model_.prev_imu_state.acc = acc_buf_.front();
-                vins_model_.prev_imu_state.gyr = gyr_buf_.front();
-                vins_model_.prev_imu_state.time_stamp = imu_time_stamp_buf_.front();
-                frame_pre_integral->predict(imu_time_stamp_buf_.front(), acc_buf_.front(), gyr_buf_.front());
-                imu_time_stamp_buf_.pop();
-                acc_buf_.pop();
-                gyr_buf_.pop();
-            }
-        }
         if (vins_model_.kf_pre_integral_ptr_ == nullptr) {
             vins_model_.kf_pre_integral_ptr_ = std::make_unique<ImuIntegral>(param_.imu_param,
                                                                  vins_model_.prev_imu_state,
                                                                  vins_model_.gravity);
         }
-        vins_model_.kf_pre_integral_ptr_->jointLaterIntegrator(*frame_pre_integral);
+        vins_model_.kf_pre_integral_ptr_->jointLaterIntegrator(*raw_frame_sensor_data.imu_integral);
 
         /******************当前帧加入滑动窗口*******************/
         bool is_key_frame = vins_model_.kf_state_window.size() < 2 ||
@@ -177,17 +197,18 @@ namespace vins {
                   << "num of feature: " << vins_model_.feature_window.size() << "\t"
                   << "is key frame: " << (is_key_frame ? "true" : "false");
         vins_model_.frame_window.emplace_back(feature_pts,
-                                               std::move(frame_pre_integral),
+                                               std::move(raw_frame_sensor_data.imu_integral),
                                                is_key_frame,
-                                               img_time_stamp);
+                                              raw_frame_sensor_data.img_time_stamp_ms);
         if (!is_key_frame) {
             return;
         }
         FeatureHelper::addFeatures(vins_model_.kf_state_window.size(),
-                                   img_time_stamp, feature_pts,
+                                   raw_frame_sensor_data.img_time_stamp_ms,
+                                   feature_pts,
                                    vins_model_.feature_window);
         KeyFrameState kf_state = _recurseByImu(vins_model_.kf_state_window.back(), *vins_model_.kf_pre_integral_ptr_);
-        kf_state.time_stamp = img_time_stamp;
+        kf_state.time_stamp = raw_frame_sensor_data.img_time_stamp_ms;
         vins_model_.kf_state_window.emplace_back(kf_state);
         vins_model_.pre_int_window.emplace_back(std::move(vins_model_.kf_pre_integral_ptr_));
         vins_model_.kf_pre_integral_ptr_ = nullptr;
@@ -264,10 +285,10 @@ namespace vins {
 
         /******************初始化系统状态、机体坐标系*******************/
         if (vins_state_ == EVinsState::kInitial) {
-            if (img_time_stamp - vins_model_.last_init_time_stamp_ < 0.1) {
+            if (raw_frame_sensor_data.img_time_stamp_ms - vins_model_.last_init_time_stamp_ < 0.1) {
                 return;
             }
-            vins_model_.last_init_time_stamp_ = img_time_stamp;
+            vins_model_.last_init_time_stamp_ = raw_frame_sensor_data.img_time_stamp_ms;
             bool rtn = Initiate::initiate(vins_model_);
             if (!rtn) {
                 return;
@@ -299,13 +320,13 @@ namespace vins {
         // 额外的特征点
         const int fast_th = 20; // corner detector response threshold
         std::vector<cv::KeyPoint> external_raw_pts;
-        cv::FAST(*img_ptr, external_raw_pts, fast_th, true);
+        cv::FAST(*raw_frame_sensor_data.img, external_raw_pts, fast_th, true);
 
         // 描述符
         std::vector<DVision::BRIEF::bitset> descriptors;
-        brief_extractor_->compute(*img_ptr, feature_raw_pts, descriptors);
+        brief_extractor_->compute(*raw_frame_sensor_data.img, feature_raw_pts, descriptors);
         std::vector<DVision::BRIEF::bitset> external_descriptors;
-        brief_extractor_->compute(*img_ptr, external_raw_pts, external_descriptors);
+        brief_extractor_->compute(*raw_frame_sensor_data.img, external_raw_pts, external_descriptors);
 
         //.特征点三维坐标.
         std::vector<cv::Point3f> key_pts_3d;

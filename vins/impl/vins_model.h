@@ -16,6 +16,12 @@
 
 namespace vins {
 
+    struct RawFrameData {
+        std::shared_ptr<cv::Mat> img;
+        double img_time_stamp_ms;
+        ImuIntegralUniPtr imu_integral = nullptr;
+    };
+
     // point和velocity已经投影到归一化平面
     struct FeaturePoint2D {
         cv::Point2f point;

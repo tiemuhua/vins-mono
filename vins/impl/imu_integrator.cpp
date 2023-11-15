@@ -14,7 +14,7 @@ namespace vins {
             gravity_(std::move(gravity)) {
         acc_buf_.emplace_back(std::move(prev_imu_state.acc));
         gyr_buf_.emplace_back(std::move(prev_imu_state.gyr));
-        time_stamp_buf_.emplace_back(prev_imu_state.time_stamp);
+        time_stamp_buf_.emplace_back(prev_imu_state.time);
 
         noise_.block<3, 3>(kAccNoise, kAccNoise) = (imu_param.ACC_N * imu_param.ACC_N) * Eigen::Matrix3d::Identity();
         noise_.block<3, 3>(kGyrNoise, kGyrNoise) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
