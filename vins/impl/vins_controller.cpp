@@ -180,13 +180,14 @@ namespace vins {
                                        vins_model_.feature_window);
             return;
         }
-        
-        if (vins_model_.kf_pre_integral_ptr_ == nullptr) {
-            vins_model_.kf_pre_integral_ptr_ = std::make_unique<ImuIntegral>(param_.imu_param,
-                                                                 vins_model_.prev_imu_state,
-                                                                 vins_model_.gravity);
+
+        // 当前帧
+        if (vins_model_.kf_imu_integral == nullptr) {
+            vins_model_.kf_imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
+                                                                        vins_model_.prev_imu_state,
+                                                                        vins_model_.gravity);
         }
-        vins_model_.kf_pre_integral_ptr_->jointLaterIntegrator(*raw_frame_sensor_data.imu_integral);
+        vins_model_.kf_imu_integral->jointLaterIntegrator(*raw_frame_sensor_data.imu_integral);
 
         /******************当前帧加入滑动窗口*******************/
         bool is_key_frame = vins_model_.kf_state_window.size() < 2 ||
@@ -207,11 +208,11 @@ namespace vins {
                                    raw_frame_sensor_data.img_time_stamp_ms,
                                    feature_pts,
                                    vins_model_.feature_window);
-        KeyFrameState kf_state = _recurseByImu(vins_model_.kf_state_window.back(), *vins_model_.kf_pre_integral_ptr_);
+        KeyFrameState kf_state = _recurseByImu(vins_model_.kf_state_window.back(), *vins_model_.kf_imu_integral);
         kf_state.time_stamp = raw_frame_sensor_data.img_time_stamp_ms;
         vins_model_.kf_state_window.emplace_back(kf_state);
-        vins_model_.pre_int_window.emplace_back(std::move(vins_model_.kf_pre_integral_ptr_));
-        vins_model_.kf_pre_integral_ptr_ = nullptr;
+        vins_model_.pre_int_window.emplace_back(std::move(vins_model_.kf_imu_integral));
+        vins_model_.kf_imu_integral = nullptr;
 
         /******************滑动窗口塞满后再进行后续操作*******************/
         if (vins_model_.kf_state_window.size() < param_.window_size) {
@@ -285,10 +286,10 @@ namespace vins {
 
         /******************初始化系统状态、机体坐标系*******************/
         if (vins_state_ == EVinsState::kInitial) {
-            if (raw_frame_sensor_data.img_time_stamp_ms - vins_model_.last_init_time_stamp_ < 0.1) {
+            if (raw_frame_sensor_data.img_time_stamp_ms - vins_model_.last_init_time < 0.1) {
                 return;
             }
-            vins_model_.last_init_time_stamp_ = raw_frame_sensor_data.img_time_stamp_ms;
+            vins_model_.last_init_time = raw_frame_sensor_data.img_time_stamp_ms;
             bool rtn = Initiate::initiate(vins_model_);
             if (!rtn) {
                 return;
@@ -309,10 +310,14 @@ namespace vins {
         vins_model_.prev_imu_state.bg = vins_model_.kf_state_window.back().bg;
 
         /******************错误检测*******************/
-        bool fail;
+        bool fail = vins_model_.prev_imu_state.ba.norm() > 1e2 || vins_model_.prev_imu_state.bg.norm() > 1e1;
         if (fail) {
             vins_model_ = VinsModel();
             vins_state_ = EVinsState::kInitial;
+            auto cb = cb_.lock();
+            if (cb) {
+                cb->onFail();
+            }
             return;
         }
 

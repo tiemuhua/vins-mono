@@ -20,6 +20,7 @@ namespace vins {
     class Callback {
     public:
         virtual void onPosSolved(const std::vector<PosAndTimeStamp> & pos_and_time_stamps) = 0;
+        virtual void onFail() = 0;
     };
 
     void init(const vins::Param& param, const std::shared_ptr<Callback> &cb);

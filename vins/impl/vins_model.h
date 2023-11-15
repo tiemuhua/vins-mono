@@ -123,9 +123,9 @@ namespace vins {
 
         FeatureTrackerModel feature_tracker_model;
 
-        ImuIntegralUniPtr kf_pre_integral_ptr_ = nullptr;
+        ImuIntegralUniPtr kf_imu_integral = nullptr;
 
-        double last_init_time_stamp_ = 0.0;
+        double last_init_time = -1.0;
     };
 }
 
