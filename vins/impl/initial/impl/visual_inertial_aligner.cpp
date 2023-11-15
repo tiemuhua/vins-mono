@@ -119,6 +119,7 @@ namespace vins {
         gravity = x.segment<3>(gravity_idx);
         scale = x(scale_idx);
         TIC = x.segment<3>(tic_idx);
+        assert(x.norm() < 1e5);
 
         LOG(INFO) << "gravity.norm():" << gravity.norm() << "\tscale:" << scale;
         constexpr double standard_gravity_norm = 9.8;

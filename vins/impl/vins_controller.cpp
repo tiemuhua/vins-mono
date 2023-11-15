@@ -182,7 +182,7 @@ namespace vins {
             return;
         }
 
-        // 当前帧
+        // 当前帧IMU预积分汇入当前关键帧IMU预积分
         if (vins_model_.kf_imu_integral == nullptr) {
             vins_model_.kf_imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
                                                                         vins_model_.prev_imu_state,
