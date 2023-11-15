@@ -66,21 +66,20 @@ bool Initiate::initiate(VinsModel &vins_model) {
     }
 
     //.求解bg，bg只与两帧之间的相对旋转有关，与绝对姿态无关，因此与ric无关，需要先求解bg后求解ric.
-    std::vector<Eigen::Matrix3d> imu_delta_rots;
     std::vector<Eigen::Matrix3d> img_delta_rots;
-    std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
     for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
         img_delta_rots.emplace_back(kf_img_rot[i + 1] * kf_img_rot[i].transpose());
     }
     Eigen::Vector3d bg = Eigen::Vector3d::Zero();
-    for (int iter = 0; iter < 4; ++iter) {
-        imu_delta_rots.clear();
-        jacobians_bg_2_rot.clear();
+    Eigen::Vector3d bg_step = Eigen::Vector3d::Zero();
+    do {
+        std::vector<Eigen::Matrix3d> imu_delta_rots;
+        std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
         for (const auto &it: vins_model.pre_int_window) {
             imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
             jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
         }
-        Eigen::Vector3d bg_step = estimateGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
+        bg_step = estimateGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
         if (bg_step.norm() > 1e4) {
             return false;
         }
@@ -91,19 +90,20 @@ bool Initiate::initiate(VinsModel &vins_model) {
         for (auto &pre_integrate: vins_model.pre_int_window) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
         }
-    }
+    } while (bg_step.norm() > 1e-2);
     for (KeyFrameState &state: vins_model.kf_state_window) {
         state.bg = bg;
     }
 
     //.求解ric.
-    imu_delta_rots.clear();
-    jacobians_bg_2_rot.clear();
+    std::vector<Eigen::Matrix3d> imu_delta_rots;
+    std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
     for (const auto &it: vins_model.pre_int_window) {
         imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
         jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
     }
     bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, vins_model.ric);
+    assert((vins_model.ric * vins_model.ric.transpose() - Eigen::Matrix3d::Identity()).norm() < 1e-5);
     if (!ric_succ) {
         return false;
     }
