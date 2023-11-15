@@ -117,14 +117,14 @@ namespace vins {
         if (img_buf_.empty()) {
             return false;
         }
-        double img_time_stamp = img_time_stamp_buf_.front();
-        std::shared_ptr<cv::Mat> img_ptr = img_buf_.front();
+        raw_frame_data.img_time_stamp_ms = img_time_stamp_buf_.front();
+        raw_frame_data.img = img_buf_.front();
         img_buf_.pop();
         img_time_stamp_buf_.pop();
 
         // 首帧特殊处理
         if (vins_state_ == EVinsState::kNoImgData) {
-            while (!acc_buf_.empty() && imu_time_buf_.front() <= img_time_stamp) {
+            while (!acc_buf_.empty() && imu_time_buf_.front() <= raw_frame_data.img_time_stamp_ms) {
                 vins_model_.prev_imu_state.acc = acc_buf_.front();
                 vins_model_.prev_imu_state.gyr = gyr_buf_.front();
                 vins_model_.prev_imu_state.time = imu_time_buf_.front();
@@ -140,7 +140,7 @@ namespace vins {
         raw_frame_data.imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
                                                                     vins_model_.prev_imu_state,
                                                                     vins_model_.gravity);
-        while (!acc_buf_.empty() && imu_time_buf_.front() <= img_time_stamp) {
+        while (!acc_buf_.empty() && imu_time_buf_.front() <= raw_frame_data.img_time_stamp_ms) {
             vins_model_.prev_imu_state.acc = acc_buf_.front();
             vins_model_.prev_imu_state.gyr = gyr_buf_.front();
             vins_model_.prev_imu_state.time = imu_time_buf_.front();
