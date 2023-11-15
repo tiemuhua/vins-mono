@@ -73,7 +73,7 @@ bool Initiate::initiate(VinsModel &vins_model) {
         img_delta_rots.emplace_back(kf_img_rot[i + 1] * kf_img_rot[i].transpose());
     }
     Eigen::Vector3d bg = Eigen::Vector3d::Zero();
-    for (int i = 0; i < 4; ++i) {
+    for (int iter = 0; iter < 4; ++iter) {
         imu_delta_rots.clear();
         jacobians_bg_2_rot.clear();
         for (const auto &it: vins_model.pre_int_window) {
@@ -85,8 +85,8 @@ bool Initiate::initiate(VinsModel &vins_model) {
             return false;
         }
         bg += bg_step;
-        for (Frame &frame: vins_model.frame_window) {
-            frame.imu_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
+        for (int i = 1; i < vins_model.frame_window.size(); ++i) {
+            vins_model.frame_window[i].imu_integral_->rePredict(Eigen::Vector3d::Zero(), bg);
         }
         for (auto &pre_integrate: vins_model.pre_int_window) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
@@ -119,7 +119,8 @@ bool Initiate::initiate(VinsModel &vins_model) {
     }
     std::vector<Eigen::Vector3d> imu_delta_poses, imu_delta_velocities;
     std::vector<double> imu_delta_times;
-    for (const Frame &frame: vins_model.frame_window) {
+    for (int i = 1; i < vins_model.frame_window.size(); ++i) {
+        const Frame& frame = vins_model.frame_window[i];
         imu_delta_poses.emplace_back(frame.imu_integral_->deltaPos());
         imu_delta_velocities.emplace_back(frame.imu_integral_->deltaVel());
         imu_delta_times.emplace_back(frame.imu_integral_->deltaTime());

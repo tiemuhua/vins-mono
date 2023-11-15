@@ -92,11 +92,11 @@ namespace vins {
         }
     }
 
-    static void collectFeaturesInFrame(const vector<SFMFeature> &sfm_features, const int frame_idx,
+    static void collectFeaturesInFrame(const vector<SFMFeature> &sfm_features, const int kf_idx,
                                        vector<cv::Point2f> &pts_2d, vector<cv::Point3f> &pts_3d) {
         for (const SFMFeature &sfm: sfm_features) {
-            if (sfm.has_been_triangulated && isFrameHasFeature(frame_idx, sfm.feature)) {
-                cv::Point2f img_pts = sfm.feature.points[frame_idx - sfm.feature.start_kf_window_idx];
+            if (sfm.has_been_triangulated && isFrameHasFeature(kf_idx, sfm.feature)) {
+                cv::Point2f img_pts = sfm.feature.points[kf_idx - sfm.feature.start_kf_window_idx];
                 pts_2d.emplace_back(img_pts);
                 pts_3d.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }

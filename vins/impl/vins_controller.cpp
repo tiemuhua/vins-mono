@@ -173,11 +173,12 @@ namespace vins {
                                                   nullptr,
                                                   true,
                                                   raw_frame_sensor_data.img_time_stamp_ms);
-            vins_model_.kf_state_window.emplace_back(KeyFrameState());
             FeatureHelper::addFeatures(vins_model_.kf_state_window.size(),
                                        raw_frame_sensor_data.img_time_stamp_ms,
                                        feature_pts,
                                        vins_model_.feature_window);
+            // addFeatures用到了kf_state_window.size，顺序不能反
+            vins_model_.kf_state_window.emplace_back(KeyFrameState());
             return;
         }
 
