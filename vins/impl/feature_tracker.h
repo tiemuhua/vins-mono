@@ -17,5 +17,5 @@ namespace vins { namespace FeatureTracker {
                          const FrameTrackerParam& feature_tracker_param,
                          std::vector<FeaturePoint2D> &pts,
                          std::vector<cv::KeyPoint> &pts_raw,
-                         FeatureTrackerModel &feature_tracker_model);
+                         PrevImgFeatureInfo &prev_img_feature_info);
 } }

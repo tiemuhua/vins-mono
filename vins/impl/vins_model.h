@@ -92,12 +92,12 @@ namespace vins {
         double time_stamp;
     };
 
-    struct FeatureTrackerModel {
-        std::shared_ptr<cv::Mat> prev_img;
-        std::vector<cv::Point2f> prev_raw_pts;
-        std::vector<cv::Point2f> prev_norm_pts;
-        double prev_time{};
-        std::unordered_map<int, cv::Point2f> prev_feature_id_2_norm_pts;
+    struct PrevImgFeatureInfo {
+        std::shared_ptr<cv::Mat> img;
+        std::vector<cv::Point2f> raw_pts;
+        std::vector<cv::Point2f> norm_pts;
+        double time{};
+        std::unordered_map<int, cv::Point2f> feature_id_2_norm_pts;
         std::vector<int> feature_ids;
         int feature_id_cnt = 0;
     };
@@ -121,7 +121,7 @@ namespace vins {
 
         PrevIMUState prev_imu_state;
 
-        FeatureTrackerModel feature_tracker_model;
+        PrevImgFeatureInfo prev_img_feature_info;
 
         ImuIntegralUniPtr kf_imu_integral = nullptr;
 

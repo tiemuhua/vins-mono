@@ -165,7 +165,7 @@ namespace vins {
                                         param_.frame_tracker,
                                         feature_pts,
                                         feature_raw_pts,
-                                        vins_model_.feature_tracker_model);
+                                        vins_model_.prev_img_feature_info);
 
         // 首帧不存在对应的IMU数据，需要特殊处理。
         if (raw_frame_sensor_data.imu_integral == nullptr) {

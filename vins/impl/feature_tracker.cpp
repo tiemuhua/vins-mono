@@ -20,24 +20,24 @@ void FeatureTracker::extractFeatures(const std::shared_ptr<cv::Mat> &_img,
                                      const FrameTrackerParam& feature_tracker_param,
                                      std::vector<FeaturePoint2D> &pts,
                                      std::vector<cv::KeyPoint> &pts_raw,
-                                     FeatureTrackerModel &feature_tracker_model) {
+                                     PrevImgFeatureInfo &prev_img_feature_info) {
     const int cols = camera_wrapper.camera_->imageWidth();
     const int rows = camera_wrapper.camera_->imageHeight();
     assert(_img != nullptr);
     std::shared_ptr<cv::Mat> next_img = _img;
-    if (feature_tracker_model.prev_img == nullptr) {
-        feature_tracker_model.prev_img = _img;
+    if (prev_img_feature_info.img == nullptr) {
+        prev_img_feature_info.img = _img;
     }
 
     std::vector<cv::Point2f> next_raw_pts;
 
-    if (!feature_tracker_model.prev_raw_pts.empty()) {
+    if (!prev_img_feature_info.raw_pts.empty()) {
         std::vector<uchar> status;
         std::vector<float> err;
         cv::Size winSize(21, 21);
-        cv::calcOpticalFlowPyrLK(*(feature_tracker_model.prev_img),
+        cv::calcOpticalFlowPyrLK(*(prev_img_feature_info.img),
                                  *next_img,
-                                 feature_tracker_model.prev_raw_pts,
+                                 prev_img_feature_info.raw_pts,
                                  next_raw_pts,
                                  status,
                                  err,
@@ -47,10 +47,10 @@ void FeatureTracker::extractFeatures(const std::shared_ptr<cv::Mat> &_img,
         for (int i = 0; i < int(next_raw_pts.size()); i++) {
             status[i] = status[i] && inBorder(next_raw_pts[i], cols, rows);
         }
-        utils::reduceVector(feature_tracker_model.prev_raw_pts, status);
+        utils::reduceVector(prev_img_feature_info.raw_pts, status);
         utils::reduceVector(next_raw_pts, status);
-        utils::reduceVector(feature_tracker_model.prev_norm_pts, status);
-        utils::reduceVector(feature_tracker_model.feature_ids, status);
+        utils::reduceVector(prev_img_feature_info.norm_pts, status);
+        utils::reduceVector(prev_img_feature_info.feature_ids, status);
     }
 
     std::vector<cv::Point2f> next_norm_pts(next_raw_pts.size());
@@ -60,14 +60,14 @@ void FeatureTracker::extractFeatures(const std::shared_ptr<cv::Mat> &_img,
 
     if (next_raw_pts.size() >= 8) {
         std::vector<uchar> mask;
-        cv::findFundamentalMat(feature_tracker_model.prev_norm_pts, next_norm_pts, cv::FM_RANSAC,
+        cv::findFundamentalMat(prev_img_feature_info.norm_pts, next_norm_pts, cv::FM_RANSAC,
                                feature_tracker_param.fundamental_threshold, 0.99, mask);
-        utils::reduceVector(feature_tracker_model.prev_raw_pts, mask);
+        utils::reduceVector(prev_img_feature_info.raw_pts, mask);
         utils::reduceVector(next_raw_pts, mask);
-        utils::reduceVector(feature_tracker_model.prev_norm_pts, mask);
+        utils::reduceVector(prev_img_feature_info.norm_pts, mask);
         utils::reduceVector(next_norm_pts, mask);
-        utils::reduceVector(feature_tracker_model.feature_ids, mask);
-        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << feature_tracker_model.prev_raw_pts.size() << ", next_raw_pts.size:" << next_raw_pts.size();
+        utils::reduceVector(prev_img_feature_info.feature_ids, mask);
+        LOG(INFO) << "FM ransac: prev_raw_pts_ size:" << prev_img_feature_info.raw_pts.size() << ", next_raw_pts.size:" << next_raw_pts.size();
     }
 
     // 去除过于密集的特征点，优先保留跟踪时间长的特征点，即next_pts中靠前的特征点
@@ -91,16 +91,16 @@ void FeatureTracker::extractFeatures(const std::shared_ptr<cv::Mat> &_img,
         for (auto &p: new_pts) {
             next_raw_pts.push_back(p);
             next_norm_pts.emplace_back(camera_wrapper.rawPoint2NormPoint(p));
-            feature_tracker_model.feature_ids.push_back(feature_tracker_model.feature_id_cnt++);
+            prev_img_feature_info.feature_ids.push_back(prev_img_feature_info.feature_id_cnt++);
         }
     }
 
     // calculate points velocity
-    double dt = _cur_time - feature_tracker_model.prev_time;
+    double dt = _cur_time - prev_img_feature_info.time;
     std::vector<cv::Point2f> pts_velocity;
     for (unsigned int i = 0; i < next_norm_pts.size(); i++) {
-        auto it = feature_tracker_model.prev_feature_id_2_norm_pts.find(feature_tracker_model.feature_ids[i]);
-        if (it != feature_tracker_model.prev_feature_id_2_norm_pts.end()) {
+        auto it = prev_img_feature_info.feature_id_2_norm_pts.find(prev_img_feature_info.feature_ids[i]);
+        if (it != prev_img_feature_info.feature_id_2_norm_pts.end()) {
             double v_x = (next_norm_pts[i].x - it->second.x) / dt;
             double v_y = (next_norm_pts[i].y - it->second.y) / dt;
             pts_velocity.emplace_back(cv::Point2f(v_x, v_y));
@@ -110,24 +110,24 @@ void FeatureTracker::extractFeatures(const std::shared_ptr<cv::Mat> &_img,
     }
     std::unordered_map<int, cv::Point2f> next_feature_id_2_norm_pts;
     for (unsigned int i = 0; i < next_norm_pts.size(); i++) {
-        next_feature_id_2_norm_pts[feature_tracker_model.feature_ids[i]] = next_norm_pts[i];
+        next_feature_id_2_norm_pts[prev_img_feature_info.feature_ids[i]] = next_norm_pts[i];
     }
 
-    feature_tracker_model.prev_feature_id_2_norm_pts = std::move(next_feature_id_2_norm_pts);
-    feature_tracker_model.prev_img = std::move(next_img);
-    feature_tracker_model.prev_raw_pts = std::move(next_raw_pts);
-    feature_tracker_model.prev_time = _cur_time;
-    feature_tracker_model.prev_norm_pts = std::move(next_norm_pts);
+    prev_img_feature_info.feature_id_2_norm_pts = std::move(next_feature_id_2_norm_pts);
+    prev_img_feature_info.img = std::move(next_img);
+    prev_img_feature_info.raw_pts = std::move(next_raw_pts);
+    prev_img_feature_info.time = _cur_time;
+    prev_img_feature_info.norm_pts = std::move(next_norm_pts);
 
-    int feature_points_num = (int )feature_tracker_model.prev_raw_pts.size();
+    int feature_points_num = (int )prev_img_feature_info.raw_pts.size();
     pts = std::vector<FeaturePoint2D>(feature_points_num);
     for (int i = 0; i < feature_points_num; ++i) {
-        pts[i].feature_id = feature_tracker_model.feature_ids[i];
-        pts[i].point = feature_tracker_model.prev_norm_pts[i];
+        pts[i].feature_id = prev_img_feature_info.feature_ids[i];
+        pts[i].point = prev_img_feature_info.norm_pts[i];
         pts[i].velocity = pts_velocity[i];
     }
-    pts_raw = std::vector<cv::KeyPoint>(feature_tracker_model.prev_raw_pts.size());
-    for (int i = 0; i < feature_tracker_model.prev_raw_pts.size(); ++i) {
-        pts_raw[i].pt = feature_tracker_model.prev_raw_pts[i];
+    pts_raw = std::vector<cv::KeyPoint>(prev_img_feature_info.raw_pts.size());
+    for (int i = 0; i < prev_img_feature_info.raw_pts.size(); ++i) {
+        pts_raw[i].pt = prev_img_feature_info.raw_pts[i];
     }
 }
