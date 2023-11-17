@@ -101,26 +101,25 @@ namespace vins {
         const Eigen::Quaterniond& pre_quat = cur_quat;
         const Eigen::Vector3d& pre_vel = cur_vel;
 
-        Vector3d avg_gyr = 0.5 * (pre_gyr + cur_gyr) - bg;
-        cur_quat = pre_quat * utils::deltaQ(avg_gyr * dt);
-        cur_quat.normalize();
-        Vector3d pre_acc_no_bias = pre_acc - ba;
-        Vector3d cur_acc_no_bias = cur_acc - ba;
-        Vector3d pre_acc_frame_start_coordinate = pre_quat * pre_acc_no_bias;
-        Vector3d cur_acc_frame_start_coordinate = cur_quat * cur_acc_no_bias;
-        Vector3d avg_acc = 0.5 * (pre_acc_frame_start_coordinate + cur_acc_frame_start_coordinate);
+        const Eigen::Vector3d avg_gyr = 0.5 * (pre_gyr + cur_gyr) - bg;
+        cur_quat = (pre_quat * utils::deltaQ(avg_gyr * dt)).normalized();
+        const Eigen::Vector3d pre_acc_no_bias = pre_acc - ba;
+        const Eigen::Vector3d cur_acc_no_bias = cur_acc - ba;
+        const Eigen::Vector3d pre_acc_frame_start_coordinate = pre_quat * pre_acc_no_bias;
+        const Eigen::Vector3d cur_acc_frame_start_coordinate = cur_quat * cur_acc_no_bias;
+        const Eigen::Vector3d avg_acc = 0.5 * (pre_acc_frame_start_coordinate + cur_acc_frame_start_coordinate);
         cur_pos = pre_pos + pre_vel * dt + 0.5 * avg_acc * dt2;
         cur_vel = pre_vel + avg_acc * dt;
 
-        Matrix3d avg_gyr_hat = utils::skewSymmetric(avg_gyr);
-        Matrix3d pre_acc_hat = utils::skewSymmetric(pre_acc_no_bias);
-        Matrix3d cur_acc_hat = utils::skewSymmetric(cur_acc_no_bias);
+        const Eigen::Matrix3d avg_gyr_hat = utils::skewSymmetric(avg_gyr);
+        const Eigen::Matrix3d pre_acc_hat = utils::skewSymmetric(pre_acc_no_bias);
+        const Eigen::Matrix3d cur_acc_hat = utils::skewSymmetric(cur_acc_no_bias);
 
         const Eigen::Matrix3d pre_rot = pre_quat.toRotationMatrix();
         const Eigen::Matrix3d cur_rot = cur_quat.toRotationMatrix();
         const Eigen::Matrix3d mat = Matrix3d::Identity() - avg_gyr_hat * dt;
         const Eigen::Matrix3d mid_rot = pre_rot * pre_acc_hat + cur_rot * cur_acc_hat * mat;
-        Matrix3d identity = MatrixXd::Identity(3, 3);
+        const Eigen::Matrix3d identity = Matrix3d::Identity();
 
         Eigen::Matrix<double, StateDim, StateDim>  F = Eigen::Matrix<double, StateDim, StateDim>::Zero();
         F.block<3, 3>(kOrderPos, kOrderPos) = identity;
