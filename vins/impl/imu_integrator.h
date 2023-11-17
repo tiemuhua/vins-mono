@@ -53,8 +53,6 @@ namespace vins {
         evaluate(const Eigen::Vector3d& Pi, const Eigen::Quaterniond& Qi, const Eigen::Vector3d& Vi, const Eigen::Vector3d& Bai, const Eigen::Vector3d& Bgi,
                  const Eigen::Vector3d& Pj, const Eigen::Quaterniond& Qj, const Eigen::Vector3d& Vj, const Eigen::Vector3d& Baj, const Eigen::Vector3d& Bgj) const;
 
-        void jointLaterIntegrator(const ImuIntegral &later_int);
-
         [[nodiscard]] const Eigen::Vector3d &deltaPos() const {
             return pos_;
         }

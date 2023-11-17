@@ -22,13 +22,6 @@ namespace vins {
         noise_.block<3, 3>(kGyrWhite, kGyrWhite) = (imu_param.GYR_N * imu_param.GYR_N) * Eigen::Matrix3d::Identity();
     }
 
-    void ImuIntegral::jointLaterIntegrator(const ImuIntegral &later_int) {
-        int size = (int) later_int.time_stamp_buf_.size();
-        for (int i = 1; i < size; ++i) {
-            predict(later_int.time_stamp_buf_[i], later_int.acc_buf_[i], later_int.gyr_buf_[i]);
-        }
-    }
-
     ImuIntegral::State ImuIntegral::evaluate(
             const Eigen::Vector3d& Pi, const Eigen::Quaterniond& Qi, const Eigen::Vector3d& Vi, const Eigen::Vector3d& Bai, const Eigen::Vector3d& Bgi,
             const Eigen::Vector3d& Pj, const Eigen::Quaterniond& Qj, const Eigen::Vector3d& Vj, const Eigen::Vector3d& Baj, const Eigen::Vector3d& Bgj) const {

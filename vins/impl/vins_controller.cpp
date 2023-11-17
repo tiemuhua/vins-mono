@@ -140,11 +140,21 @@ namespace vins {
         raw_frame_data.imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
                                                                     vins_model_.prev_imu_state,
                                                                     vins_model_.gravity);
+        // 当前帧IMU预积分汇入当前关键帧IMU预积分 todo 非关键帧是否有必要持有IMU积分？
+        // 不能在_handleDataImpl里头new kf_imu_integral，那时候prev_imu_state就变了
+        if (vins_model_.kf_imu_integral == nullptr) {
+            vins_model_.kf_imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
+                                                                        vins_model_.prev_imu_state,
+                                                                        vins_model_.gravity);
+        }
         while (!acc_buf_.empty() && imu_time_buf_.front() <= raw_frame_data.img_time_stamp_ms) {
             vins_model_.prev_imu_state.acc = acc_buf_.front();
             vins_model_.prev_imu_state.gyr = gyr_buf_.front();
             vins_model_.prev_imu_state.time = imu_time_buf_.front();
             raw_frame_data.imu_integral->predict(imu_time_buf_.front(),
+                                                 acc_buf_.front(),
+                                                 gyr_buf_.front());
+            vins_model_.kf_imu_integral->predict(imu_time_buf_.front(),
                                                  acc_buf_.front(),
                                                  gyr_buf_.front());
             imu_time_buf_.pop();
@@ -181,14 +191,6 @@ namespace vins {
             vins_model_.kf_state_window.emplace_back(KeyFrameState());
             return;
         }
-
-        // 当前帧IMU预积分汇入当前关键帧IMU预积分
-        if (vins_model_.kf_imu_integral == nullptr) {
-            vins_model_.kf_imu_integral = std::make_unique<ImuIntegral>(param_.imu_param,
-                                                                        vins_model_.prev_imu_state,
-                                                                        vins_model_.gravity);
-        }
-        vins_model_.kf_imu_integral->jointLaterIntegrator(*raw_frame_sensor_data.imu_integral);
 
         /******************当前帧加入滑动窗口*******************/
         bool is_key_frame = vins_model_.kf_state_window.size() < 2 ||
