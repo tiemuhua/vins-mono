@@ -47,15 +47,6 @@ namespace vins {
         cv::Point2f observed_point_;
     };
 
-    static double getAverageParallax(const vector<pair<cv::Point2f, cv::Point2f>> &correspondences) {
-        double sum_parallax = 0;
-        for (auto &correspond: correspondences) {
-            double parallax = norm(correspond.first - correspond.second);
-            sum_parallax += parallax;
-        }
-        return 1.0 * sum_parallax / int(correspondences.size());
-    }
-
     inline bool isFrameHasFeature(int frame_idx, const Feature &feature) {
         return feature.start_kf_window_idx <= frame_idx &&
                frame_idx < feature.start_kf_window_idx + feature.points.size();
@@ -101,7 +92,7 @@ namespace vins {
                 pts_3d.emplace_back(sfm.position[0], sfm.position[1], sfm.position[2]);
             }
         }
-        assert(pts_2d.size() > sfm_features.size() / 3);
+        assert(!pts_2d.empty());
     }
 
     static bool solveFrameByPnP(const vector<cv::Point2f> &pts_2d, const vector<cv::Point3f> &pts_3d,
@@ -161,40 +152,24 @@ namespace vins {
             sfm_features.push_back(sfm_feature);
         }
 
-        // 找到和末关键帧视差足够大的关键帧，并计算末关键帧相对该帧的位姿。转的不太快的话，一般来说就是首帧。
         Eigen::Matrix3d relative_R;
         Eigen::Vector3d relative_unit_T;
-        int big_parallax_frame_id = -1;
-        for (int i = 0; i < window_size; ++i) {
-            vector<pair<cv::Point2f, cv::Point2f>> correspondences =
-                    FeatureHelper::getCorrespondences(i, window_size - 1, feature_window);
-            constexpr double avg_parallax_threshold = 30.0 / 460;
-            if (correspondences.size() < 20 || getAverageParallax(correspondences) < avg_parallax_threshold) {
-                continue;
-            }
-            if (!solveRelativeRT(correspondences, relative_R, relative_unit_T)) {
-                continue;
-            }
-            big_parallax_frame_id = i;
-            break;
-        }
-        if (big_parallax_frame_id == -1) {
-            LOG(ERROR) << "Not enough feature_window or parallax; Move device around";
+        vector<pair<cv::Point2f, cv::Point2f>> correspondences =
+                FeatureHelper::getCorrespondences(0, window_size - 1, feature_window);
+        if (!solveRelativeRT(correspondences, relative_R, relative_unit_T)) {
             return false;
         }
 
-        // .记big_parallax_frame_id为l，秦通的代码里用的l这个符号.
-        // 1: triangulate between l <-> frame_num - 1
+        // 1: 记首帧位姿为0/单位阵，求解首帧和末帧之间的相对位姿，其中末帧位置relative_unit_T的模长为1
         std::vector<Mat34> kf_poses(window_size, Mat34::Zero());
-        kf_poses[big_parallax_frame_id].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+        kf_poses[0].block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
         kf_poses[window_size - 1].block<3, 3>(0, 0) = relative_R;
         kf_poses[window_size - 1].block<3, 1>(0, 3) = relative_unit_T;
-        triangulatePtsByFramePos(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
+        triangulatePtsByFramePos(0, kf_poses[0],
                                  window_size - 1, kf_poses[window_size - 1], sfm_features);
 
-        // 2: solve pnp [l+1, frame_num-2]
-        // triangulate [l+1, frame_num-2] <-> frame_num-1;
-        for (int kf_idx = big_parallax_frame_id + 1; kf_idx < window_size - 1; kf_idx++) {
+        // 2: 帧位姿->点深度->下个帧的位姿 递归求解所有点深度以及所有帧的位姿
+        for (int kf_idx = 0 + 1; kf_idx < window_size - 1; kf_idx++) {
             // solve pnp
             Eigen::Matrix3d R_initial = kf_poses[kf_idx - 1].block<3, 3>(0, 0);
             Eigen::Vector3d P_initial = kf_poses[kf_idx - 1].block<3, 1>(0, 3);
@@ -209,34 +184,11 @@ namespace vins {
             // triangulate point based on to solve pnp result
             triangulatePtsByFramePos(kf_idx, kf_poses[kf_idx],
                                      window_size - 1, kf_poses[window_size - 1], sfm_features);
-        }
-
-        //3: triangulate l <-> [l+1, frame_num -2]
-        for (int kf_idx = big_parallax_frame_id + 1; kf_idx < window_size - 1; kf_idx++) {
-            triangulatePtsByFramePos(big_parallax_frame_id, kf_poses[big_parallax_frame_id],
-                                     kf_idx, kf_poses[kf_idx], sfm_features);
-        }
-
-        // 4: solve pnp for frame [0, l-1]
-        //    triangulate [0, l-1] <-> l
-        for (int kf_idx = big_parallax_frame_id - 1; kf_idx >= 0; kf_idx--) {
-            //solve pnp
-            Eigen::Matrix3d R_init = kf_poses[kf_idx + 1].block<3, 3>(0, 0);
-            Eigen::Vector3d T_init = kf_poses[kf_idx + 1].block<3, 1>(0, 3);
-            vector<cv::Point2f> pts_2d;
-            vector<cv::Point3f> pts_3d;
-            collectFeaturesInFrame(sfm_features, kf_idx, pts_2d, pts_3d);
-            if (!solveFrameByPnP(pts_2d, pts_3d, true, R_init, T_init)) {
-                return false;
-            }
-            kf_poses[kf_idx].block<3, 3>(0, 0) = R_init;
-            kf_poses[kf_idx].block<3, 1>(0, 3) = T_init;
-            //triangulate
             triangulatePtsByFramePos(kf_idx, kf_poses[kf_idx],
-                                     big_parallax_frame_id, kf_poses[big_parallax_frame_id], sfm_features);
+                                     0, kf_poses[0], sfm_features);
         }
 
-        //5: triangulate all others points
+        // 3: 初始化所有尚未初始化的特征点深度
         for (SFMFeature &sfm: sfm_features) {
             if (sfm.has_been_triangulated || sfm.feature.points.size() < 2) {
                 continue;
@@ -255,19 +207,24 @@ namespace vins {
          * ************************************************************/
         ceres::Problem problem;
         ceres::Manifold *quat_manifold = new ceres::QuaternionManifold();
-        std::vector<std::array<double, 4>> c_key_frames_rot(window_size);
-        std::vector<std::array<double, 3>> c_key_frames_pos(window_size);
+        std::vector<std::array<double, 4>> c_key_frames_rot(window_size, {0});
+        std::vector<std::array<double, 3>> c_key_frames_pos(window_size, {0});
         for (int i = 0; i < window_size; i++) {
             utils::quat2array(Eigen::Quaterniond(kf_poses[i].block<3, 3>(0, 0)), c_key_frames_rot[i].data());
             utils::vec3d2array(kf_poses[i].block<3, 1>(0, 3), c_key_frames_pos[i].data());
             problem.AddParameterBlock(c_key_frames_rot[i].data(), 4, quat_manifold);
             problem.AddParameterBlock(c_key_frames_pos[i].data(), 3);
-            if (i == big_parallax_frame_id) {
+            if (i == 0) {
                 problem.SetParameterBlockConstant(c_key_frames_rot[i].data());
             }
-            if (i == big_parallax_frame_id || i == window_size - 1) {
+            if (i == 0 || i == window_size - 1) {
                 problem.SetParameterBlockConstant(c_key_frames_pos[i].data());
             }
+        }
+        for (SFMFeature &sfm: sfm_features) {
+            if (!sfm.has_been_triangulated)
+                continue;
+            problem.AddParameterBlock(sfm.position.data(), 3);
         }
 
         for (SFMFeature &sfm: sfm_features) {
@@ -276,15 +233,17 @@ namespace vins {
             for (int frame_bias = 0; frame_bias < sfm.feature.points.size(); ++frame_bias) {
                 ceres::CostFunction *cost_function =
                         ReProjectionError3D::Create(sfm.feature.points[frame_bias]);
+                int cur_kf_windows_idx = sfm.feature.start_kf_window_idx + frame_bias;
                 problem.AddResidualBlock(cost_function, nullptr,
-                                         c_key_frames_rot[big_parallax_frame_id].data(),
-                                         c_key_frames_pos[big_parallax_frame_id].data(),
+                                         c_key_frames_rot[cur_kf_windows_idx].data(),
+                                         c_key_frames_pos[cur_kf_windows_idx].data(),
                                          sfm.position.data());
             }
         }
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
-        options.max_solver_time_in_seconds = 0.2;
+        options.max_solver_time_in_seconds = 2.0;
+        options.max_num_iterations = 100;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
         if (summary.termination_type != ceres::CONVERGENCE && summary.final_cost > 5e-03) {

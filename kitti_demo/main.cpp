@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
     vins::Param param;
     param.camera.row = 512;
     param.camera.col = 1392;
+    param.key_frame_parallax_threshold = 30;
     vins::init(param, callback);
 
     std::string data_set_path = "/Users/gjt/vins-mono/dataset";
