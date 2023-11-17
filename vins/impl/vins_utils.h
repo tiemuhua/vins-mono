@@ -5,6 +5,7 @@
 #ifndef VINS_UTILS_H
 #define VINS_UTILS_H
 
+#include <sys/time.h>
 #include <cmath>
 #include <sstream>
 #include <Eigen/Eigen>
@@ -24,6 +25,20 @@ public:
 namespace vins {
 
     namespace utils {
+
+        class Timer {
+        public:
+            Timer() {
+                gettimeofday(&tv, nullptr);
+            }
+            int getCostUs() {
+                timeval tv1{};
+                gettimeofday(&tv1, nullptr);
+                // 括号顺序保证了不会溢出
+                return ((tv1.tv_sec - tv.tv_sec) * 1000000 + tv1.tv_usec) - tv.tv_usec;
+            }
+            timeval tv{};
+        };
 
         constexpr double pi = 3.1415926;
 

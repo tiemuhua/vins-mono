@@ -242,15 +242,17 @@ namespace vins {
         }
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
-        options.max_solver_time_in_seconds = 2.0;
-        options.max_num_iterations = 100;
+        options.max_solver_time_in_seconds = 100.0;
+        options.max_num_iterations = 1000;
         ceres::Solver::Summary summary;
+        utils::Timer ceres_timer;
         ceres::Solve(options, &problem, &summary);
         if (summary.termination_type != ceres::CONVERGENCE && summary.final_cost > 5e-03) {
             LOG(ERROR) << "full ba not convergence!, termination_type:" << summary.termination_type
             << "\tfinal_cost:" << summary.final_cost;
             return false;
         }
+        LOG(INFO) << "ceres cost us:" << ceres_timer.getCostUs();
 
         /******************************************************************
          * BA结果储存于kf_img_rot、kf_img_pos、feature_id_2_position *
