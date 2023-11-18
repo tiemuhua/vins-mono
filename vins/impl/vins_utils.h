@@ -47,7 +47,7 @@ namespace vins {
             FunctionTimer(std::string function_name)
             : function_name_(std::move(function_name)){}
             ~FunctionTimer() {
-                LOG(INFO) << function_name_ << "cost time ms:" << timer_.getCostUs() / 1e3;
+                LOG(INFO) << function_name_ << " cost time ms:" << timer_.getCostUs() / 1e3;
             }
 
         private:

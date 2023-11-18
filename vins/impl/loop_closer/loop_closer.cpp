@@ -113,7 +113,6 @@ bool LoopCloser::findLoop(KeyFrame &kf, LoopMatchInfo &info) {
 }
 
 void LoopCloser::optimize4DoFImpl() {
-    PRINT_FUNCTION_TIME_COST
     std::vector<KeyFrameUniPtr> tmp_key_frame_buffer;
     Synchronized(key_frame_buffer_mutex_) {
         std::swap(key_frame_buffer_, tmp_key_frame_buffer);
@@ -124,6 +123,7 @@ void LoopCloser::optimize4DoFImpl() {
     if (key_frame_list_.empty()) {
         return;
     }
+    PRINT_FUNCTION_TIME_COST
     loop_interval_upper_bound_ = key_frame_list_.back()->loop_relative_pose_.peer_frame_id;
 
     if (loop_interval_upper_bound_ == -1) { return; }

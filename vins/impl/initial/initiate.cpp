@@ -103,10 +103,10 @@ bool Initiate::initiate(VinsModel &vins_model) {
         jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
     }
     bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, vins_model.ric);
-    assert((vins_model.ric * vins_model.ric.transpose() - Eigen::Matrix3d::Identity()).norm() < 1e-5);
     if (!ric_succ) {
         return false;
     }
+    assert((vins_model.ric * vins_model.ric.transpose() - Eigen::Matrix3d::Identity()).norm() < 1e-5);
 
     //.求解重力、尺度和速度，即与位移有关的一切未知参数.
     //.重力和初始化时的ba打包在一起了，无法单独求解ba。
