@@ -228,7 +228,7 @@ namespace vins {
             // 边缘化所涉及的特征点
             std::vector<Feature> marginal_features;
             for (const Feature &feature: vins_model_.feature_window) {
-                if (feature.start_kf_window_idx == 0) {
+                if (feature.start_kf_window_idx == 0 && feature.points.size() >= 2) {
                     marginal_features.emplace_back(feature);
                 }
             }
@@ -242,8 +242,6 @@ namespace vins {
                 } else {
                     feature.start_kf_window_idx--;
                 }
-                // feature.points.size() == 1的时候就被删了
-                assert(!feature.points.empty());
             }
 
             // 可以三角化的特征必然包括两个以上的特征点，删除所有无法三角化的特征
@@ -252,11 +250,11 @@ namespace vins {
             std::unordered_map<int, int> feature_id_2_idx_before_discard =
                     FeatureHelper::getFeatureId2Index(vins_model_.feature_window);
             utils::erase_if_wrapper(vins_model_.feature_window, [&](const Feature &feature) -> bool {
-                // 后继无帧，该特征要溜出滑动窗口了
-                bool is_too_old = feature.start_kf_window_idx == 0 && feature.points.size() == 1;
+                // 后继无帧，该特征要溜出滑动窗口了。除首次边缘化外，feature.points不应当为空，这里没想好怎么写assert
+                bool is_too_old = feature.start_kf_window_idx == 0 && feature.points.size() <= 1;
                 // 相邻帧中没有出现该特征，无法三角化，大概率是计算误差导致的离群点
                 bool is_outline_feature =
-                        feature.start_kf_window_idx != param_.window_size - 1 && feature.points.size() == 1;
+                        feature.start_kf_window_idx != param_.window_size - 1 && feature.points.size() <= 1;
                 return is_too_old || is_outline_feature;
             });
             std::unordered_map<int, int> feature_id_2_idx_after_discard =
