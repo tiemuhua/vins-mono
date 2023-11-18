@@ -95,6 +95,7 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
                                 std::vector<KeyFrameState> &state_window,
                                 Eigen::Vector3d &tic,
                                 Eigen::Matrix3d &ric) {
+    PRINT_FUNCTION_TIME_COST
     eigen2c(state_window, feature_window, tic, ric);
 
     ceres::Problem problem;
@@ -200,6 +201,13 @@ void FrontEndOptimize::optimize(const FrontEndOptimizeParam &param,
     options.max_num_iterations = param.max_iter_num;
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
+    LOG(INFO) << "ceres cost ms:" << summary.total_time_in_seconds * 1000
+              << ", final_cost:" << summary.final_cost
+              << ", initial_cost:" << summary.initial_cost;
+    if (summary.final_cost > summary.initial_cost * 0.2) {
+        LOG(ERROR) << "front end ba fail!, termination_type:" << summary.termination_type;
+        // todo how to handle ???
+    }
 
     c2eigen(state_window, feature_window, tic, ric);
 }
@@ -208,6 +216,7 @@ static MarginalInfo *marginalize(const FrontEndOptimizeParam &param,
                                  const std::vector<Feature> &oldest_features,
                                  const ImuIntegral &oldest_pre_integral,
                                  std::vector<double *> &reserve_block_origin) {
+    PRINT_FUNCTION_TIME_COST
     auto *marginal_info = new MarginalInfo();
 
     // 之前的边缘化约束
@@ -285,6 +294,7 @@ void FrontEndOptimize::slide(const Param &param,
                              const ImuIntegral &oldest_pre_integral,
                              const std::unordered_map<int, int> &feature_id_2_idx_before_discard,
                              const std::unordered_map<int, int> &feature_id_2_idx_after_discard) {
+    PRINT_FUNCTION_TIME_COST
     std::vector<double *> reserve_block_origin;
     delete sp_marginal_info;
     sp_marginal_info = marginalize(param.slide_window, oldest_features, oldest_pre_integral, reserve_block_origin);

@@ -29,6 +29,7 @@ namespace vins {
     bool estimateRIC(const std::vector<Eigen::Matrix3d> &img_rots,
                      const std::vector<Eigen::Matrix3d> &imu_rots,
                      Eigen::Matrix3d &calib_ric_result) {
+        PRINT_FUNCTION_TIME_COST
         int frame_count = (int) img_rots.size();
 
         Eigen::MatrixXd A = Eigen::MatrixXd::Zero(frame_count * 4, 4);
@@ -75,6 +76,7 @@ namespace vins {
                                          Eigen::Vector3d &gravity,
                                          double &scale,
                                          std::vector<Eigen::Vector3d> &vel) {
+        PRINT_FUNCTION_TIME_COST
         int frame_size = (int) frames_img_rot.size();
         int n_state = frame_size * 3 + 3 + 1 + 3;
         int gravity_idx = frame_size * 3;

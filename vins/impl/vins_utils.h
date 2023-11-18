@@ -10,6 +10,7 @@
 #include <sstream>
 #include <Eigen/Eigen>
 #include <opencv2/opencv.hpp>
+#include <glog/logging.h>
 #include "vins_model.h"
 
 #define Synchronized(mutex_)  for(ScopedLocker locker(mutex_); locker.cnt < 1; locker.cnt++)
@@ -21,6 +22,8 @@ public:
     std::lock_guard<std::mutex> guard;
     int cnt = 0;
 };
+
+#define PRINT_FUNCTION_TIME_COST vins::utils::FunctionTimer function_timer_##__FUNCTION__(__FUNCTION__);
 
 namespace vins {
 
@@ -38,6 +41,18 @@ namespace vins {
                 return ((tv1.tv_sec - tv.tv_sec) * 1000000 + tv1.tv_usec) - tv.tv_usec;
             }
             timeval tv{};
+        };
+        class FunctionTimer {
+        public:
+            FunctionTimer(std::string function_name)
+            : function_name_(std::move(function_name)){}
+            ~FunctionTimer() {
+                LOG(INFO) << function_name_ << "cost time ms:" << timer_.getCostUs() / 1e3;
+            }
+
+        private:
+            std::string function_name_;
+            Timer timer_;
         };
 
         constexpr double pi = 3.1415926;

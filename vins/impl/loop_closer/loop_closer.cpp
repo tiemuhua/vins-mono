@@ -80,6 +80,7 @@ void LoopCloser::addKeyFrame(KeyFrameUniPtr kf_ptr) {
 }
 
 bool LoopCloser::findLoop(KeyFrame &kf, LoopMatchInfo &info) {
+    PRINT_FUNCTION_TIME_COST
     int peer_loop_id = loop_detector_->detectSimilarDescriptor(kf.external_descriptors_, key_frame_list_.size());
     loop_detector_->addDescriptors(kf.external_descriptors_);
     if (peer_loop_id == -1) {
@@ -112,6 +113,7 @@ bool LoopCloser::findLoop(KeyFrame &kf, LoopMatchInfo &info) {
 }
 
 void LoopCloser::optimize4DoFImpl() {
+    PRINT_FUNCTION_TIME_COST
     std::vector<KeyFrameUniPtr> tmp_key_frame_buffer;
     Synchronized(key_frame_buffer_mutex_) {
         std::swap(key_frame_buffer_, tmp_key_frame_buffer);
@@ -181,6 +183,13 @@ void LoopCloser::optimize4DoFImpl() {
     }
 
     ceres::Solve(options, &problem, &summary);
+    LOG(INFO) << "ceres cost ms:" << summary.total_time_in_seconds * 1000
+              << ", final_cost:" << summary.final_cost
+              << ", initial_cost:" << summary.initial_cost;
+    if (summary.final_cost > summary.initial_cost * 0.2) {
+        LOG(ERROR) << "back end ba fail!, termination_type:" << summary.termination_type;
+        // todo how to handle?
+    }
 
     const KeyFrame &last_loop_kf = *key_frame_list_[loop_interval_upper_bound_];
     KeyFrame::calculatePoseRotDrift(t_array[loop_interval_upper_bound_], euler_array[loop_interval_upper_bound_],

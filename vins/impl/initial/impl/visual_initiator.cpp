@@ -145,6 +145,7 @@ namespace vins {
                           std::vector<Eigen::Vector3d> &kf_img_pos,
                           std::vector<Eigen::Matrix3d> &frames_img_rot,
                           std::vector<Eigen::Vector3d> &frames_img_pos) {
+        PRINT_FUNCTION_TIME_COST
         // 计算sfm_features
         vector<SFMFeature> sfm_features;
         for (const Feature &feature: feature_window) {
@@ -246,7 +247,6 @@ namespace vins {
         options.max_solver_time_in_seconds = 0.1;
         options.num_threads = 10;
         ceres::Solver::Summary summary;
-        utils::Timer ceres_timer;
         // M1 MacBook上迭代10轮cost能降到开始的20%，20轮10%，50轮7%-8%
         // 开10个线程迭代20轮大概能再0.1秒左右跑完
         ceres::Solve(options, &problem, &summary);
