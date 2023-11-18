@@ -128,6 +128,7 @@ namespace vins {
         cv::Mat cv_rot, cv_trans;
         int inliner_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, cv_rot, cv_trans, mask);
         if (inliner_cnt < 13) {
+            LOG(ERROR) << "inliner point is too few, inliner_cnt:" << inliner_cnt;
             return false;
         }
         cv::cv2eigen(cv_rot, rotation);
@@ -242,17 +243,20 @@ namespace vins {
         }
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
-        options.max_solver_time_in_seconds = 100.0;
-        options.max_num_iterations = 1000;
+        options.max_solver_time_in_seconds = 0.1;
+        options.num_threads = 10;
         ceres::Solver::Summary summary;
         utils::Timer ceres_timer;
+        // M1 MacBook上迭代10轮cost能降到开始的20%，20轮10%，50轮7%-8%
+        // 开10个线程迭代20轮大概能再0.1秒左右跑完
         ceres::Solve(options, &problem, &summary);
-        if (summary.termination_type != ceres::CONVERGENCE && summary.final_cost > 5e-03) {
-            LOG(ERROR) << "full ba not convergence!, termination_type:" << summary.termination_type
-            << "\tfinal_cost:" << summary.final_cost;
+        LOG(INFO) << "ceres cost ms:" << summary.total_time_in_seconds * 1000
+                << ", final_cost:" << summary.final_cost
+                << ", initial_cost:" << summary.initial_cost;
+        if (summary.final_cost > summary.initial_cost * 0.2) {
+            LOG(ERROR) << "visual initial full ba fail!, termination_type:" << summary.termination_type;
             return false;
         }
-        LOG(INFO) << "ceres cost us:" << ceres_timer.getCostUs();
 
         /******************************************************************
          * BA结果储存于kf_img_rot、kf_img_pos、feature_id_2_position *
