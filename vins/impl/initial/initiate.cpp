@@ -44,7 +44,7 @@ static bool isAccVariantBigEnough(const std::vector<Frame> &all_image_frame_) {
     return var > 0.25;
 }
 
-bool Initiate::initiate(VinsModel &vins_model) {
+bool Initiate::initiate(const cv::Mat &camera_matrix, VinsModel &vins_model) {
     if (!isAccVariantBigEnough(vins_model.frame_window)) {
         return false;
     }
@@ -57,6 +57,7 @@ bool Initiate::initiate(VinsModel &vins_model) {
     bool visual_succ = initiateByVisual((int) vins_model.kf_state_window.size(),
                                         vins_model.feature_window,
                                         vins_model.frame_window,
+                                        camera_matrix,
                                         kf_img_rot,
                                         kf_img_pos,
                                         frames_img_rot,
@@ -81,6 +82,7 @@ bool Initiate::initiate(VinsModel &vins_model) {
         }
         bg_step = estimateGyroBias(imu_delta_rots, img_delta_rots, jacobians_bg_2_rot);
         if (bg_step.norm() > 1e4) {
+            LOG(ERROR) << "bg_step.norm() > 1e4";
             return false;
         }
         bg += bg_step;
@@ -90,7 +92,8 @@ bool Initiate::initiate(VinsModel &vins_model) {
         for (auto &pre_integrate: vins_model.pre_int_window) {
             pre_integrate->rePredict(Eigen::Vector3d::Zero(), bg);
         }
-    } while (bg_step.norm() > 1e-2);
+    } while (bg_step.norm() > 1e-3);
+    LOG(INFO) << "init bg:" << bg.transpose();
     for (KeyFrameState &state: vins_model.kf_state_window) {
         state.bg = bg;
     }

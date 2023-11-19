@@ -169,6 +169,8 @@ namespace vins {
         /******************提取特征点*******************/
         std::vector<FeaturePoint2D> feature_pts;
         std::vector<cv::KeyPoint> feature_raw_pts;
+        // 若该帧是特征帧，则提取出的特征会加入feature_window中
+        // 否则新出现的特征只会保留在vins_model_.prev_img_feature_info中
         FeatureTracker::extractFeatures(raw_frame_sensor_data.img,
                                         raw_frame_sensor_data.img_time_stamp_ms,
                                         *camera_wrapper_,
@@ -292,7 +294,7 @@ namespace vins {
                 return;
             }
             vins_model_.last_init_time = raw_frame_sensor_data.img_time_stamp_ms;
-            bool rtn = Initiate::initiate(vins_model_);
+            bool rtn = Initiate::initiate(camera_wrapper_->getCameraMatrix(), vins_model_);
             if (!rtn) {
                 return;
             }

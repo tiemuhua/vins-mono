@@ -12,7 +12,11 @@ namespace vins {
     struct CameraParam {
         int col = -1;
         int row = -1;
-        double focal = -1;
+        // 相机内参
+        double f_y = -1;
+        double f_x = -1;
+        double cx = 0;
+        double cy = 0;
     };
     struct FrameTrackerParam {
         double fundamental_threshold{};

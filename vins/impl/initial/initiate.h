@@ -10,10 +10,9 @@
 #include "impl/vins_model.h"
 
 namespace vins {
-    class Initiate {
-    public:
-        static bool initiate(VinsModel &run_info);
-    };
+    namespace Initiate {
+        bool initiate(const cv::Mat &camera_matrix, VinsModel &run_info);
+    }
 }
 
 

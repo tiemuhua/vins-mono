@@ -20,7 +20,7 @@ namespace vins {
                     "vins_camera",
                     cv::Size(param.camera.col, param.camera.row)
             );
-            focal_ = param.camera.focal;
+            camera_param_ = param.camera;
         }
 
         cv::Point2f rawPoint2NormPoint(const cv::Point2f &p) const {
@@ -31,9 +31,16 @@ namespace vins {
 //            float row = focal_ * tmp_p.y() / tmp_p.z() + camera_->imageHeight() / 2.0;
 //            return {col, row};
         }
+        cv::Mat getCameraMatrix() const {
+            cv::Mat camera_matrix = (cv::Mat_<double>(3, 3) <<
+                    camera_param_.f_x, 0, camera_param_.cx,
+                    0, camera_param_.f_y, camera_param_.cy,
+                    0, 0, 1);
+            return camera_matrix;
+        }
 
         camodocal::CameraPtr camera_ = nullptr;
-        double focal_ = -1.0;
+        CameraParam camera_param_;
     };
 }
 

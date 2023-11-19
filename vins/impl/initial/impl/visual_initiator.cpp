@@ -113,6 +113,7 @@ namespace vins {
     }
 
     static bool solveRelativeRT(const Correspondences &correspondences,
+                                const cv::Mat &cameraMatrix,
                                 Eigen::Matrix3d &rotation,
                                 Eigen::Vector3d &unit_translation) {
         std::vector<cv::Point2f> ll, rr;
@@ -121,7 +122,6 @@ namespace vins {
             rr.emplace_back(correspondence.second);
         }
         cv::Mat mask;
-        cv::Mat cameraMatrix = cv::Mat::eye(3, 3, CV_64F);
         // 秦博用的不是findEssentialMat而是findFundamentalMat，算出来的结果直接发散了
         // calib3d.h中recoverPose的官方demo里面就是用的findEssentialMat
         cv::Mat E = findEssentialMat(ll, rr, cameraMatrix, cv::RANSAC, 0.999, 1.0, mask);
@@ -141,6 +141,7 @@ namespace vins {
     bool initiateByVisual(const int window_size,
                           const std::vector<Feature> &feature_window,
                           const vector<Frame> &all_frames,
+                          const cv::Mat &camera_matrix,
                           std::vector<Eigen::Matrix3d> &kf_img_rot,
                           std::vector<Eigen::Vector3d> &kf_img_pos,
                           std::vector<Eigen::Matrix3d> &frames_img_rot,
@@ -158,7 +159,7 @@ namespace vins {
         Eigen::Vector3d relative_unit_T;
         vector<pair<cv::Point2f, cv::Point2f>> correspondences =
                 FeatureHelper::getCorrespondences(0, window_size - 1, feature_window);
-        if (!solveRelativeRT(correspondences, relative_R, relative_unit_T)) {
+        if (!solveRelativeRT(correspondences, camera_matrix, relative_R, relative_unit_T)) {
             return false;
         }
 
