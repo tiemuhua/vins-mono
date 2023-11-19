@@ -245,7 +245,7 @@ namespace vins {
         }
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
-        options.max_solver_time_in_seconds = 0.1;
+        options.max_solver_time_in_seconds = 0.5;
         options.num_threads = 10;
         ceres::Solver::Summary summary;
         // M1 MacBook上迭代10轮cost能降到开始的20%，20轮10%，50轮7%-8%
@@ -254,7 +254,7 @@ namespace vins {
         LOG(INFO) << "ceres cost ms:" << summary.total_time_in_seconds * 1000
                 << ", final_cost:" << summary.final_cost
                 << ", initial_cost:" << summary.initial_cost;
-        if (summary.final_cost > summary.initial_cost * 0.2) {
+        if (summary.final_cost > summary.initial_cost * 0.5) {
             LOG(ERROR) << "visual initial full ba fail!, termination_type:" << summary.termination_type;
             return false;
         }
