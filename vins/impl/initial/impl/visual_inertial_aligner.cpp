@@ -37,29 +37,32 @@ namespace vins {
             Eigen::Quaterniond rot_img(img_rots[i]);
             Eigen::Quaterniond rot_imu(imu_rots[i]);
 
-            Eigen::Matrix4d L;
-            double img_w = rot_img.w();
             Eigen::Vector3d img_q = rot_img.vec();
-            L.block<3, 3>(0, 0) = img_w * Eigen::Matrix3d::Identity() + utils::skewSymmetric(img_q);
+            Eigen::Matrix4d L = rot_img.w() * Eigen::Matrix4d::Identity();
+            L.block<3, 3>(0, 0) += utils::skewSymmetric(img_q);
             L.block<3, 1>(0, 3) = img_q;
             L.block<1, 3>(3, 0) = -img_q.transpose();
-            L(3, 3) = img_w;
 
-            Eigen::Matrix4d R;
-            double imu_w = rot_imu.w();
             Eigen::Vector3d imu_q = rot_imu.vec();
-            R.block<3, 3>(0, 0) = imu_w * Eigen::Matrix3d::Identity() - utils::skewSymmetric(imu_q);
+            Eigen::Matrix4d R = rot_imu.w() * Eigen::Matrix4d::Identity();
+            R.block<3, 3>(0, 0) -= utils::skewSymmetric(imu_q);
             R.block<3, 1>(0, 3) = imu_q;
             R.block<1, 3>(3, 0) = -imu_q.transpose();
-            R(3, 3) = imu_w;
 
             A.block<4, 4>(i * 4, 0) = L - R;
+            LOG(INFO) << "L:\n" << L << "R:\n" << R << "\n";
         }
 
         Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        Eigen::Matrix<double, 4, 1> x = svd.matrixV().col(3);
-        Eigen::Quaterniond estimated_R(x);
-        if (svd.singularValues()(2) < 0.25) {
+        Eigen::Quaterniond estimated_R((Eigen::Vector4d)svd.matrixV().col(3));
+        LOG(INFO) << "svd singular values:" << svd.singularValues().transpose();
+        LOG(INFO) << "estimeated RIC Quaterniond:" << estimated_R;
+        if (svd.singularValues()(3) > 1e-4) {
+            LOG(ERROR) << "no ric solution";
+            return false;
+        }
+        if (svd.singularValues()(2) < 1e-2) {
+            LOG(ERROR) << "init ric failed";
             return false;
         }
         calib_ric_result = estimated_R.toRotationMatrix().inverse();
