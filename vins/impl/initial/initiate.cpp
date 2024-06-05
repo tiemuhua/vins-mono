@@ -66,11 +66,23 @@ bool Initiate::initiate(const cv::Mat &camera_matrix, VinsModel &vins_model) {
         return false;
     }
 
-    //.求解bg，bg只与两帧之间的相对旋转有关，与绝对姿态无关，因此与ric无关，需要先求解bg后求解ric.
-    std::vector<Eigen::Matrix3d> img_delta_rots;
+    std::vector<Eigen::Matrix3d> img_delta_rots(kf_img_rot.size() - 1);
     for (int i = 0; i < kf_img_rot.size() - 1; ++i) {
-        img_delta_rots.emplace_back(kf_img_rot[i + 1] * kf_img_rot[i].transpose());
+        img_delta_rots[i] = kf_img_rot[i + 1] * kf_img_rot[i].transpose();
     }
+
+    // 求解ric
+    std::vector<Eigen::Matrix3d> imu_delta_rots;
+    for (const auto &it: vins_model.pre_int_window) {
+        imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
+        img_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
+    }
+    bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, vins_model.ric);
+    if (!ric_succ) {
+        return false;
+    }
+
+    //.img和imu测得的帧间旋转在不同的坐标系当中，且RIC的数值显著大于bg数值，因此必须要先求解ric后求解bg.
     Eigen::Vector3d bg = Eigen::Vector3d::Zero();
     Eigen::Vector3d bg_step = Eigen::Vector3d::Zero();
     do {
@@ -97,19 +109,6 @@ bool Initiate::initiate(const cv::Mat &camera_matrix, VinsModel &vins_model) {
     for (KeyFrameState &state: vins_model.kf_state_window) {
         state.bg = bg;
     }
-
-    //.求解ric.
-    std::vector<Eigen::Matrix3d> imu_delta_rots;
-    std::vector<Eigen::Matrix3d> jacobians_bg_2_rot;
-    for (const auto &it: vins_model.pre_int_window) {
-        imu_delta_rots.emplace_back(it->deltaQuat().toRotationMatrix());
-        jacobians_bg_2_rot.emplace_back(it->getJacobian().block<3, 3>(kOrderRot, kOrderBG));
-    }
-    bool ric_succ = estimateRIC(img_delta_rots, imu_delta_rots, vins_model.ric);
-    if (!ric_succ) {
-        return false;
-    }
-    assert((vins_model.ric * vins_model.ric.transpose() - Eigen::Matrix3d::Identity()).norm() < 1e-5);
 
     //.求解重力、尺度和速度，即与位移有关的一切未知参数.
     //.重力和初始化时的ba打包在一起了，无法单独求解ba。
