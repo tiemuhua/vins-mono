@@ -1,0 +1,21 @@
+
+1、对外接口
+在机器人系统中，定位建图、探索/规划、运动控制三块基本上是分离的，应当拆成三个独立的库，以实现强制解耦合。
+但是在定位建图内部，求解特征点、尺度初始化、后端回环等模块本身是互相强耦合的，不应当试图分成多个库。
+否则的话，本来能在调用栈中一目了然的数据流，会被割裂成多个topic的回调；本来应当通过全局变量共享的状态，需要通过ros msg来在不同node中来回传递。
+本项目的核心API全部位于vins_logic.h中，对应的所有逻辑会编译成libvins.a。
+用户可将libvins.a自行封装成ros node或动态库，以提供ros、jni等接口。也可以直接将静态库链接至可执行文件中。
+
+2、依赖管理
+本科时代一般将依赖库通过apt下载至/usr/文件夹，或本地编译后安装至/usr/local文件夹。
+这就导致了编译产物强依赖于本地编译环境，换个电脑就编不过。尤其是apt很难指定依赖版本，opencv换大版本尤为麻烦。
+为保证能在任意posix环境中稳定编译，本项目全部采用submodule源码依赖，并将patch文件一并储存于主工程的git中
+TODO：boost/opencv/glog/gflag/ceres/eigen等无需patch的依赖应当通过https://conan.io/center 下载静态库和头文件，而非本地源码编译。
+
+3、模块组织
+vins分为VinsController前端和LoopCloser后端。
+定位建图过程中，很多状态是全局的，全局数据全部位于VinsModel中。VinsModel对象和IO缓冲区构成了VinsController的全部状态。
+除了VinsController和LoopCloser之外，所有类函数全部为静态函数。所有状态由VinsModel、VinsController、LoopCloser统一保存。
+前端后端位于两个独立线程当中，通过IO缓冲区进行通信。除IO缓冲区需要加锁外，其余函数无需考虑多线程冲突。
+在include头文件时，.cpp可引用任意头文件，而.h文件只引用父文件夹或同级文件夹中的头文件，严禁引用子模块中的头文件。
+否则最终会导致vins_logic.h依赖vins/impl中的头文件，而vins工程只应当对外提供vins_logic.h、param.h和libvins.a。
